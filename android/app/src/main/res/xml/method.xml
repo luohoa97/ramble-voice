@@ -4,10 +4,13 @@
     android:settingsActivity="io.github.luohoa97.ramblevoice.MainActivity"
     android:isDefault="false"
     android:supportsSwitchingToNextInputMethod="true">
+    <!-- A real keyboard subtype. An IME whose only subtype is mode="voice"
+         is treated as a voice-input helper: selecting it makes the system
+         (and MagicOS) switch to the default voice IME instead. -->
     <subtype
         android:label="@string/ime_subtype_voice"
         android:imeSubtypeLocale="en_US"
-        android:imeSubtypeMode="voice"
-        android:isAsciiCapable="false"
-        android:overridesImplicitlyEnabledSubtype="false" />
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true"
+        android:overridesImplicitlyEnabledSubtype="true" />
 </input-method>

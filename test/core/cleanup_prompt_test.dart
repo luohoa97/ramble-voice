@@ -127,4 +127,12 @@ void main() {
       expect(CleanupPrompt.tidyOutput('"'), '"');
     });
   });
+
+  group('CJK spacing', () {
+    test('removes spaces between Chinese characters but keeps English spacing', () {
+      expect(CleanupPrompt.tidyOutput('我 今 天 去 了 Google 的 office'), '我今天去了 Google 的 office');
+      expect(CleanupPrompt.tidyOutput('你 好 ， 世 界 。'), '你好，世界。');
+      expect(CleanupPrompt.tidyOutput('hello world'), 'hello world');
+    });
+  });
 }

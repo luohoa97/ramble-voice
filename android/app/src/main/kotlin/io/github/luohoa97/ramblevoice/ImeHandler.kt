@@ -25,9 +25,11 @@ class ImeHandler(
 
     init {
         channel.setMethodCallHandler(this)
+        ImeLaunch.stopListener = { channel.invokeMethod("stopListening", null) }
     }
 
     fun dispose() {
+        ImeLaunch.stopListener = null
         channel.setMethodCallHandler(null)
     }
 
@@ -41,8 +43,29 @@ class ImeHandler(
                 val count = call.arguments as? Int ?: call.argument<Int>("count") ?: 1
                 result.success(deleteBackward(count))
             }
+            "getSelectedText" -> {
+                val text = service.currentInputConnection?.getSelectedText(0)?.toString()
+                result.success(if (text.isNullOrEmpty()) null else text)
+            }
+            "getTextBeforeCursor" -> {
+                val count = (call.arguments as? Int ?: call.argument<Int>("count") ?: 0).coerceIn(0, MAX_READ)
+                result.success(service.currentInputConnection?.getTextBeforeCursor(count, 0)?.toString())
+            }
+            "replaceSelection" -> {
+                val text = call.arguments as? String ?: call.argument<String>("text") ?: ""
+                result.success(replaceSelection(text))
+            }
+            "replaceBeforeCursor" -> {
+                result.success(
+                    replaceBeforeCursor(
+                        call.argument<Int>("length") ?: 0,
+                        call.argument<String>("text") ?: "",
+                        call.argument<String>("expected"),
+                    ),
+                )
+            }
             "sendEnter" -> result.success(sendEnter())
-            "switchToPreviousInputMethod" -> result.success(switchKeyboard())
+            "switchToPreviousInputMethod" -> result.success(switchKeyboard(userInitiated = call.arguments as? Boolean ?: true))
             "shouldOfferSwitch" -> result.success(shouldOfferSwitch())
             "openApp" -> {
                 openApp(call.arguments as? String ?: call.argument<String>("route"))
@@ -67,6 +90,37 @@ class ImeHandler(
         return ic.deleteSurroundingTextInCodePoints(count, 0)
     }
 
+    /** Replaces the selection (commitText over a selection replaces it). */
+    private fun replaceSelection(text: String): Boolean {
+        val ic = service.currentInputConnection ?: return false
+        val selected = ic.getSelectedText(0)
+        if (selected.isNullOrEmpty()) return false
+        return ic.commitText(text, 1)
+    }
+
+    /**
+     * Replaces the [length] UTF-16 units before the cursor with [text]. If
+     * [expected] is given the text before the cursor must still end with it,
+     * otherwise nothing is touched. Done in one batch so the field never shows
+     * the text half deleted.
+     */
+    private fun replaceBeforeCursor(length: Int, text: String, expected: String?): Boolean {
+        val ic = service.currentInputConnection ?: return false
+        if (length <= 0 || length > MAX_READ) return false
+        // A selection means the cursor is not where the old text ends.
+        if (!ic.getSelectedText(0).isNullOrEmpty()) return false
+        val before = ic.getTextBeforeCursor(length, 0)?.toString() ?: return false
+        if (before.length != length) return false
+        if (expected != null && before != expected) return false
+        ic.beginBatchEdit()
+        try {
+            if (!ic.deleteSurroundingText(length, 0)) return false
+            return ic.commitText(text, 1)
+        } finally {
+            ic.endBatchEdit()
+        }
+    }
+
     private fun sendEnter(): Boolean {
         val ic = service.currentInputConnection ?: return false
         val info = service.currentInputEditorInfo
@@ -83,11 +137,45 @@ class ImeHandler(
         return true
     }
 
-    private fun switchKeyboard(): Boolean {
+    /**
+     * Returns to the user's typing keyboard. Order: the system's "previous"
+     * keyboard, then Gboard, then any other enabled real keyboard. The picker
+     * appears only when no other keyboard exists, so the automatic hop back
+     * after dictation never pops a dialog under the user's finger.
+     */
+    /**
+     * Returns to the user's typing keyboard: the system's "previous" keyboard,
+     * else Gboard, else any other enabled keyboard that is not voice-only.
+     * [userInitiated] only matters when nothing qualifies: then the explicit
+     * switch key shows the picker, while the automatic hop back after a
+     * dictation stays silent (never a dialog under the user's finger).
+     */
+    private fun switchKeyboard(userInitiated: Boolean): Boolean {
         if (service.switchToPreviousInputMethod()) return true
-        // No previous keyboard recorded: let the user pick one.
-        service.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
-        return true
+        val target = typingKeyboardId()
+        if (target != null) {
+            service.switchInputMethod(target)
+            return true
+        }
+        if (userInitiated) {
+            service.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
+        }
+        return false
+    }
+
+    private fun typingKeyboardId(): String? {
+        val imm = service.getSystemService(InputMethodManager::class.java) ?: return null
+        val own = service.packageName
+        val candidates = imm.enabledInputMethodList.filter { info ->
+            info.packageName != own && !isVoiceOnly(info)
+        }
+        return (candidates.firstOrNull { it.packageName == GBOARD } ?: candidates.firstOrNull())?.id
+    }
+
+    /** Voice helpers (e.g. Google voice typing) declare only voice subtypes. */
+    private fun isVoiceOnly(info: android.view.inputmethod.InputMethodInfo): Boolean {
+        val count = info.subtypeCount
+        return count > 0 && (0 until count).all { info.getSubtypeAt(it).mode == "voice" }
     }
 
     private fun shouldOfferSwitch(): Boolean {
@@ -105,6 +193,12 @@ class ImeHandler(
         service.requestHideSelf(0)
     }
 
+    companion object {
+        private const val GBOARD = "com.google.android.inputmethod.latin"
+        /** Upper bound for text read from or replaced in the field. */
+        private const val MAX_READ = 20000
+    }
+
     fun notifyInputStarted(info: EditorInfo?, restarting: Boolean) {
         val inputType = info?.inputType ?: 0
         val variation = inputType and InputType.TYPE_MASK_VARIATION
@@ -115,9 +209,13 @@ class ImeHandler(
                 variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD)) ||
             (cls == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
         val options = info?.imeOptions ?: 0
+        // Set when the floating mic switched to this keyboard to dictate.
+        val autoStartHold = ImeLaunch.consumeAutoStart()
         channel.invokeMethod(
             "inputStarted",
             mapOf(
+                "autoStart" to (autoStartHold != null),
+                "hold" to (autoStartHold == true),
                 "inputType" to inputType,
                 "imeOptions" to options,
                 "actionId" to (options and EditorInfo.IME_MASK_ACTION),

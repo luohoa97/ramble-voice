@@ -2,6 +2,7 @@
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_3_expressive/material_3_expressive.dart' show M3ELoadingIndicator;
 import 'package:material_ui/material_ui.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
 import 'package:ramble_voice/core/dictation/dictation_controller.dart';
@@ -15,6 +16,17 @@ DictationListening listening({double level = 0.4}) => DictationListening(
       limit: const Duration(minutes: 10),
       warnBefore: const Duration(seconds: 30),
     );
+
+/// Pumps in frame-sized steps: the morph is driven by a ticker, which only
+/// advances once per frame.
+Future<void> pumpFrames(WidgetTester tester, Duration total) async {
+  var left = total;
+  const step = Duration(milliseconds: 16);
+  while (left > Duration.zero) {
+    await tester.pump(left < step ? left : step);
+    left -= step;
+  }
+}
 
 void main() {
   final states = <String, DictationState>{
@@ -91,5 +103,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('processing shows the expressive loading indicator', (tester) async {
+    await tester.pumpWidget(host(Center(child: MicButton(state: const DictationProcessing(recordingId: 'r'), onTap: () {}))));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(M3ELoadingIndicator), findsOneWidget);
+    expect(find.byIcon(Icons.mic_rounded), findsNothing);
+  });
+
+  testWidgets('reduced motion snaps shapes without running a ticker', (tester) async {
+    await tester.pumpWidget(MediaQuery(
+      data: const MediaQueryData(disableAnimations: true),
+      child: host(Center(child: MicButton(state: listening(), onTap: () {}))),
+    ));
+    await tester.pump();
+    expect(tester.hasRunningAnimations, isFalse);
   });
 }

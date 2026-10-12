@@ -82,18 +82,18 @@ void main() {
     setUp(() async => file = File('${(await makeTempDir()).path}/nested/settings.json'));
 
     test('missing file loads defaults', () async {
-      expect((await SettingsStore(file).load()).toJson(), const AppSettings().toJson());
+      expect((await SettingsStore(file, deviceLanguages: () => const []).load()).toJson(), const AppSettings().toJson());
     });
 
     test('save then load round trips and creates parent directories', () async {
-      final store = SettingsStore(file);
+      final store = SettingsStore(file, deviceLanguages: () => const []);
       const s = AppSettings(engine: EngineKind.gemini, onboarded: true, maxSessionMinutes: 3);
       await store.save(s);
-      expect((await SettingsStore(file).load()).toJson(), s.toJson());
+      expect((await SettingsStore(file, deviceLanguages: () => const []).load()).toJson(), s.toJson());
     });
 
     test('save leaves no temp file behind and overwrites cleanly', () async {
-      final store = SettingsStore(file);
+      final store = SettingsStore(file, deviceLanguages: () => const []);
       await store.save(const AppSettings(onboarded: true));
       await store.save(const AppSettings(onboarded: false, haptics: false));
       expect(await File('${file.path}.tmp').exists(), isFalse);
@@ -105,7 +105,7 @@ void main() {
     test('a stale temp file from a crash does not break save or load', () async {
       await file.parent.create(recursive: true);
       await File('${file.path}.tmp').writeAsString('{ half written');
-      final store = SettingsStore(file);
+      final store = SettingsStore(file, deviceLanguages: () => const []);
       expect((await store.load()).toJson(), const AppSettings().toJson());
       await store.save(const AppSettings(onboarded: true));
       expect((await store.load()).onboarded, isTrue);
@@ -114,14 +114,14 @@ void main() {
     test('a wrongly typed field makes the whole file load as defaults', () async {
       await file.parent.create(recursive: true);
       await file.writeAsString(jsonEncode({'onboarded': true, 'gemmaVariant': 7}));
-      expect((await SettingsStore(file).load()).onboarded, isFalse);
+      expect((await SettingsStore(file, deviceLanguages: () => const []).load()).onboarded, isFalse);
     });
 
     test('corrupt files load defaults', () async {
       await file.parent.create(recursive: true);
       for (final junk in ['', '{not json', '[]', '"text"', 'null']) {
         await file.writeAsString(junk);
-        expect((await SettingsStore(file).load()).toJson(), const AppSettings().toJson(), reason: junk);
+        expect((await SettingsStore(file, deviceLanguages: () => const []).load()).toJson(), const AppSettings().toJson(), reason: junk);
       }
     });
   });

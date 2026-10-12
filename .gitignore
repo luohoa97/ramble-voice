@@ -73,3 +73,6 @@ build/
 flatpak-repo/
 # Generated code (drift) is committed; local caches are not
 .dart_tool/
+
+# Screenshot harness output (regenerate: tool/fl flutter test --update-goldens test/goldens)
+test/goldens/out/

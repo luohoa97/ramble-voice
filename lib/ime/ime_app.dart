@@ -30,7 +30,7 @@ class _ImeAppState extends ConsumerState<ImeApp> {
     final bridge = ref.read(imeBridgeProvider);
     // The service is going away: stop any recording and free the model.
     bridge.onRelease = () async {
-      await ref.read(dictationControllerProvider).cancel();
+      await ref.read(dictationControllerProvider).abandon();
       await ref.read(gemmaEngineProvider).release();
     };
     unawaited(_loadAccent());

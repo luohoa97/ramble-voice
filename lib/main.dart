@@ -9,6 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 
+// Secondary engine entrypoints (Android keyboard, floating mic). Release AOT
+// builds only include libraries reachable from main.dart, so import them here
+// or their @pragma('vm:entry-point') functions are tree-shaken away.
+// ignore: unused_import
+import 'main_ime.dart';
+// ignore: unused_import
+import 'main_bubble.dart';
 import 'app/app.dart';
 import 'app/providers.dart';
 import 'core/models/model_catalog.dart';

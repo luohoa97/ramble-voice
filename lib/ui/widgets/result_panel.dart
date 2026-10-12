@@ -8,24 +8,24 @@ import '../../app/providers.dart';
 import '../theme/app_theme.dart';
 import '../util/clipboard.dart';
 
-/// Cleaned text in emphasized type, with copy, share and "Show original".
+/// Cleaned text in emphasized type, with Copy, Share and "Show original".
 /// [recordingId] keys the verbatim transcript; null hides that action.
-class ResultCard extends ConsumerStatefulWidget {
-  const ResultCard({super.key, required this.text, this.recordingId, this.footer});
+class ResultPanel extends ConsumerStatefulWidget {
+  const ResultPanel({super.key, required this.text, this.recordingId, this.footer});
 
   final String text;
   final String? recordingId;
   final Widget? footer;
 
   @override
-  ConsumerState<ResultCard> createState() => _ResultCardState();
+  ConsumerState<ResultPanel> createState() => _ResultPanelState();
 }
 
-class _ResultCardState extends ConsumerState<ResultCard> {
+class _ResultPanelState extends ConsumerState<ResultPanel> {
   bool _showOriginal = false;
 
   @override
-  void didUpdateWidget(ResultCard old) {
+  void didUpdateWidget(ResultPanel old) {
     super.didUpdateWidget(old);
     if (old.recordingId != widget.recordingId) _showOriginal = false;
   }
@@ -38,31 +38,33 @@ class _ResultCardState extends ConsumerState<ResultCard> {
     final share = ref.watch(platformServicesProvider).share;
     final id = widget.recordingId;
 
-    return Card(
+    return DecoratedBox(
+      decoration: BoxDecoration(color: c.surfaceContainerLow, borderRadius: BorderRadius.circular(Shapes.extraLarge)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        padding: const EdgeInsets.fromLTRB(24, 24, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
-              label: 'Cleaned text',
-              child: SelectableText(widget.text, style: styles.result),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Semantics(label: 'Cleaned text', child: SelectableText(widget.text, style: styles.result)),
             ),
             if (_showOriginal && id != null) ...[
-              const SizedBox(height: 16),
-              Divider(color: c.outlineVariant),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
               Text('Original', style: t.labelLarge?.copyWith(color: c.onSurfaceVariant)),
               const SizedBox(height: 4),
-              _Original(id: id),
+              OriginalText(id: id),
             ],
-            if (widget.footer != null) ...[const SizedBox(height: 8), widget.footer!],
-            const SizedBox(height: 8),
+            if (widget.footer != null) ...[
+              const SizedBox(height: 12),
+              Padding(padding: const EdgeInsets.only(right: 8), child: widget.footer!),
+            ],
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
-                TextButton.icon(
+                FilledButton.tonalIcon(
                   onPressed: () => copyToClipboard(context, widget.text),
                   icon: const Icon(Icons.copy_rounded, size: 18),
                   label: const Text('Copy'),
@@ -88,8 +90,9 @@ class _ResultCardState extends ConsumerState<ResultCard> {
   }
 }
 
-class _Original extends ConsumerWidget {
-  const _Original({required this.id});
+/// The word-for-word transcript of recording [id], transcribed on demand.
+class OriginalText extends ConsumerWidget {
+  const OriginalText({super.key, required this.id});
   final String id;
 
   @override
@@ -117,7 +120,7 @@ class _Original extends ConsumerWidget {
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: SelectableText(text, style: t.bodyLarge)),
+                Expanded(child: SelectableText(text, style: t.bodyLarge?.copyWith(color: c.onSurfaceVariant))),
                 IconButton(
                   tooltip: 'Copy original',
                   onPressed: () => copyToClipboard(context, text, message: 'Original copied'),

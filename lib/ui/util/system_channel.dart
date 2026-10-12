@@ -12,6 +12,15 @@ abstract final class SystemChannel {
     } catch (_) {}
   }
 
+  /// The app name for an Android package, or the package name when unknown.
+  static Future<String> appLabel(String packageName) async {
+    try {
+      return await _channel.invokeMethod<String>('appLabel', packageName) ?? packageName;
+    } catch (_) {
+      return packageName;
+    }
+  }
+
   static Future<bool> isKeyboardEnabled() async {
     try {
       return await _channel.invokeMethod<bool>('isKeyboardEnabled') ?? false;

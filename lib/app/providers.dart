@@ -19,12 +19,18 @@ import '../core/cleanup/gemini/gemini_client.dart';
 import '../core/cleanup/gemini/gemini_engine.dart';
 import '../core/cleanup/gemma/gemma_engine.dart';
 import '../core/dictation/dictation_controller.dart';
+import '../core/dictation/edit_controller.dart';
 import '../core/dictation/recording_vault.dart';
 import '../core/history/history_db.dart';
 import '../core/models/model_catalog.dart';
 import '../core/models/model_downloader.dart';
 import '../core/models/model_downloads.dart';
 import '../core/settings/app_settings.dart';
+import '../core/style/app_styles.dart';
+import '../core/style/style_profile.dart';
+import '../core/style/contact_names.dart';
+import '../platform/android/android_contact_names.dart';
+import '../platform/linux/contact_names.dart';
 import '../platform/platform_services.dart';
 
 class AppPaths {
@@ -57,6 +63,47 @@ class SettingsNotifier extends Notifier<AppSettings> {
 }
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
+
+/// Android package of the app the keyboard is typing into; null elsewhere.
+/// Set by the keyboard on every `inputStarted`.
+class CurrentPackageNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? packageName) => state = packageName;
+}
+
+final currentPackageProvider = NotifierProvider<CurrentPackageNotifier, String?>(CurrentPackageNotifier.new);
+
+/// The style used for the next dictation: the saved style with its tone
+/// resolved for [currentPackageProvider] (per-app override, built-in, global).
+final effectiveStyleProvider = Provider<StyleProfile>((ref) {
+  final s = ref.watch(settingsProvider);
+  return s.styleProfileFor(ref.watch(currentPackageProvider));
+});
+
+/// The platform's address book, or null where there is none.
+final contactNameSourceProvider = Provider<ContactNameSource?>((ref) {
+  if (Platform.isAndroid) return AndroidContactNames();
+  if (Platform.isLinux) return EvolutionContactNames();
+  return null;
+});
+
+/// Address-book names, cached for an hour.
+final contactNamesCacheProvider = Provider<ContactNamesCache?>((ref) {
+  final source = ref.watch(contactNameSourceProvider);
+  return source == null ? null : ContactNamesCache(source);
+});
+
+/// The style for the next request: [effectiveStyleProvider] plus, when the
+/// user opted in, their contact names. Never fails; no names on any error.
+final styleResolverProvider = Provider<Future<StyleProfile> Function()>((ref) {
+  return () async {
+    final style = ref.read(effectiveStyleProvider);
+    if (!ref.read(settingsProvider).useContactNames) return style;
+    final names = await ref.read(contactNamesCacheProvider)?.get() ?? const <String>[];
+    return names.isEmpty ? style : style.copyWith(contactNames: names);
+  };
+});
 
 final historyDbProvider = Provider<HistoryDb>((ref) {
   final file = ref.watch(appPathsProvider).historyDbFile;
@@ -150,7 +197,7 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
     audio: services.audio,
     vault: ref.watch(recordingVaultProvider),
     engines: ref.watch(engineSetProvider),
-    style: () => ref.read(settingsProvider).style,
+    style: ref.read(styleResolverProvider),
     pipeline: const CleanupPipeline(),
     maxSession: ref.read(settingsProvider).maxSession,
     onOutcome: (outcome) async {
@@ -162,7 +209,7 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
             cleaned: outcome.text,
             engine: outcome.engine.name,
             fellBack: Value(outcome.fellBack),
-            stylePreset: Value(s.style.preset.name),
+            stylePreset: Value(ref.read(effectiveStyleProvider).preset.name),
           ));
       final hook = ref.read(outcomeHookProvider);
       if (hook != null) await hook(outcome);
@@ -215,7 +262,7 @@ final verbatimProvider = FutureProvider.family<String?, String>((ref, id) async 
   final set = await ref.read(engineSetProvider)();
   final result = await const CleanupPipeline().run(
     pcm: pcm,
-    style: ref.read(settingsProvider).style,
+    style: await ref.read(styleResolverProvider)(),
     primary: set.primary,
     fallback: set.fallback,
     mode: CleanupMode.verbatim,
@@ -226,3 +273,24 @@ final verbatimProvider = FutureProvider.family<String?, String>((ref, id) async 
 
 /// Recordings whose cleanup never finished (offered for retry at startup).
 final pendingRecordingsProvider = FutureProvider<List<String>>((ref) => ref.watch(recordingVaultProvider).pending());
+
+/// "Edit by voice": a separate, explicitly started controller. Normal
+/// dictation never obeys spoken instructions; only this one does, and only to
+/// rewrite the text it was given. Refuses to start while a dictation is
+/// running.
+final editControllerProvider = Provider<EditController>((ref) {
+  final controller = EditController(
+    audio: ref.watch(platformServicesProvider).audio,
+    engines: ref.watch(engineSetProvider),
+    style: ref.read(styleResolverProvider),
+    isBlocked: () => ref.read(dictationControllerProvider).isBusy,
+  );
+  ref.onDispose(controller.dispose);
+  return controller;
+});
+
+final editStateProvider = StreamProvider<EditState>((ref) async* {
+  final c = ref.watch(editControllerProvider);
+  yield c.state;
+  yield* c.states;
+});

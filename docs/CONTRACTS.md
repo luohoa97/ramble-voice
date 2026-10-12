@@ -67,8 +67,8 @@ Native PipeWire capture is a small shared library `libramble_capture.so` built f
 |---|---|
 | `ramble/audio` (MethodChannel) | `hasPermission` → bool, `start` → bool, `stop` |
 | `ramble/audio/pcm` (EventChannel) | emits `Uint8List` blocks of 16 kHz mono s16le |
-| `ramble/system` | `share(text)`, `accentColor` → int? (ARGB, Android 12+), `haptic(kind)`, `openKeyboardSettings`, `isKeyboardEnabled` → bool |
-| `ramble/ime` (keyboard engine only) | `commitText(text)`, `deleteBackward`, `switchToPreviousInputMethod` → bool, `shouldOfferSwitch` → bool, `openApp(route)`, `sendEnter`, `hideKeyboard` |
+| `ramble/system` | `share(text)`, `accentColor` → int? (ARGB, Android 12+), `haptic(kind)`, `openKeyboardSettings`, `isKeyboardEnabled` → bool, `appLabel(packageName)` → String (app name, or the package name when unreadable) |
+| `ramble/ime` (keyboard engine only) | `commitText(text)`, `deleteBackward`, `switchToPreviousInputMethod` → bool, `shouldOfferSwitch` → bool, `openApp(route)`, `sendEnter`, `hideKeyboard`, `getSelectedText` → String?, `getTextBeforeCursor(count)` → String?, `replaceSelection(text)` → bool, `replaceBeforeCursor({length, text, expected?})` → bool (voice editing) |
 
 The keyboard UI is Flutter, rendered in the InputMethodService from the Dart entrypoint
 `imeMain` in `lib/main_ime.dart`.

@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../ui/screens/history_screen.dart';
 import '../ui/screens/onboarding_screen.dart';
 import '../ui/screens/settings_screen.dart';
 import '../ui/shell.dart';
@@ -40,13 +39,20 @@ GoRouter buildRouter({required ValueListenable<bool> onboarded}) {
           GoRoute(
             path: '/settings',
             pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen()),
+            routes: [
+              // Deep link target of the keyboard's "Download a model".
+              GoRoute(
+                path: 'models',
+                pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen(anchor: 'engine')),
+              ),
+              // Deep link target of the keyboard's style edit button.
+              GoRoute(
+                path: 'style',
+                pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen(anchor: 'style')),
+              ),
+            ],
           ),
         ],
-      ),
-      GoRoute(
-        path: '/history/:id',
-        parentNavigatorKey: _rootKey,
-        builder: (_, state) => HistoryDetailScreen(id: state.pathParameters['id']!),
       ),
     ],
   );

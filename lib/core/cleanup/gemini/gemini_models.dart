@@ -1,8 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/// Picks the newest Gemini "Flash-Lite" model from Google's live model list,
-/// so the app never hard-codes (and never falls back to) an old model.
+/// Picks Gemini models from Google's live model list: every Pro, Flash and
+/// Flash-Lite text model that can take audio is offered, and the default is
+/// the newest stable Flash. Nothing is hard-coded, so new generations appear
+/// by themselves.
 library;
+
+/// Model family, best first.
+enum GeminiFamily {
+  pro('Pro'),
+  flash('Flash'),
+  flashLite('Flash-Lite');
+
+  const GeminiFamily(this.label);
+
+  /// The tier label shown in the UI.
+  final String label;
+}
 
 class GeminiModelInfo {
   const GeminiModelInfo({
@@ -10,81 +24,175 @@ class GeminiModelInfo {
     required this.major,
     required this.minor,
     required this.preview,
+    this.family = GeminiFamily.flashLite,
+    this.alias = false,
     this.displayName,
     this.inputTokenLimit,
+    this.freeTierUnavailable = false,
+    this.unavailableReason,
   });
 
-  /// Model id without the `models/` prefix, e.g. `gemini-3.5-flash-lite`.
+  /// Model id without the `models/` prefix, e.g. `gemini-3.8-flash`.
   final String id;
   final int major;
   final int minor;
   final bool preview;
+  final GeminiFamily family;
+
+  /// A moving alias such as `gemini-flash-latest`.
+  final bool alias;
   final String? displayName;
   final int? inputTokenLimit;
 
-  double get version => major + minor / 100;
+  /// Google answered `limit: 0` for this model: it has no free-tier quota for
+  /// this key.
+  final bool freeTierUnavailable;
+
+  /// Why this key cannot use the model (retired for new users, rejects system
+  /// instructions), or null. Learned from a failed request.
+  final String? unavailableReason;
+
+  /// The model cannot be used with this key, for either reason.
+  bool get unavailable => freeTierUnavailable || unavailableReason != null;
+
+  /// `Pro`, `Flash` or `Flash-Lite`.
+  String get tier => family.label;
+
+  double get version => alias ? 1e6 : major + minor / 100;
+
+  GeminiModelInfo copyWith({bool? freeTierUnavailable, String? unavailableReason}) => GeminiModelInfo(
+        id: id,
+        major: major,
+        minor: minor,
+        preview: preview,
+        family: family,
+        alias: alias,
+        displayName: displayName,
+        inputTokenLimit: inputTokenLimit,
+        freeTierUnavailable: freeTierUnavailable ?? this.freeTierUnavailable,
+        unavailableReason: unavailableReason ?? this.unavailableReason,
+      );
 
   @override
   String toString() => id;
 }
 
 abstract final class GeminiModelSelector {
-  /// Matches `gemini-<major>[.<minor>]-flash-lite`, optionally followed by
-  /// `-preview` and a date suffix, or a `-NNN` revision. Excludes variants
-  /// for other modalities (tts, image, live, audio-dialog, etc).
+  /// `gemini-<major>[.<minor>]-<family>`, optionally `-preview[-date]` or a
+  /// `-NNN` revision.
   static final RegExp _pattern = RegExp(
-    r'^gemini-(\d+)(?:\.(\d+))?-flash-lite(-preview(?:-[0-9-]+)?|-\d{3})?$',
+    r'^gemini-(\d+)(?:\.(\d+))?-(flash-lite|flash|pro)(-preview(?:-[0-9-]+)?|-\d{3})?$',
   );
 
-  /// Parses `GET /v1beta/models` entries (`{"name": "models/…", …}`).
-  static List<GeminiModelInfo> liteModels(List<Map<String, Object?>> models) {
+  /// `gemini-flash-latest` and friends.
+  static final RegExp _aliasPattern = RegExp(r'^gemini-(flash-lite|flash|pro)-latest$');
+
+  /// Variants that are not text-from-audio models.
+  static final RegExp _excluded = RegExp(
+    r'tts|image|live|native-audio|embedding|omni|computer-use|robotics',
+    caseSensitive: false,
+  );
+
+  static GeminiFamily _family(String s) => switch (s) {
+        'pro' => GeminiFamily.pro,
+        'flash' => GeminiFamily.flash,
+        _ => GeminiFamily.flashLite,
+      };
+
+  /// Parses `GET /v1beta/models` entries (`{"name": "models/…", …}`) into every
+  /// usable model, best first: Pro, then Flash, then Flash-Lite; inside a
+  /// family the alias, then the newest version; stable before preview.
+  static List<GeminiModelInfo> parse(List<Map<String, Object?>> models) {
     final out = <GeminiModelInfo>[];
     for (final m in models) {
       final name = (m['name'] as String? ?? '').replaceFirst('models/', '');
       final methods = (m['supportedGenerationMethods'] as List?)?.cast<String>() ?? const [];
-      if (!methods.contains('generateContent')) continue;
+      if (!methods.contains('generateContent') || _excluded.hasMatch(name)) continue;
+      final displayName = m['displayName'] as String?;
+      final limit = (m['inputTokenLimit'] as num?)?.toInt();
+      final alias = _aliasPattern.firstMatch(name);
+      if (alias != null) {
+        out.add(GeminiModelInfo(
+          id: name,
+          major: 0,
+          minor: 0,
+          preview: false,
+          family: _family(alias.group(1)!),
+          alias: true,
+          displayName: displayName,
+          inputTokenLimit: limit,
+        ));
+        continue;
+      }
       final match = _pattern.firstMatch(name);
       if (match == null) continue;
       out.add(GeminiModelInfo(
         id: name,
         major: int.parse(match.group(1)!),
         minor: int.tryParse(match.group(2) ?? '') ?? 0,
-        preview: (match.group(3) ?? '').startsWith('-preview'),
-        displayName: m['displayName'] as String?,
-        inputTokenLimit: (m['inputTokenLimit'] as num?)?.toInt(),
+        preview: (match.group(4) ?? '').startsWith('-preview'),
+        family: _family(match.group(3)!),
+        displayName: displayName,
+        inputTokenLimit: limit,
       ));
     }
     out.sort(_compare);
     return out;
   }
 
-  /// Newest first: higher version, then stable before preview, then the
-  /// plain alias before pinned revisions.
   static int _compare(GeminiModelInfo a, GeminiModelInfo b) {
+    final f = a.family.index.compareTo(b.family.index);
+    if (f != 0) return f;
     final v = b.version.compareTo(a.version);
     if (v != 0) return v;
     if (a.preview != b.preview) return a.preview ? 1 : -1;
     return a.id.length.compareTo(b.id.length);
   }
 
-  /// Only models from the newest generation are offered, so old models are
-  /// never used even as a fallback.
-  static List<GeminiModelInfo> latestGeneration(List<GeminiModelInfo> sorted) {
-    if (sorted.isEmpty) return const [];
-    final newest = sorted.first.version;
-    return sorted.where((m) => m.version == newest).toList();
+  static GeminiModelInfo? _newest(Iterable<GeminiModelInfo> sorted, GeminiFamily family, {bool stableOnly = true}) {
+    for (final m in sorted) {
+      if (m.family == family && !m.alias && !m.unavailable && !(stableOnly && m.preview)) return m;
+    }
+    return null;
   }
 
-  /// The model to use, honouring a user pick if it is still in the newest
-  /// generation.
+  /// The default: the newest stable Flash, else the newest Flash preview, else
+  /// Flash-Lite, else Pro, else whatever is listed first. Moving aliases and
+  /// models known to lack free-tier quota are skipped unless nothing else is
+  /// left.
+  static GeminiModelInfo? defaultModel(List<GeminiModelInfo> sorted) {
+    if (sorted.isEmpty) return null;
+    // The newest Flash is the default. If it is known to lack quota, go to
+    // Flash-Lite rather than to an older Flash.
+    for (final stableOnly in [true, false]) {
+      for (final m in sorted) {
+        if (m.family != GeminiFamily.flash || m.alias || (stableOnly && m.preview)) continue;
+        if (!m.unavailable) return m;
+        break;
+      }
+    }
+    return _newest(sorted, GeminiFamily.flashLite) ??
+        _newest(sorted, GeminiFamily.flashLite, stableOnly: false) ??
+        _newest(sorted, GeminiFamily.pro) ??
+        _newest(sorted, GeminiFamily.pro, stableOnly: false) ??
+        sorted.first;
+  }
+
+  /// The model to use: the user's pick if it is listed, else [defaultModel].
   static GeminiModelInfo? choose(List<GeminiModelInfo> sorted, {String? preferred}) {
-    final latest = latestGeneration(sorted);
-    if (latest.isEmpty) return null;
     if (preferred != null) {
-      for (final m in latest) {
+      for (final m in sorted) {
         if (m.id == preferred) return m;
       }
     }
-    return latest.first;
+    return defaultModel(sorted);
+  }
+
+  /// Models to try in order: [first], then the newest stable Flash-Lite as the
+  /// fast, cheap backup. The pipeline's on-device fallback comes after this.
+  static List<GeminiModelInfo> chain(List<GeminiModelInfo> sorted, GeminiModelInfo first) {
+    final start = first.unavailable ? (defaultModel(sorted) ?? first) : first;
+    final backup = _newest(sorted, GeminiFamily.flashLite) ?? _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
+    return [start, if (backup != null && backup.id != start.id) backup];
   }
 }

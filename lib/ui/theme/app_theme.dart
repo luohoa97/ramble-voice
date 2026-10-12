@@ -64,6 +64,24 @@ class RambleTextStyles extends ThemeExtension<RambleTextStyles> {
         );
 }
 
+/// 8dp spacing grid.
+abstract final class Space {
+  static const double x1 = 8;
+  static const double x2 = 16;
+  static const double x3 = 24;
+  static const double x4 = 32;
+  static const double x6 = 48;
+
+  /// Side gutter of every screen.
+  static const double gutter = 16;
+}
+
+/// Window width where the recorder and history sit side by side.
+const double kTwoPaneWidth = 840;
+
+/// Reading width of settings and onboarding on large windows.
+const double kContentWidth = 640;
+
 /// Shape tokens (M3 corner scale).
 abstract final class Shapes {
   static const double small = 8;
@@ -187,12 +205,47 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
     ),
     chipTheme: ChipThemeData(
       shape: const StadiumBorder(),
-      side: BorderSide(color: scheme.outlineVariant),
-      labelStyle: text.labelLarge,
+      side: BorderSide.none,
+      backgroundColor: scheme.surfaceContainerHigh,
+      selectedColor: scheme.secondaryContainer,
+      checkmarkColor: scheme.onSecondaryContainer,
+      labelStyle: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
+      secondaryLabelStyle: text.labelLarge?.copyWith(color: scheme.onSecondaryContainer),
+      padding: EdgeInsets.zero,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+    ),
+    switchTheme: SwitchThemeData(
+      trackOutlineColor: WidgetStatePropertyAll(Colors.transparent),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(minimumSize: const Size(64, 48), textStyle: text.labelLarge),
+    ),
+    // Text buttons stay neutral: the accent is vermilion, which on a plain
+    // text action reads as a warning.
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(64, 48),
+        textStyle: text.labelLarge,
+        foregroundColor: scheme.onSurface,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(64, 48),
+        side: BorderSide(color: scheme.outlineVariant),
+        textStyle: text.labelLarge,
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      linearTrackColor: scheme.surfaceContainerHighest,
+      linearMinHeight: 6,
+      borderRadius: BorderRadius.circular(3),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: scheme.surfaceContainer,
+      backgroundColor: scheme.surfaceContainerLow,
+      elevation: 0,
+      height: 72,
       indicatorColor: scheme.secondaryContainer,
       labelTextStyle: WidgetStatePropertyAll(text.labelMedium),
     ),
@@ -207,7 +260,7 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
     ),
     dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(borderRadius: Shapes.sheetRadius),
-      backgroundColor: scheme.surfaceContainerHigh,
+      backgroundColor: scheme.surfaceContainerLow,
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: scheme.surfaceContainerLow,

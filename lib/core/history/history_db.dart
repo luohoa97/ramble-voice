@@ -53,6 +53,14 @@ class HistoryDb extends _$HistoryDb {
       (update(historyEntries)..where((t) => t.id.equals(id)))
           .write(HistoryEntriesCompanion(verbatim: Value(text)));
 
+  /// Replaces the cleaned text, e.g. after the user corrected it. Returns
+  /// whether an entry was updated.
+  Future<bool> updateCleaned(String id, String text) async {
+    final rows = await (update(historyEntries)..where((t) => t.id.equals(id)))
+        .write(HistoryEntriesCompanion(cleaned: Value(text)));
+    return rows > 0;
+  }
+
   Future<int> deleteEntry(String id) =>
       (delete(historyEntries)..where((t) => t.id.equals(id))).go();
 

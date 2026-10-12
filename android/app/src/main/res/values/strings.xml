@@ -6,4 +6,18 @@
     <string name="ime_subtype_voice">Voice dictation</string>
     <string name="ime_settings">Ramble Voice settings</string>
     <string name="share_chooser_title">Share text</string>
+    <string name="bubble_service_name">Ramble Voice floating mic</string>
+    <string name="bubble_service_description">Shows a mic button next to text fields and inserts your dictated text. Ramble Voice does not read or store screen content.</string>
+    <string name="bubble_desc_idle">Dictate. Double tap to start, hold to talk.</string>
+    <string name="bubble_desc_listening">Listening. Double tap to stop.</string>
+    <string name="bubble_desc_processing">Cleaning up your text</string>
+    <string name="bubble_desc_done">Text inserted</string>
+    <string name="bubble_desc_error">Dictation failed</string>
+    <string name="bubble_action_cancel">Discard recording</string>
+    <string name="bubble_copied_paste">Copied, paste to insert</string>
+    <string name="bubble_mic_failed">Microphone unavailable. Open Ramble Voice and try again.</string>
+    <string name="bubble_enable_keyboard">Enable the Ramble Voice keyboard in Settings to dictate with one tap.</string>
+    <string name="bubble_keeper_channel">Floating mic status</string>
+    <string name="bubble_keeper_title">Floating mic is off</string>
+    <string name="bubble_keeper_text">Tap to turn it back on.</string>
 </resources>

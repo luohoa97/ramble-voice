@@ -7,15 +7,17 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/style/style_profile.dart';
+import '../../widgets/adaptive_sheet.dart';
 
-class StyleSection extends ConsumerStatefulWidget {
-  const StyleSection({super.key});
+/// Custom instructions and vocabulary: the part of the style that is text.
+class StyleEditor extends ConsumerStatefulWidget {
+  const StyleEditor({super.key});
 
   @override
-  ConsumerState<StyleSection> createState() => _StyleSectionState();
+  ConsumerState<StyleEditor> createState() => _StyleEditorState();
 }
 
-class _StyleSectionState extends ConsumerState<StyleSection> {
+class _StyleEditorState extends ConsumerState<StyleEditor> {
   late final TextEditingController _custom;
   final _word = TextEditingController();
   Timer? _debounce;
@@ -52,25 +54,8 @@ class _StyleSectionState extends ConsumerState<StyleSection> {
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Tone', style: t.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final p in StylePreset.values)
-              ChoiceChip(
-                label: Text(p.label),
-                selected: style.preset == p,
-                onSelected: (_) => _update((s) => s.copyWith(preset: p)),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(style.preset.instruction, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
-        const SizedBox(height: 20),
         TextField(
           controller: _custom,
           minLines: 3,
@@ -87,12 +72,12 @@ class _StyleSectionState extends ConsumerState<StyleSection> {
           },
           onTapOutside: (_) => _update((s) => s.copyWith(customInstructions: _custom.text)),
         ),
-        const SizedBox(height: 20),
-        Text('Custom vocabulary', style: t.titleMedium),
-        const SizedBox(height: 4),
-        Text('Names, jargon and spellings to keep.', style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        if (style.vocabulary.isNotEmpty)
+        const SizedBox(height: 24),
+        Text('Vocabulary', style: t.titleMedium),
+        const SizedBox(height: 2),
+        Text('Names, jargon and spellings to keep.', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+        if (style.vocabulary.isNotEmpty) ...[
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 4,
@@ -105,7 +90,8 @@ class _StyleSectionState extends ConsumerState<StyleSection> {
                 ),
             ],
           ),
-        const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -116,14 +102,25 @@ class _StyleSectionState extends ConsumerState<StyleSection> {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: 'Add word',
-              onPressed: _addWord,
-              icon: const Icon(Icons.add_rounded),
-            ),
+            IconButton.filledTonal(tooltip: 'Add word', onPressed: _addWord, icon: const Icon(Icons.add_rounded)),
           ],
         ),
       ],
     );
   }
+}
+
+/// The editor in a sheet or dialog, for the record screen.
+Future<void> showStyleEditor(BuildContext context) {
+  return showAdaptiveSheet<void>(
+    context,
+    builder: (context) => SheetBody(
+      title: 'Style',
+      footer: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+      ),
+      children: [Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom), child: const StyleEditor())],
+    ),
+  );
 }

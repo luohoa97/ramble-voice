@@ -3,6 +3,7 @@ package io.github.luohoa97.ramblevoice
 
 import android.app.Application
 import android.content.Context
+import io.github.luohoa97.ramblevoice.bubble.BubbleKeeper
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineGroup
@@ -14,6 +15,11 @@ import io.flutter.embedding.engine.dart.DartExecutor
  * font/asset resources instead of paying for them twice.
  */
 class RambleApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        BubbleKeeper.sync(this)
+    }
+
     private val group: FlutterEngineGroup by lazy { FlutterEngineGroup(this) }
 
     /**
@@ -48,7 +54,19 @@ class RambleApplication : Application() {
         return group.createAndRunEngine(options)
     }
 
+    /** Headless engine running `bubbleMain()` from lib/main_bubble.dart, for the floating mic. */
+    fun createBubbleEngine(context: Context): FlutterEngine {
+        val bundle = appBundlePath()
+        val options = FlutterEngineGroup.Options(context)
+            .setDartEntrypoint(
+                DartExecutor.DartEntrypoint(bundle, BUBBLE_LIBRARY, BUBBLE_ENTRYPOINT),
+            )
+        return group.createAndRunEngine(options)
+    }
+
     companion object {
+        const val BUBBLE_LIBRARY = "package:ramble_voice/main_bubble.dart"
+        const val BUBBLE_ENTRYPOINT = "bubbleMain"
         const val IME_LIBRARY = "package:ramble_voice/main_ime.dart"
         const val IME_ENTRYPOINT = "imeMain"
     }

@@ -2,6 +2,10 @@
 
 import 'dart:convert';
 
+import 'contact_names.dart';
+import 'languages.dart';
+import 'snippets.dart';
+
 enum StylePreset {
   casual(
     'Casual',
@@ -31,6 +35,9 @@ class StyleProfile {
     this.preset = StylePreset.casual,
     this.customInstructions = '',
     this.vocabulary = const [],
+    this.languages = const [],
+    this.snippets = const [],
+    this.contactNames = const [],
   });
 
   final StylePreset preset;
@@ -38,6 +45,18 @@ class StyleProfile {
 
   /// Names, jargon and preferred spellings.
   final List<String> vocabulary;
+
+  /// BCP-47 codes of the languages the speaker uses; empty means any. Composed
+  /// from `AppSettings.languages` per request; not part of [toJson].
+  final List<String> languages;
+
+  /// Address-book names to spell correctly, when the user opted in. Composed
+  /// per request; not part of [toJson].
+  final List<String> contactNames;
+
+  /// Spoken shortcuts. Composed from `AppSettings.snippets` per request; not
+  /// part of [toJson].
+  final List<Snippet> snippets;
 
   /// The `{style}` text for the cleanup prompt.
   String describe() {
@@ -51,6 +70,21 @@ class StyleProfile {
     return words.isEmpty ? '(none)' : words.join(', ');
   }
 
+  /// The prompt sentence about the spoken language.
+  String describeLanguage() => Languages.describe(languages);
+
+  /// Same, for edit mode, where an instruction may ask for a translation.
+  String describeLanguageForEdit() => Languages.describe(languages, allowTranslation: true);
+
+  /// Whether a specific set of languages is configured.
+  bool get hasLanguages => Languages.normaliseList(languages).isNotEmpty;
+
+  /// The prompt sentence about contact names, or '' when there are none.
+  String describeContacts() => describeContactNames(contactNames);
+
+  /// The prompt sentence about spoken shortcuts, or '' when there are none.
+  String describeSnippets() => describeSnippetList(snippets);
+
   List<String> get normalisedVocabulary {
     final seen = <String>{};
     return [
@@ -63,11 +97,17 @@ class StyleProfile {
     StylePreset? preset,
     String? customInstructions,
     List<String>? vocabulary,
+    List<String>? languages,
+    List<Snippet>? snippets,
+    List<String>? contactNames,
   }) =>
       StyleProfile(
         preset: preset ?? this.preset,
         customInstructions: customInstructions ?? this.customInstructions,
         vocabulary: vocabulary ?? this.vocabulary,
+        languages: languages ?? this.languages,
+        snippets: snippets ?? this.snippets,
+        contactNames: contactNames ?? this.contactNames,
       );
 
   Map<String, Object?> toJson() => {
@@ -84,8 +124,28 @@ class StyleProfile {
 
   @override
   bool operator ==(Object other) =>
-      other is StyleProfile && jsonEncode(toJson()) == jsonEncode(other.toJson());
+      other is StyleProfile &&
+      jsonEncode(toJson()) == jsonEncode(other.toJson()) &&
+      _sameStrings(languages, other.languages) &&
+      _sameStrings(contactNames, other.contactNames) &&
+      _sameSnippets(snippets, other.snippets);
 
   @override
-  int get hashCode => jsonEncode(toJson()).hashCode;
+  int get hashCode => Object.hash(jsonEncode(toJson()), Object.hashAll(languages), Object.hashAll(contactNames), Object.hashAll(snippets));
+
+  static bool _sameStrings(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static bool _sameSnippets(List<Snippet> a, List<Snippet> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }

@@ -6,11 +6,13 @@ import 'package:material_ui/material_ui.dart';
 
 import 'screens/history_screen.dart';
 import 'screens/record_screen.dart';
+import 'theme/app_theme.dart';
 
-const double kMediumBreakpoint = 600;
+/// Width of the history pane beside the recorder on desktop.
+const double kHistoryPaneWidth = 400;
 
-/// Width at which record and history sit side by side.
-const double kTwoPaneBreakpoint = 900;
+/// Focus target for Ctrl+H on desktop.
+final FocusNode historySearchFocus = FocusNode(debugLabel: 'History search');
 
 enum _Dest { record, history, settings }
 
@@ -32,7 +34,8 @@ String _pathOf(_Dest d) => switch (d) {
       _Dest.settings => (label: 'Settings', icon: Icons.settings_outlined, selected: Icons.settings_rounded),
     };
 
-/// Adaptive scaffold: NavigationBar when compact, NavigationRail otherwise.
+/// Phone: one screen at a time with a bottom bar. Desktop: no chrome at all,
+/// recorder and history side by side, settings one shortcut away.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.location, required this.child});
 
@@ -41,96 +44,84 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final twoPane = width >= kTwoPaneBreakpoint;
-    final dests = [for (final d in _Dest.values) if (!(twoPane && d == _Dest.history)) d];
-    var current = _destOf(location);
-    if (twoPane && current == _Dest.history) current = _Dest.record;
-    final index = dests.indexOf(current);
-
-    void go(int i) => context.go(_pathOf(dests[i]));
+    final twoPane = MediaQuery.sizeOf(context).width >= kTwoPaneWidth;
 
     final body = CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.comma, control: true): () => context.go('/settings'),
-        const SingleActivator(LogicalKeyboardKey.keyH, control: true): () => context.go('/history'),
+        const SingleActivator(LogicalKeyboardKey.keyH, control: true): () {
+          if (!twoPane) {
+            context.go('/history');
+            return;
+          }
+          if (_destOf(location) != _Dest.record) context.go('/');
+          WidgetsBinding.instance.addPostFrameCallback((_) => historySearchFocus.requestFocus());
+        },
       },
       child: child,
     );
 
-    if (width < kMediumBreakpoint) {
-      return Scaffold(
-        body: body,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: go,
-          destinations: [
-            for (final d in dests)
-              NavigationDestination(
-                icon: Icon(_meta(d).icon),
-                selectedIcon: Icon(_meta(d).selected),
-                label: _meta(d).label,
-              ),
-          ],
-        ),
-      );
-    }
+    if (twoPane) return Scaffold(body: body);
+
+    final current = _destOf(location);
     return Scaffold(
-      body: Row(
-        children: [
-          SafeArea(
-            child: NavigationRail(
-              selectedIndex: index,
-              onDestinationSelected: go,
-              destinations: [
-                for (final d in dests)
-                  NavigationRailDestination(
-                    icon: Icon(_meta(d).icon),
-                    selectedIcon: Icon(_meta(d).selected),
-                    label: Text(_meta(d).label),
-                  ),
-              ],
+      body: body,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _Dest.values.indexOf(current),
+        onDestinationSelected: (i) => context.go(_pathOf(_Dest.values[i])),
+        destinations: [
+          for (final d in _Dest.values)
+            NavigationDestination(
+              icon: Icon(_meta(d).icon),
+              selectedIcon: Icon(_meta(d).selected),
+              label: _meta(d).label,
             ),
-          ),
-          Expanded(child: body),
         ],
       ),
     );
   }
 }
 
-/// Home: record, plus history alongside when there is room.
+/// Home: the recorder, with history alongside when there is room.
 class HomePane extends StatelessWidget {
   const HomePane({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final record = const RecordScreen();
-    if (width < kTwoPaneBreakpoint) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Ramble Voice')),
-        body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 840), child: record)),
-      );
+    final c = Theme.of(context).colorScheme;
+    if (MediaQuery.sizeOf(context).width < kTwoPaneWidth) {
+      return const SafeArea(bottom: false, child: RecordScreen());
     }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Ramble Voice')),
-      body: Row(
-        children: [
-          const Expanded(flex: 5, child: RecordScreen()),
-          VerticalDivider(width: 1, color: Theme.of(context).colorScheme.outlineVariant),
-          const Expanded(flex: 4, child: HistoryScreen(embedded: true)),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: SafeArea(
+            child: RecordScreen(
+              trailing: IconButton(
+                tooltip: 'Settings (Ctrl+,)',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => context.go('/settings'),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: kHistoryPaneWidth,
+          child: ColoredBox(
+            color: c.surfaceContainerLow,
+            child: SafeArea(child: HistoryScreen(embedded: true, searchFocus: historySearchFocus)),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// The history route: full screen when compact, otherwise the two-pane home.
+/// The history route: full screen on a phone, otherwise the two-pane home.
 class HistoryRoutePage extends StatelessWidget {
   const HistoryRoutePage({super.key});
 
   @override
   Widget build(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= kTwoPaneBreakpoint ? const HomePane() : const HistoryScreen();
+      MediaQuery.sizeOf(context).width >= kTwoPaneWidth ? const HomePane() : const HistoryScreen();
 }

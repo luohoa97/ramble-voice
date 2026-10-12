@@ -3,6 +3,7 @@
 import 'dart:typed_data';
 
 import '../audio/chunker.dart';
+import '../audio/pcm.dart';
 import '../style/style_profile.dart';
 import 'cleanup_engine.dart';
 
@@ -73,6 +74,54 @@ class CleanupPipeline {
         chunks: result.chunks,
       );
     }
+  }
+
+  /// Applies a spoken editing instruction ([pcm]) to [sourceText]. One request,
+  /// never chunked: an instruction longer than the engine accepts fails with
+  /// [CleanupFailureKind.audioTooLong]. Falls back like [run].
+  Future<PipelineResult> edit({
+    required Uint8List pcm,
+    required String sourceText,
+    required StyleProfile style,
+    required CleanupEngine primary,
+    CleanupEngine? fallback,
+  }) async {
+    try {
+      return await _editWith(primary, pcm, sourceText, style);
+    } on CleanupFailure catch (failure) {
+      if (fallback == null || !failure.kind.cloudFallbackEligible || fallback.kind == primary.kind) {
+        rethrow;
+      }
+      final ready = await fallback.readiness();
+      if (ready is! EngineReady) rethrow;
+      final result = await _editWith(fallback, pcm, sourceText, style);
+      return PipelineResult(text: result.text, engine: fallback.kind, fallbackReason: failure);
+    }
+  }
+
+  Future<PipelineResult> _editWith(
+    CleanupEngine engine,
+    Uint8List pcm,
+    String sourceText,
+    StyleProfile style,
+  ) async {
+    if (pcm.isEmpty) {
+      throw const CleanupFailure(CleanupFailureKind.emptyResult, 'The recording is empty.');
+    }
+    if (Pcm.durationOf(pcm.length) > engine.maxAudioPerRequest) {
+      throw const CleanupFailure(CleanupFailureKind.audioTooLong, 'The instruction is too long. Keep it short.');
+    }
+    final text = (await engine.process(CleanupRequest(
+      pcm: pcm,
+      style: style,
+      mode: CleanupMode.edit,
+      sourceText: sourceText,
+    )))
+        .trim();
+    if (text.isEmpty) {
+      throw const CleanupFailure(CleanupFailureKind.emptyResult, 'No edit was returned.');
+    }
+    return PipelineResult(text: text, engine: engine.kind);
   }
 
   Future<PipelineResult> _runWith(

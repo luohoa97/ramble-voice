@@ -129,7 +129,8 @@ class DictationController {
   final AudioSource audio;
   final RecordingVault vault;
   final Future<EngineSet> Function() engines;
-  final StyleProfile Function() style;
+  /// May be async, e.g. to read the address book.
+  final FutureOr<StyleProfile> Function() style;
 
   /// Called after a successful cleanup, before the state becomes done
   /// (history save, text insertion).
@@ -166,9 +167,24 @@ class DictationController {
         await stop();
       case DictationIdle() || DictationDone() || DictationFailed():
         await start();
-      case DictationStarting() || DictationProcessing():
+      case DictationProcessing():
+        await cancelProcessing();
+      case DictationStarting():
         break;
     }
+  }
+
+  /// Bumped whenever a running cleanup is cancelled; a cleanup whose token is
+  /// stale finishes silently.
+  int _processToken = 0;
+
+  /// Stops waiting for the current cleanup (e.g. the network or model hangs).
+  /// The recording is kept as pending, so it can be retried from History; a
+  /// late result from the engine is ignored.
+  Future<void> cancelProcessing() async {
+    if (_state is! DictationProcessing) return;
+    _processToken++;
+    _emit(const DictationIdle(notice: 'Cancelled. The recording is saved; retry it from the app.'));
   }
 
   Future<void> start() async {
@@ -252,6 +268,20 @@ class DictationController {
     }
   }
 
+  /// Stops capture without processing and keeps the audio as a pending
+  /// recording (offered for retry later). Used when the host is going away,
+  /// e.g. the keyboard service is destroyed mid-dictation. Never discards.
+  Future<void> abandon() async {
+    final sink = _sink;
+    if (_state is DictationListening || _state is DictationStarting) {
+      await _stopCapture();
+      _sink = null;
+      await sink?.close();
+      if (sink != null && sink.bytesWritten < Pcm.bytesFor(minSpeech)) await vault.delete(sink.id);
+      _emit(const DictationIdle(notice: 'Recording saved. Retry it from the app.'));
+    }
+  }
+
   /// Re-runs cleanup on a kept recording (after an error or for a pending
   /// recording found at startup).
   Future<void> retry([String? recordingId]) async {
@@ -267,6 +297,8 @@ class DictationController {
   }
 
   Future<void> _process(String id) async {
+    final token = ++_processToken;
+    bool cancelled() => token != _processToken;
     final pcm = await vault.read(id);
     if (pcm == null) {
       _emit(const DictationFailed(message: 'The recording could not be found.'));
@@ -276,11 +308,14 @@ class DictationController {
       final set = await engines();
       final result = await pipeline.run(
         pcm: pcm,
-        style: style(),
+        style: await style(),
         primary: set.primary,
         fallback: set.fallback,
-        onProgress: (p) => _emit(DictationProcessing(recordingId: id, progress: p)),
+        onProgress: (p) {
+          if (!cancelled()) _emit(DictationProcessing(recordingId: id, progress: p));
+        },
       );
+      if (cancelled()) return;
       final outcome = DictationOutcome(
         recordingId: id,
         text: result.text,
@@ -293,6 +328,7 @@ class DictationController {
       await onOutcome?.call(outcome);
       _emit(DictationDone(outcome));
     } on CleanupFailure catch (f) {
+      if (cancelled()) return;
       _emit(DictationFailed(
         message: f.message,
         kind: f.kind,
@@ -300,6 +336,7 @@ class DictationController {
         retryAfter: f.retryAfter,
       ));
     } catch (e) {
+      if (cancelled()) return;
       _emit(DictationFailed(
         message: 'Cleanup failed unexpectedly. Your recording is saved.',
         kind: CleanupFailureKind.unknown,

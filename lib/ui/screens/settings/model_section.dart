@@ -9,18 +9,13 @@ import '../../../app/providers.dart';
 import '../../../core/models/model_catalog.dart';
 import '../../../core/models/model_downloader.dart';
 import '../../../core/models/model_downloads.dart';
-import '../../theme/app_theme.dart';
 import '../../util/format.dart';
 import '../../util/open_url.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 /// Shows the Apache-2.0 attribution. Returns true when the user accepts.
 Future<bool> showModelLicense(BuildContext context) async {
-  final ok = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (context) => const _LicenseSheet(),
-  );
+  final ok = await showAdaptiveSheet<bool>(context, builder: (context) => const _LicenseSheet());
   return ok ?? false;
 }
 
@@ -30,77 +25,73 @@ class _LicenseSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return SheetBody(
+      title: 'Gemma model license',
+      footer: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Semantics(header: true, child: Text('Gemma model license', style: t.headlineSmall)),
-          const SizedBox(height: 12),
-          Text(ModelCatalog.licenseName, style: t.titleMedium),
-          const SizedBox(height: 8),
-          Text(ModelCatalog.attribution, style: t.bodyLarge),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton.icon(
-                onPressed: () => openUrl(ModelCatalog.licenseUrl.toString()),
-                icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: const Text('Read the license'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              const SizedBox(width: 8),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('I accept')),
-            ],
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          const SizedBox(width: 8),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('I accept')),
         ],
       ),
-    );
-  }
-}
-
-/// All on-device model variants with download management.
-class ModelSection extends ConsumerWidget {
-  const ModelSection({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final paths = ref.watch(appPathsProvider);
-    final t = Theme.of(context).textTheme;
-    final c = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final v in ModelCatalog.all) ...[
-          ModelTile(variant: v),
-          const SizedBox(height: 8),
-        ],
-        const SizedBox(height: 4),
-        Text('Stored in', style: t.labelMedium?.copyWith(color: c.onSurfaceVariant)),
-        SelectableText(paths.models.path, style: t.bodySmall),
+        Text(ModelCatalog.licenseName, style: t.titleMedium),
+        const SizedBox(height: 8),
+        Text(ModelCatalog.attribution, style: t.bodyLarge),
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => openUrl(ModelCatalog.licenseUrl.toString()),
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: const Text('Read the license'),
+          ),
+        ),
       ],
     );
   }
 }
 
-class ModelTile extends ConsumerStatefulWidget {
-  const ModelTile({super.key, required this.variant});
+/// The on-device model variants, one selectable row each, with download
+/// state inline.
+class ModelChoices extends ConsumerWidget {
+  const ModelChoices({super.key, this.showPath = false});
+
+  /// Show where the files are stored (desktop only; the Android path is noise).
+  final bool showPath;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final v in ModelCatalog.all) ModelRow(variant: v),
+        if (showPath)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: SelectableText(
+              'Stored in ${ref.watch(appPathsProvider).models.path}',
+              style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class ModelRow extends ConsumerStatefulWidget {
+  const ModelRow({super.key, required this.variant});
 
   final GemmaVariant variant;
 
   @override
-  ConsumerState<ModelTile> createState() => _ModelTileState();
+  ConsumerState<ModelRow> createState() => _ModelRowState();
 }
 
-class _ModelTileState extends ConsumerState<ModelTile> {
+class _ModelRowState extends ConsumerState<ModelRow> {
   late final ModelDownloads _downloader = ref.read(modelDownloaderProvider);
   StreamSubscription<DownloadStatus>? _sub;
   late DownloadStatus _status = _downloader.statusOf(widget.variant);
@@ -125,6 +116,8 @@ class _ModelTileState extends ConsumerState<ModelTile> {
     super.dispose();
   }
 
+  void _select() => ref.read(settingsProvider.notifier).update((s) => s.copyWith(gemmaVariantId: widget.variant.id));
+
   Future<void> _download() async {
     final settings = ref.read(settingsProvider);
     if (!settings.modelLicenseAccepted) {
@@ -132,7 +125,7 @@ class _ModelTileState extends ConsumerState<ModelTile> {
       if (!ok || !mounted) return;
       await ref.read(settingsProvider.notifier).update((s) => s.copyWith(modelLicenseAccepted: true));
     }
-    await ref.read(settingsProvider.notifier).update((s) => s.copyWith(gemmaVariantId: widget.variant.id));
+    _select();
     unawaited(_downloader.start(widget.variant));
   }
 
@@ -160,24 +153,26 @@ class _ModelTileState extends ConsumerState<ModelTile> {
     final s = _status;
 
     Widget? progress;
-    String? statusText;
+    var status = 'Not downloaded';
+    var statusColor = c.onSurfaceVariant;
+    IconData? statusIcon;
     final actions = <Widget>[];
 
     switch (s) {
       case NotDownloaded():
-        actions.add(FilledButton.icon(
+        actions.add(FilledButton.tonalIcon(
           onPressed: _download,
-          icon: const Icon(Icons.download_rounded),
-          label: Text('Download ${v.sizeLabel}'),
+          icon: const Icon(Icons.download_rounded, size: 20),
+          label: const Text('Download'),
         ));
       case Downloading(:final received, :final total, :final fraction):
         progress = LinearProgressIndicator(value: fraction, semanticsLabel: 'Download progress');
-        statusText = '${formatBytes(received)} of ${formatBytes(total)} (${(fraction * 100).floor()}%)';
+        status = '${formatBytes(received)} of ${formatBytes(total)}, ${(fraction * 100).floor()}%';
         actions.addAll([
           if (_downloader.supportsPause)
             FilledButton.tonalIcon(
               onPressed: () => _downloader.pause(v),
-              icon: const Icon(Icons.pause_rounded),
+              icon: const Icon(Icons.pause_rounded, size: 20),
               label: const Text('Pause'),
             ),
           if (_downloader.supportsPause)
@@ -185,108 +180,119 @@ class _ModelTileState extends ConsumerState<ModelTile> {
           else
             FilledButton.tonalIcon(
               onPressed: () => _downloader.delete(v),
-              icon: const Icon(Icons.close_rounded),
+              icon: const Icon(Icons.close_rounded, size: 20),
               label: const Text('Cancel'),
             ),
         ]);
       case Paused(:final received, :final total, :final fraction):
         progress = LinearProgressIndicator(value: fraction, semanticsLabel: 'Download paused');
-        statusText = 'Paused at ${formatBytes(received)} of ${formatBytes(total)}';
+        status = 'Paused at ${formatBytes(received)} of ${formatBytes(total)}';
         actions.addAll([
-          FilledButton.icon(
+          FilledButton.tonalIcon(
             onPressed: _download,
-            icon: const Icon(Icons.play_arrow_rounded),
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
             label: const Text('Resume'),
           ),
           TextButton(onPressed: () => _downloader.delete(v), child: const Text('Cancel')),
         ]);
       case Verifying():
         progress = const LinearProgressIndicator(semanticsLabel: 'Verifying download');
-        statusText = 'Verifying the download';
+        status = 'Verifying the download';
       case Downloaded():
-        statusText = 'Downloaded';
-        actions.add(TextButton.icon(
-          onPressed: _delete,
-          icon: const Icon(Icons.delete_outline_rounded),
-          label: const Text('Delete'),
-        ));
+        status = 'Downloaded';
+        statusIcon = Icons.check_circle_rounded;
       case DownloadFailed(:final message):
-        statusText = message;
+        status = message;
+        statusColor = c.error;
         actions.addAll([
-          FilledButton.icon(
+          FilledButton.tonalIcon(
             onPressed: _download,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, size: 20),
             label: const Text('Retry'),
           ),
           TextButton(onPressed: () => _downloader.delete(v), child: const Text('Discard')),
         ]);
     }
 
-    final failed = s is DownloadFailed;
     return Semantics(
       container: true,
-      selected: selected,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: selected ? c.secondaryContainer.withValues(alpha: 0.5) : c.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(Shapes.large),
-          border: Border.all(color: selected ? c.primary : c.outlineVariant, width: selected ? 2 : 1),
-        ),
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      button: true,
+      onTap: _select,
+      child: InkWell(
+        onTap: _select,
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(child: Text(v.label, style: t.titleMedium)),
-                  if (v.id == ModelCatalog.e4b.id)
-                    Chip(
-                      label: const Text('Recommended'),
-                      backgroundColor: c.primaryContainer,
-                      labelStyle: t.labelMedium?.copyWith(color: c.onPrimaryContainer),
-                      side: BorderSide.none,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  selected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                  color: selected ? c.primary : c.outline,
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(v.summary, style: t.bodyMedium),
-              const SizedBox(height: 4),
-              Text(
-                '${v.sizeLabel} download · ${v.recommendedRamGb} GB of free memory recommended',
-                style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(v.label, style: selected ? t.titleMedium : t.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
+                        if (v.id == ModelCatalog.e4b.id)
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: c.primaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              child: Text('Recommended', style: t.labelSmall?.copyWith(color: c.onPrimaryContainer)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${v.summary.split('.').first} · ${v.sizeLabel} · ${v.recommendedRamGb} GB memory',
+                      style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+                    ),
+                    if (progress != null) ...[const SizedBox(height: 12), progress],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (statusIcon != null) ...[Icon(statusIcon, size: 16, color: c.primary), const SizedBox(width: 6)],
+                        Expanded(
+                          child: Semantics(
+                            liveRegion: s is! Downloading,
+                            child: Text(status, style: t.labelLarge?.copyWith(color: statusColor)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(spacing: 8, runSpacing: 4, children: actions),
+                    ],
+                  ],
+                ),
               ),
-              if (progress != null) ...[const SizedBox(height: 12), progress],
-              if (statusText != null) ...[
-                const SizedBox(height: 8),
-                Text(statusText, style: t.bodyMedium?.copyWith(color: failed ? c.error : c.onSurfaceVariant)),
-              ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  ...actions,
-                  if (s is Downloaded && !selected)
-                    FilledButton.tonal(
-                      onPressed: () => ref
-                          .read(settingsProvider.notifier)
-                          .update((x) => x.copyWith(gemmaVariantId: v.id)),
-                      child: const Text('Use this model'),
-                    ),
-                  if (s is Downloaded && selected)
-                    Chip(
-                      avatar: Icon(Icons.check_rounded, size: 18, color: c.onSecondaryContainer),
-                      label: const Text('In use'),
-                      backgroundColor: c.secondaryContainer,
-                      side: BorderSide.none,
-                    ),
-                  TextButton(
-                    onPressed: () => openUrl(v.modelCardUrl.toString()),
-                    child: const Text('Model card'),
-                  ),
+              PopupMenuButton<String>(
+                tooltip: 'More about ${v.label}',
+                icon: Icon(Icons.more_vert_rounded, color: c.onSurfaceVariant),
+                onSelected: (a) {
+                  if (a == 'card') openUrl(v.modelCardUrl.toString());
+                  if (a == 'delete') _delete();
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'card', child: Text('Model card')),
+                  if (s is Downloaded) const PopupMenuItem(value: 'delete', child: Text('Delete from this device')),
                 ],
               ),
             ],

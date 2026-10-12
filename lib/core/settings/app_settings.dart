@@ -5,7 +5,13 @@ import 'dart:io';
 
 import '../cleanup/cleanup_engine.dart';
 import '../models/model_catalog.dart';
+import '../style/device_languages.dart';
+import '../style/languages.dart';
+import '../style/snippets.dart';
 import '../style/style_profile.dart';
+
+/// Size of the Android floating mic bubble.
+enum BubbleSize { small, medium }
 
 /// Non-secret preferences. The Gemini key lives in [SecretStore].
 class AppSettings {
@@ -21,6 +27,13 @@ class AppSettings {
     this.typeIntoFocusedApp = true,
     this.modelLicenseAccepted = false,
     this.autoSwitchBack = true,
+    this.hotkeyTrigger = 'CTRL+ALT+space',
+    this.languages = const [],
+    this.useContactNames = false,
+    this.snippets = const [],
+    this.appStyles = const {},
+    this.bubbleBlockedApps = const [],
+    this.bubbleSize = BubbleSize.medium,
   });
 
   final EngineKind engine;
@@ -45,6 +58,32 @@ class AppSettings {
   /// inserting dictated text.
   final bool autoSwitchBack;
 
+  /// Linux: preferred global shortcut (portal trigger syntax, e.g.
+  /// `CTRL+ALT+space`, or `Menu` when Caps Lock is mapped to Menu).
+  final String hotkeyTrigger;
+
+  /// BCP-47 codes from [Languages.all] the speaker uses. Empty means "detect
+  /// any language". A fresh install starts with the device's language(s).
+  final List<String> languages;
+
+  /// Spell address-book names correctly. Off by default: in Gemini mode the
+  /// names are sent to Google with each request.
+  final bool useContactNames;
+
+  /// Spoken shortcuts expanded during cleanup.
+  final List<Snippet> snippets;
+
+  /// [style] plus the language and snippets: what the engines get.
+  StyleProfile get effectiveStyle => style.copyWith(languages: languages, snippets: snippets);
+
+  /// Android floating mic: package names of apps where the bubble never shows.
+  final List<String> bubbleBlockedApps;
+  final BubbleSize bubbleSize;
+
+  /// Keyboard: tone overrides per app, keyed by Android package name. Apps
+  /// without an entry use the built-in defaults, then [StyleProfile.preset].
+  final Map<String, StylePreset> appStyles;
+
   GemmaVariant get gemmaVariant => ModelCatalog.byId(gemmaVariantId) ?? ModelCatalog.defaultVariant;
   Duration get maxSession => Duration(minutes: maxSessionMinutes);
 
@@ -60,6 +99,13 @@ class AppSettings {
     bool? typeIntoFocusedApp,
     bool? modelLicenseAccepted,
     bool? autoSwitchBack,
+    String? hotkeyTrigger,
+    List<String>? languages,
+    bool? useContactNames,
+    List<Snippet>? snippets,
+    Map<String, StylePreset>? appStyles,
+    List<String>? bubbleBlockedApps,
+    BubbleSize? bubbleSize,
   }) =>
       AppSettings(
         engine: engine ?? this.engine,
@@ -73,6 +119,13 @@ class AppSettings {
         typeIntoFocusedApp: typeIntoFocusedApp ?? this.typeIntoFocusedApp,
         modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
         autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
+        hotkeyTrigger: hotkeyTrigger ?? this.hotkeyTrigger,
+        languages: languages ?? this.languages,
+        useContactNames: useContactNames ?? this.useContactNames,
+        snippets: snippets ?? this.snippets,
+        appStyles: appStyles ?? this.appStyles,
+        bubbleBlockedApps: bubbleBlockedApps ?? this.bubbleBlockedApps,
+        bubbleSize: bubbleSize ?? this.bubbleSize,
       );
 
   Map<String, Object?> toJson() => {
@@ -87,9 +140,18 @@ class AppSettings {
         'typeIntoFocusedApp': typeIntoFocusedApp,
         'modelLicenseAccepted': modelLicenseAccepted,
         'autoSwitchBack': autoSwitchBack,
+        'hotkeyTrigger': hotkeyTrigger,
+        'languages': languages,
+        'useContactNames': useContactNames,
+        'snippets': [for (final s in snippets) s.toJson()],
+        'appStyles': {for (final e in appStyles.entries) e.key: e.value.name},
+        'bubbleBlockedApps': bubbleBlockedApps,
+        'bubbleSize': bubbleSize.name,
       };
 
-  factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
+  /// [deviceLanguages] is used when the file has no language choice yet, or
+  /// still has the old automatic setting.
+  factory AppSettings.fromJson(Map<String, Object?> j, {List<String> deviceLanguages = const []}) => AppSettings(
         engine: EngineKind.values.asNameMap()[j['engine']] ?? EngineKind.onDevice,
         gemmaVariantId: j['gemmaVariant'] as String? ?? 'gemma-4-e4b',
         geminiModel: j['geminiModel'] as String?,
@@ -103,21 +165,58 @@ class AppSettings {
         typeIntoFocusedApp: j['typeIntoFocusedApp'] as bool? ?? true,
         modelLicenseAccepted: j['modelLicenseAccepted'] as bool? ?? false,
         autoSwitchBack: j['autoSwitchBack'] as bool? ?? true,
+        hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
+        languages: _languagesFromJson(j, deviceLanguages),
+        useContactNames: j['useContactNames'] as bool? ?? false,
+        snippets: [
+          for (final e in j['snippets'] is List ? j['snippets'] as List : const [])
+            if (e is Map) Snippet.fromJson(e.cast<String, Object?>()),
+        ],
+        appStyles: _appStylesFromJson(j['appStyles']),
+        bubbleBlockedApps: [
+          if (j['bubbleBlockedApps'] case final List<Object?> l) ...l.whereType<String>(),
+        ],
+        bubbleSize: BubbleSize.values.asNameMap()[j['bubbleSize']] ?? BubbleSize.medium,
       );
+}
+
+List<String> _languagesFromJson(Map<String, Object?> j, List<String> device) {
+  final list = j['languages'];
+  if (list is List) return Languages.normaliseList(list.whereType<String>());
+  // Migrate the old single `language`: a fixed code stays, "auto" and nothing
+  // become the device's language(s).
+  final raw = j['language'];
+  final old = Languages.byCode(raw is String ? raw : null);
+  return old == null ? Languages.normaliseList(device) : [old.code];
+}
+
+Map<String, StylePreset> _appStylesFromJson(Object? raw) {
+  if (raw is! Map) return const {};
+  final presets = StylePreset.values.asNameMap();
+  return {
+    for (final e in raw.entries)
+      if (e.key is String && presets[e.value] != null) e.key as String: presets[e.value]!,
+  };
 }
 
 /// Stores [AppSettings] as JSON. Writes go through a temp file and rename so
 /// a crash never leaves a half-written file.
 class SettingsStore {
-  SettingsStore(this.file);
+  SettingsStore(this.file, {this.deviceLanguages = detectDeviceLanguages});
   final File file;
+
+  /// The languages a fresh install starts with.
+  final List<String> Function() deviceLanguages;
 
   Future<AppSettings> load() async {
     try {
-      if (!await file.exists()) return const AppSettings();
-      return AppSettings.fromJson((jsonDecode(await file.readAsString()) as Map).cast<String, Object?>());
+      if (!await file.exists()) return AppSettings(languages: deviceLanguages());
+      return AppSettings.fromJson(
+        (jsonDecode(await file.readAsString()) as Map).cast<String, Object?>(),
+        deviceLanguages: deviceLanguages(),
+      );
     } catch (_) {
-      return const AppSettings();
+      return AppSettings(languages: deviceLanguages());
     }
   }
 

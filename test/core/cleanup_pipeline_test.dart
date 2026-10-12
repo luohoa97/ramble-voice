@@ -202,6 +202,8 @@ void main() {
       expect(CleanupFailureKind.values.where((k) => k.cloudFallbackEligible).toSet(), {
         CleanupFailureKind.rateLimited,
         CleanupFailureKind.dailyQuotaExceeded,
+        CleanupFailureKind.modelNotOnFreeTier,
+        CleanupFailureKind.modelUnavailable,
         CleanupFailureKind.noNetwork,
         CleanupFailureKind.server,
         CleanupFailureKind.audioTooLong,

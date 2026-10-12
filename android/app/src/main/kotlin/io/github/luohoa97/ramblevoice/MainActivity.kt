@@ -4,6 +4,7 @@ package io.github.luohoa97.ramblevoice
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import io.github.luohoa97.ramblevoice.bubble.BubbleKeeper
 import android.graphics.Color
 import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -22,6 +23,11 @@ class MainActivity : FlutterActivity() {
         window.navigationBarColor = Color.TRANSPARENT
         window.isNavigationBarContrastEnforced = false
         super.onCreate(savedInstanceState)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        BubbleKeeper.sync(this)
     }
 
     /** Spawn from the shared engine group (see [RambleApplication]). */

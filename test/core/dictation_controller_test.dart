@@ -372,7 +372,7 @@ void main() {
       expect(rig.audio.startCount, 1);
     });
 
-    test('toggle during processing is ignored', () async {
+    test('start during processing is ignored', () async {
       final gate = Completer<String>();
       final engine = FakeCleanupEngine(script: [(CleanupRequest _) => gate.future]);
       final rig = await Rig.create(primary: engine);
@@ -382,7 +382,6 @@ void main() {
       await rig.pump();
       expect(rig.controller.state, isA<DictationProcessing>());
 
-      await rig.controller.toggle();
       await rig.controller.start();
       expect(rig.audio.startCount, 1);
       expect(rig.controller.state, isA<DictationProcessing>());
@@ -487,6 +486,28 @@ void main() {
       expect(outcome.engine, EngineKind.onDevice);
       expect(outcome.fellBack, isTrue);
       expect(outcome.fallbackReason!.kind, CleanupFailureKind.rateLimited);
+    });
+  });
+
+  group('cancel while cleaning up', () {
+    test('tapping during processing cancels, keeps the recording, ignores the late result', () async {
+      final gate = Completer<String>();
+      final engine = FakeCleanupEngine(script: [(CleanupRequest _) => gate.future]);
+      final rig = await Rig.create(primary: engine);
+      await rig.controller.start();
+      await rig.speak(2);
+      unawaited(rig.controller.stop());
+      await rig.next<DictationProcessing>();
+      await rig.pump();
+
+      await rig.controller.toggle(); // the tap on the animating mic
+      expect(rig.controller.state, isA<DictationIdle>());
+      expect(await rig.vault.pending(), hasLength(1), reason: 'recording kept for retry');
+
+      gate.complete('Late text.');
+      await rig.pump();
+      expect(rig.controller.state, isA<DictationIdle>());
+      expect(rig.outcomes, isEmpty);
     });
   });
 }

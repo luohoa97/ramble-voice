@@ -18,7 +18,12 @@ import '../ui/util/format.dart';
 import '../ui/widgets/engine_chip.dart';
 import '../ui/widgets/limit_chip.dart';
 import '../ui/widgets/mic_button.dart';
+import 'edit_panel.dart';
+import 'edit_session.dart';
 import 'ime_app.dart';
+import 'key_style.dart';
+import 'tone_bar.dart';
+import 'qwerty_layer.dart';
 
 /// How long the "Inserted / Undo" confirmation stays.
 const _undoWindow = Duration(seconds: 8);
@@ -62,6 +67,9 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
   ImeInputInfo _info = const ImeInputInfo();
   bool _canSwitch = false;
 
+  /// The QWERTY layer is showing instead of the dictation layer.
+  bool _qwerty = false;
+
   /// Text just typed into the field, while Undo is still offered.
   String? _undoText;
   Timer? _undoTimer;
@@ -72,6 +80,10 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     super.initState();
     _bridge = ref.read(imeBridgeProvider);
     _info = _bridge.current;
+    // Providers may not change during initState.
+    Future.microtask(() {
+      if (mounted) ref.read(currentPackageProvider.notifier).set(_info.packageName);
+    });
     _subs
       ..add(_bridge.inputStarted.listen(_onInputStarted))
       ..add(_bridge.inputFinished.listen((_) => _onInputFinished()));
@@ -96,7 +108,9 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
   Future<void> _onInputStarted(ImeInputInfo info) async {
     if (!mounted) return;
     _clearUndo();
+    ref.read(imeEditProvider.notifier).reset();
     setState(() => _info = info);
+    ref.read(currentPackageProvider.notifier).set(info.packageName);
     unawaited(_refreshSwitch());
     // The app may have changed settings or downloaded a model since last time.
     final loaded = await ref.read(settingsStoreProvider).load();
@@ -110,10 +124,12 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
   void _onInputFinished() {
     if (!mounted) return;
     _clearUndo();
-    // Leaving the field mid-recording would type into the wrong place.
+    ref.read(imeEditProvider.notifier).reset();
+    // Never throw a recording away: stop and clean it. If the field is gone
+    // the inserter falls back to the clipboard, and it is saved in history.
     final c = ref.read(dictationControllerProvider);
-    if (c.state is DictationListening || c.state is DictationStarting) {
-      unawaited(c.cancel());
+    if (c.state is DictationListening) {
+      unawaited(c.stop());
     }
   }
 
@@ -187,6 +203,14 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     final state = ref.watch(dictationStateProvider).value ?? const DictationIdle();
     final scheme = Theme.of(context).colorScheme;
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
+    final edit = ref.watch(imeEditProvider);
+
+    if (_qwerty) {
+      return Material(
+        color: scheme.surfaceContainer,
+        child: QwertyLayer(onClose: () => setState(() => _qwerty = false)),
+      );
+    }
 
     return Material(
       color: scheme.surfaceContainer,
@@ -195,6 +219,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
         child: Column(
           children: [
             _TopBar(state: state, onEngineTap: () => _openApp(ImeRoutes.settings)),
+            SizedBox(height: 44, child: ToneChips(onEdit: () => _openApp(ImeRoutes.style))),
             Expanded(
               child: Row(
                 children: [
@@ -209,6 +234,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                             label: 'Switch keyboard',
                             onPressed: () => unawaited(_bridge.switchToPreviousInputMethod()),
                           ),
+                        AbcKey(onPressed: () => setState(() => _qwerty = true)),
                         _KeyButton(
                           icon: Icons.settings_outlined,
                           label: 'Open Ramble Voice settings',
@@ -217,7 +243,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                       ],
                     ),
                   ),
-                  Expanded(child: _Center(
+                  Expanded(child: edit.active ? const EditPanel() : _Center(
                     state: state,
                     info: _info,
                     undoText: _undoText,
@@ -234,6 +260,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
+                        EditKey(enabled: !_info.isPassword),
                         _RepeatKey(
                           icon: Icons.backspace_outlined,
                           label: 'Backspace',
@@ -300,11 +327,12 @@ class _TopBar extends ConsumerWidget {
       height: 48,
       child: Row(
         children: [
-          Flexible(child: Align(alignment: Alignment.centerLeft, child: EngineChip(onTap: onEngineTap))),
+          Expanded(child: Align(alignment: Alignment.centerLeft, child: EngineChip(onTap: onEngineTap))),
           if (s is DictationListening && s.nearLimit) ...[
             const SizedBox(width: 8),
             LimitChip(state: s),
-          ],
+          ] else
+            const ToneHint(),
         ],
       ),
     );
@@ -497,13 +525,17 @@ class _KeyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const style = ButtonStyle(
-      fixedSize: WidgetStatePropertyAll(Size(56, 56)),
-      minimumSize: WidgetStatePropertyAll(Size(56, 56)),
-    );
     return filled
-        ? IconButton.filled(onPressed: onPressed, icon: Icon(icon), tooltip: label, style: style)
-        : IconButton.filledTonal(onPressed: onPressed, icon: Icon(icon), tooltip: label, style: style);
+        ? IconButton.filled(
+            onPressed: onPressed,
+            icon: Icon(icon),
+            tooltip: label,
+            style: const ButtonStyle(
+              fixedSize: WidgetStatePropertyAll(Size(56, 56)),
+              minimumSize: WidgetStatePropertyAll(Size(56, 56)),
+            ),
+          )
+        : IconButton.filledTonal(onPressed: onPressed, icon: Icon(icon), tooltip: label, style: keyStyle(context));
   }
 }
 
@@ -545,7 +577,6 @@ class _RepeatKeyState extends State<_RepeatKey> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
       label: widget.label,
@@ -560,8 +591,8 @@ class _RepeatKeyState extends State<_RepeatKey> {
           width: 56,
           height: 56,
           child: DecoratedBox(
-            decoration: BoxDecoration(color: scheme.secondaryContainer, shape: BoxShape.circle),
-            child: Icon(widget.icon, color: scheme.onSecondaryContainer),
+            decoration: BoxDecoration(color: keyFill(context), shape: BoxShape.circle),
+            child: Icon(widget.icon, color: keyForeground(context)),
           ),
         ),
       ),

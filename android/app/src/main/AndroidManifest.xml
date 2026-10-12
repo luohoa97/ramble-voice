@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Floating mic upkeep: warn when the OS turned it off, and ask for a battery exemption. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Optional: spell contact names correctly when the user turns it on. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <!-- Model downloads run in a data-sync foreground service with a lock-screen Live Update. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
@@ -64,6 +69,35 @@
                 android:resource="@xml/method"/>
         </service>
 
+        <!-- The floating mic: shows a bubble next to focused text fields and inserts
+             dictated text. Needs the user to switch it on in Accessibility settings. -->
+        <service
+            android:name=".bubble.RambleBubbleService"
+            android:label="@string/bubble_service_name"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/bubble_accessibility"/>
+        </service>
+
+        <service
+            android:name=".bubble.BubbleKeeper$KeeperJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE"/>
+
+        <receiver
+            android:name=".bubble.BubbleKeeper$BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".ModelDownloadService"
             android:exported="false"
@@ -81,9 +115,22 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- See other keyboards (Gboard) to switch back to after dictation. -->
+        <intent>
+            <action android:name="android.view.InputMethod"/>
+        </intent>
+        <!-- Launcher apps, for the floating mic's per-app blocklist picker. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Lets the keyboard show app names ("for Gmail") via PackageManager. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
         </intent>
     </queries>
 </manifest>

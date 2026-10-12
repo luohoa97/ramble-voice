@@ -218,7 +218,7 @@
     },
     {
       "id": "spoken_command",
-      "spoken": "To restart the machine, just run system C T L reboot.",
+      "spoken": "To restart the machine, just run systemctl reboot.",
       "must_contain": [
         "systemctl reboot",
         "restart"

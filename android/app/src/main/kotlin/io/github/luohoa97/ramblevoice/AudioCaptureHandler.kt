@@ -119,6 +119,12 @@ class AudioCaptureHandler(
             record.release()
             return false
         }
+        // Started without error but silenced (e.g. the app is not allowed to use
+        // the microphone from the background): report failure, not silence.
+        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            record.release()
+            return false
+        }
 
         running = true
         thread = Thread({ readLoop(record) }, "ramble-audio").also { it.start() }

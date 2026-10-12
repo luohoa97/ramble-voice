@@ -11,14 +11,13 @@ import '../../../core/cleanup/gemini/gemini_models.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../util/open_url.dart';
 import '../../util/platform_flags.dart';
-import '../../widgets/notice_banner.dart';
 
 const geminiFreeTierWarning = 'Free-tier requests may be used by Google to improve its products.';
 
 String keySourceText(KeySource s) => switch (s) {
       KeySource.none => 'No key saved',
-      KeySource.secureStorage => 'Key saved in secure storage on this device',
-      KeySource.environment => 'Key in use: from GEMINI_API_KEY environment',
+      KeySource.secureStorage => 'Saved in secure storage on this device',
+      KeySource.environment => 'From the GEMINI_API_KEY environment variable',
     };
 
 final geminiKeySourceProvider = FutureProvider.autoDispose<KeySource>(
@@ -30,18 +29,19 @@ final geminiModelsProvider = FutureProvider.autoDispose<List<GeminiModelInfo>>((
   return ref.watch(geminiEngineProvider).availableModels();
 });
 
-class GeminiSection extends ConsumerStatefulWidget {
-  const GeminiSection({super.key, this.showStyleGuide = true});
-
-  final bool showStyleGuide;
+/// Everything Gemini needs, as flat rows: key, model, fallback switch, and
+/// the free-tier note.
+class GeminiOptions extends ConsumerStatefulWidget {
+  const GeminiOptions({super.key});
 
   @override
-  ConsumerState<GeminiSection> createState() => _GeminiSectionState();
+  ConsumerState<GeminiOptions> createState() => _GeminiOptionsState();
 }
 
-class _GeminiSectionState extends ConsumerState<GeminiSection> {
+class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
   final _key = TextEditingController();
   bool _obscure = true;
+  bool _editing = false;
   bool _testing = false;
   String? _testResult;
   bool _testOk = false;
@@ -71,6 +71,7 @@ class _GeminiSectionState extends ConsumerState<GeminiSection> {
     await ref.read(platformServicesProvider).secrets.writeGeminiKey(value);
     _key.clear();
     setState(() {
+      _editing = false;
       _testResult = 'Key saved.';
       _testOk = true;
     });
@@ -79,7 +80,10 @@ class _GeminiSectionState extends ConsumerState<GeminiSection> {
 
   Future<void> _remove() async {
     await ref.read(platformServicesProvider).secrets.deleteGeminiKey();
-    setState(() => _testResult = null);
+    setState(() {
+      _testResult = null;
+      _editing = false;
+    });
     _refresh();
   }
 
@@ -122,117 +126,123 @@ class _GeminiSectionState extends ConsumerState<GeminiSection> {
     final c = Theme.of(context).colorScheme;
     final source = ref.watch(geminiKeySourceProvider).value ?? KeySource.none;
     final settings = ref.watch(settingsProvider);
+    final hasKey = source != KeySource.none;
+    final showField = !hasKey || _editing;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const NoticeBanner(message: geminiFreeTierWarning, tone: NoticeTone.warning),
-        const SizedBox(height: 16),
-        if (widget.showStyleGuide) ...[
-          Semantics(header: true, child: Text('Get an API key', style: t.titleMedium)),
-          const SizedBox(height: 8),
-          const _Step(1, 'Go to aistudio.google.com'),
-          const _Step(2, 'Sign in with a Google account'),
-          const _Step(3, 'Click "Get API key"'),
-          const _Step(4, 'Create a key'),
-          const _Step(5, 'Paste it here'),
-          const SizedBox(height: 8),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: FilledButton.tonalIcon(
-              onPressed: () => openUrl(geminiConsoleUrl),
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: const Text('Open aistudio.google.com'),
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, size: 18, color: c.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(child: Text(geminiFreeTierWarning, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant))),
+            ],
           ),
-          const SizedBox(height: 20),
-        ],
-        Text(keySourceText(source), style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _key,
-          obscureText: _obscure,
-          autocorrect: false,
-          enableSuggestions: false,
-          enableIMEPersonalizedLearning: false,
-          decoration: InputDecoration(
-            labelText: 'Gemini API key',
-            suffixIcon: Row(
-              mainAxisSize: MainAxisSize.min,
+        ),
+        if (showField)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                IconButton(
-                  tooltip: _obscure ? 'Show key' : 'Hide key',
-                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscure = !_obscure),
+                TextField(
+                  controller: _key,
+                  obscureText: _obscure,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  decoration: InputDecoration(
+                    labelText: 'Gemini API key',
+                    helperText: keySourceText(source),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: _obscure ? 'Show key' : 'Hide key',
+                          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                        IconButton(tooltip: 'Paste key', icon: const Icon(Icons.content_paste_rounded), onPressed: _paste),
+                      ],
+                    ),
+                  ),
+                  onSubmitted: (_) => _save(),
                 ),
-                IconButton(
-                  tooltip: 'Paste key',
-                  icon: const Icon(Icons.content_paste_rounded),
-                  onPressed: _paste,
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    FilledButton(onPressed: _save, child: const Text('Save key')),
+                    TextButton(onPressed: _testing ? null : _test, child: const Text('Test key')),
+                    TextButton.icon(
+                      onPressed: () => openUrl(geminiConsoleUrl),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: const Text('Get a key at aistudio.google.com'),
+                    ),
+                    if (hasKey) TextButton(onPressed: () => setState(() => _editing = false), child: const Text('Cancel')),
+                  ],
                 ),
               ],
             ),
-          ),
-          onSubmitted: (_) => _save(),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            FilledButton(onPressed: _save, child: const Text('Save key')),
-            OutlinedButton(
-              onPressed: _testing ? null : _test,
-              child: const Text('Test key'),
+          )
+        else
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 16, right: 8),
+            leading: Icon(Icons.key_rounded, color: c.onSurfaceVariant),
+            title: const Text('API key'),
+            subtitle: Text(
+              source == KeySource.environment ? keySourceText(source) : 'Saved on this device',
+              style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
             ),
-            if (source == KeySource.secureStorage)
-              TextButton(onPressed: _remove, child: const Text('Remove key')),
-            if (_testing) M3ELoadingIndicator(size: 32, color: c.primary, semanticLabel: 'Testing key'),
-          ],
-        ),
-        if (_testResult != null) ...[
-          const SizedBox(height: 8),
-          Semantics(
-            liveRegion: true,
-            child: Text(_testResult!, style: t.bodyMedium?.copyWith(color: _testOk ? c.primary : c.error)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_testing)
+                  M3ELoadingIndicator(size: 32, color: c.primary, semanticLabel: 'Testing key')
+                else
+                  TextButton(onPressed: _test, child: const Text('Test')),
+                if (source == KeySource.secureStorage)
+                  PopupMenuButton<String>(
+                    tooltip: 'Key options',
+                    onSelected: (a) {
+                      if (a == 'replace') setState(() => _editing = true);
+                      if (a == 'remove') _remove();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'replace', child: Text('Replace key')),
+                      PopupMenuItem(value: 'remove', child: Text('Remove key')),
+                    ],
+                  ),
+              ],
+            ),
           ),
-        ],
-        const SizedBox(height: 20),
-        _ModelPicker(selected: settings.geminiModel, hasKey: source != KeySource.none),
-        const SizedBox(height: 8),
+        if (_testResult != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(_testResult!, style: t.bodyMedium?.copyWith(color: _testOk ? c.onSurfaceVariant : c.error)),
+            ),
+          ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _ModelPicker(selected: settings.geminiModel, hasKey: hasKey),
+        ),
+        const SizedBox(height: 4),
         SwitchListTile(
-          contentPadding: EdgeInsets.zero,
+          contentPadding: const EdgeInsets.only(left: 16, right: 8),
           title: const Text('If Gemini is unavailable, use the on-device model'),
           value: settings.fallbackToOnDevice,
           onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(fallbackToOnDevice: v)),
         ),
       ],
-    );
-  }
-}
-
-class _Step extends StatelessWidget {
-  const _Step(this.n, this.text);
-  final int n;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final c = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 28,
-            child: Text('$n.', style: t.bodyLarge?.copyWith(color: c.primary)),
-          ),
-          Expanded(child: Text(text, style: t.bodyLarge)),
-        ],
-      ),
     );
   }
 }
@@ -261,12 +271,13 @@ class _ModelPicker extends ConsumerWidget {
         final current = list.any((m) => m.id == selected) ? selected : null;
         return DropdownMenu<String?>(
           key: ValueKey(current),
-          width: 360,
+          expandedInsets: EdgeInsets.zero,
           label: const Text('Gemini model'),
           initialSelection: current,
           dropdownMenuEntries: [
             const DropdownMenuEntry<String?>(value: null, label: 'Newest stable (automatic)'),
-            for (final m in list) DropdownMenuEntry<String?>(value: m.id, label: m.preview ? '${m.id} (preview)' : m.id),
+            for (final m in list)
+              DropdownMenuEntry<String?>(value: m.id, label: m.preview ? '${m.id} (preview)' : m.id),
           ],
           onSelected: (id) {
             ref.read(settingsProvider.notifier).update((s) => s.copyWith(geminiModel: () => id));

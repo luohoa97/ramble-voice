@@ -96,9 +96,7 @@ class GemmaEngine implements CleanupEngine {
   @override
   Future<String> process(CleanupRequest request) async {
     final model = await _ensureModel();
-    final system = request.mode == CleanupMode.clean
-        ? CleanupPrompt.build(request.style)
-        : CleanupPrompt.buildVerbatim(request.style);
+    final system = CleanupPrompt.systemFor(request);
     InferenceModelSession? session;
     try {
       session = await model.createSession(
@@ -109,11 +107,11 @@ class GemmaEngine implements CleanupEngine {
         maxOutputTokens: 2048,
       );
       await session.addQueryChunk(Message.withAudio(
-        text: CleanupPrompt.userTurn,
+        text: CleanupPrompt.userTextFor(request),
         audioBytes: WavEncoder.encode(request.pcm),
         isUser: true,
       ));
-      return CleanupPrompt.tidyOutput(await session.getResponse());
+      return CleanupPrompt.tidyFor(request, await session.getResponse());
     } on CleanupFailure {
       rethrow;
     } catch (e) {

@@ -4,6 +4,8 @@ package io.github.luohoa97.ramblevoice
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -38,9 +40,11 @@ class RambleImeService : InputMethodService() {
     private var container: FrameLayout? = null
 
     private var navInset = 0
+    private var ignoreTouchesUntil = 0L
 
     override fun onCreate() {
         super.onCreate()
+        io.github.luohoa97.ramblevoice.bubble.BubbleKeeper.sync(this)
         val e = (application as RambleApplication).createImeEngine(this)
         val messenger = e.dartExecutor.binaryMessenger
         audio = AudioCaptureHandler(applicationContext, messenger)
@@ -59,9 +63,8 @@ class RambleImeService : InputMethodService() {
         view.attachToFlutterEngine(e)
         flutterView = view
 
-        val frame = FrameLayout(this)
+        val frame = KeyboardFrame(this, ::keyboardHeightPx) { SystemClock.uptimeMillis() < ignoreTouchesUntil }
         frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        frame.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, keyboardHeightPx())
         // Android 15+ draws the IME behind the navigation bar. Grow the panel by
         // the bar height; Flutter sees the same inset as viewPadding.
         ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
@@ -88,16 +91,20 @@ class RambleImeService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         engine?.lifecycleChannel?.appIsResumed()
+        ImeLaunch.setImeShowing(true)
         ime?.notifyInputStarted(info, restarting)
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        ImeLaunch.setImeShowing(false)
         ime?.notifyInputFinished()
     }
 
     override fun onWindowShown() {
         super.onWindowShown()
+        // The tap that switched keyboards must not land on one of our keys.
+        ignoreTouchesUntil = SystemClock.uptimeMillis() + TOUCH_GUARD_MS
         engine?.lifecycleChannel?.appIsResumed()
     }
 
@@ -108,6 +115,7 @@ class RambleImeService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        ImeLaunch.setImeShowing(false)
         val e = engine
         val view = flutterView
         val handler = ime
@@ -148,5 +156,27 @@ class RambleImeService : InputMethodService() {
     companion object {
         private const val KEYBOARD_HEIGHT_DP = 300
         private const val RELEASE_TIMEOUT_MS = 2000L
+        private const val TOUCH_GUARD_MS = 350L
     }
+}
+
+/**
+ * The input view's container. The IME frame measures its child with
+ * WRAP_CONTENT and a FlutterView would happily take the whole window, so the
+ * height is forced to exactly [heightPx]. While [guarding] is true all touches
+ * are swallowed.
+ */
+private class KeyboardFrame(
+    context: android.content.Context,
+    private val heightPx: () -> Int,
+    private val guarding: () -> Boolean,
+) : FrameLayout(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(heightPx(), MeasureSpec.EXACTLY))
+    }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = guarding()
+
+    @Suppress("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean = guarding()
 }

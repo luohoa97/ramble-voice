@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/providers.dart';
@@ -14,10 +15,13 @@ import '../util/clipboard.dart';
 import '../util/format.dart';
 import '../util/platform_flags.dart';
 import '../widgets/engine_chip.dart';
+import '../widgets/engine_picker.dart';
 import '../widgets/limit_chip.dart';
 import '../widgets/mic_button.dart';
 import '../widgets/notice_banner.dart';
-import '../widgets/result_card.dart';
+import '../widgets/result_panel.dart';
+import '../widgets/style_chips.dart';
+import 'settings/style_section.dart';
 
 /// Plain-language reason for a fallback, e.g. "Gemini was rate limited".
 String fallbackNotice(CleanupFailure reason) {
@@ -32,11 +36,18 @@ String fallbackNotice(CleanupFailure reason) {
   return '$why, cleaned on-device instead';
 }
 
-class RecordScreen extends ConsumerStatefulWidget {
-  const RecordScreen({super.key, this.compactHeader = false});
+/// True while a text field has focus, so Space and Enter type instead of
+/// toggling the recording.
+bool _typing() {
+  final ctx = FocusManager.instance.primaryFocus?.context;
+  return ctx != null && ctx.findAncestorStateOfType<EditableTextState>() != null;
+}
 
-  /// Reserved for the two-pane layout.
-  final bool compactHeader;
+class RecordScreen extends ConsumerStatefulWidget {
+  const RecordScreen({super.key, this.trailing});
+
+  /// Placed at the end of the top row (the settings button on desktop).
+  final Widget? trailing;
 
   @override
   ConsumerState<RecordScreen> createState() => _RecordScreenState();
@@ -95,7 +106,7 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
       }
     });
 
-    final state = ref.watch(dictationStateProvider).value ?? _controller.state;
+    final state = ref.watch(dictationStateProvider).value ?? const DictationIdle();
     final isLinux = ref.watch(isLinuxProvider);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
@@ -112,91 +123,146 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
       DictationFailed() => 'Something went wrong',
     };
 
+    void toggleUnlessTyping() {
+      if (!_typing()) _toggle();
+    }
+
     final shortcuts = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.escape): _cancel,
+      const SingleActivator(LogicalKeyboardKey.space): toggleUnlessTyping,
+      const SingleActivator(LogicalKeyboardKey.enter): toggleUnlessTyping,
       if (state is DictationDone)
-        const SingleActivator(LogicalKeyboardKey.keyC, control: true): () =>
-            copyToClipboard(context, state.outcome.text),
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true): () => copyToClipboard(context, state.outcome.text),
     };
+
+    final compactResult = state is DictationDone || state is DictationFailed;
 
     return CallbackShortcuts(
       bindings: shortcuts,
       child: FocusScope(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: [
-            Align(alignment: Alignment.center, child: EngineChip(onTap: () => context.go('/settings'))),
-            const SizedBox(height: 24),
-            Center(
-              child: MicButton(
-                state: state,
-                size: 200,
-                autofocus: isLinux,
-                onTap: _toggle,
-                onHoldStart: _holdStart,
-                onHoldEnd: _holdEnd,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                status,
-                textAlign: TextAlign.center,
-                style: text.titleMedium?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (state is DictationListening) ...[
-              Center(
-                child: ExcludeSemantics(
-                  child: Text(formatClock(state.elapsed), style: styles.timerLarge),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final micSize = compactResult
+                ? 120.0
+                : math.max(160.0, math.min(300.0, math.min(box.maxWidth - 48, box.maxHeight * 0.4)));
+            final narrow = box.maxWidth < 480;
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(Space.gutter, 8, 8, 0),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: EngineChip(onTap: () => showEnginePicker(context)),
+                          ),
+                        ),
+                        if (narrow)
+                          IconButton(
+                            tooltip: 'Edit style',
+                            icon: const Icon(Icons.tune_rounded),
+                            onPressed: () => showStyleEditor(context),
+                          )
+                        else
+                          ?widget.trailing,
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              Semantics(
-                label: 'Elapsed ${formatClock(state.elapsed)}',
-                child: const SizedBox.shrink(),
-              ),
-              if (state.nearLimit) ...[
-                const SizedBox(height: 8),
-                Center(child: LimitChip(state: state)),
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        children: [
+                          if (compactResult) const SizedBox(height: Space.x3) else const Spacer(flex: 3),
+                          Center(
+                            child: MicButton(
+                              state: state,
+                              size: micSize,
+                              autofocus: isLinux,
+                              onTap: _toggle,
+                              onHoldStart: _holdStart,
+                              onHoldEnd: _holdEnd,
+                            ),
+                          ),
+                          const SizedBox(height: Space.x2),
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              status,
+                              textAlign: TextAlign.center,
+                              style: (compactResult ? text.titleMedium : text.titleLarge)?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                          if (state is DictationListening) ...[
+                            const SizedBox(height: Space.x1),
+                            ExcludeSemantics(child: Text(formatClock(state.elapsed), style: styles.timerLarge)),
+                            Semantics(label: 'Elapsed ${formatClock(state.elapsed)}', child: const SizedBox.shrink()),
+                            if (state.nearLimit) ...[const SizedBox(height: Space.x1), LimitChip(state: state)],
+                          ],
+                          if (state is DictationDone) ...[
+                            const SizedBox(height: Space.x3),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
+                              child: _done(state.outcome),
+                            ),
+                          ],
+                          if (state is DictationFailed) ...[
+                            const SizedBox(height: Space.x3),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
+                              child: _ErrorBanner(failure: state, onRetry: () => _controller.retry(), onDismiss: _controller.reset),
+                            ),
+                          ],
+                          if (compactResult) const SizedBox(height: Space.x3) else const Spacer(flex: 2),
+                          if (state is! DictationListening && state is! DictationProcessing)
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.x2),
+                              child: _PendingRecordings(),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: Space.x2),
+                            child: StyleChips(onEdit: () => showStyleEditor(context), showEditButton: !narrow),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
-            ],
-            if (state is DictationDone) ..._done(state.outcome),
-            if (state is DictationFailed) ...[
-              const SizedBox(height: 16),
-              _ErrorBanner(failure: state, onRetry: () => _controller.retry(), onDismiss: _controller.reset),
-            ],
-            const SizedBox(height: 16),
-            if (state is! DictationListening && state is! DictationProcessing) const _PendingRecordings(),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 
-  List<Widget> _done(DictationOutcome o) {
+  Widget _done(DictationOutcome o) {
     final insert = ref.watch(lastInsertProvider);
     String? delivered;
     if (insert != null) {
-      delivered = insert.delivered
-          ? 'Typed into the focused app'
-          : 'Copied to the clipboard. Paste with Ctrl+V.';
+      delivered = insert.delivered ? 'Typed into the focused app' : 'Copied to the clipboard. Paste with Ctrl+V.';
     }
-    return [
-      const SizedBox(height: 16),
-      if (o.fellBack) ...[
-        NoticeBanner(message: fallbackNotice(o.fallbackReason!), tone: NoticeTone.info),
-        const SizedBox(height: 12),
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (o.fellBack) ...[
+          NoticeBanner(message: fallbackNotice(o.fallbackReason!), tone: NoticeTone.info),
+          const SizedBox(height: 12),
+        ],
+        ResultPanel(
+          text: o.text,
+          recordingId: o.recordingId,
+          footer: delivered == null ? null : Text(delivered, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
+        ),
       ],
-      ResultCard(
-        text: o.text,
-        recordingId: o.recordingId,
-        footer: delivered == null
-            ? null
-            : Text(delivered, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      ),
-    ];
+    );
   }
 }
 
@@ -207,42 +273,41 @@ class _ErrorBanner extends ConsumerWidget {
   final VoidCallback onRetry;
   final VoidCallback onDismiss;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final actions = <Widget>[];
-    final audio = failure.audioError;
+  /// The one button that fixes what went wrong.
+  Widget? _fix(BuildContext context, WidgetRef ref) {
     final kind = failure.kind;
-
-    if (audio == AudioSourceError.permissionDenied) {
-      actions.add(FilledButton.tonal(
+    if (failure.audioError == AudioSourceError.permissionDenied) {
+      return FilledButton(
         onPressed: () async {
           final ok = await ref.read(platformServicesProvider).audio.requestPermission();
           if (ok) onDismiss();
         },
         child: const Text('Allow microphone'),
-      ));
+      );
     }
     if (kind == CleanupFailureKind.modelNotDownloaded) {
-      actions.add(FilledButton.tonal(onPressed: () => context.go('/settings'), child: const Text('Download model')));
+      return FilledButton(onPressed: () => showEnginePicker(context), child: const Text('Download model'));
     }
     if (kind == CleanupFailureKind.missingApiKey || kind == CleanupFailureKind.invalidApiKey) {
-      actions.add(FilledButton.tonal(onPressed: () => context.go('/settings'), child: const Text('Add API key')));
+      return FilledButton(onPressed: () => showEnginePicker(context), child: const Text('Add API key'));
     }
-    if (failure.canRetry && (kind?.retryable ?? false)) {
-      actions.add(FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')));
-    } else if (failure.canRetry && actions.isEmpty) {
-      actions.add(FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')));
-    }
-    actions.add(TextButton(onPressed: onDismiss, child: const Text('Dismiss')));
+    if (failure.canRetry) return FilledButton(onPressed: onRetry, child: const Text('Retry'));
+    return null;
+  }
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final wait = failure.retryAfter;
     final extra = wait == null ? '' : ' Try again in ${wait.inSeconds < 1 ? 1 : wait.inSeconds} s.';
-    final saved = failure.canRetry ? ' Your recording is saved.' : '';
+    final saved = failure.canRetry && !failure.message.contains('saved') ? ' Your recording is saved.' : '';
     return NoticeBanner(
       tone: NoticeTone.error,
       title: 'Could not finish',
-      message: '${failure.message}$extra${failure.message.contains('saved') ? '' : saved}',
-      actions: actions,
+      message: '${failure.message}$extra$saved',
+      actions: [
+        TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
+        ?_fix(context, ref),
+      ],
     );
   }
 }

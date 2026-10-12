@@ -35,6 +35,11 @@ List<Map<String, Object?>> realisticModels() => [
       modelEntry('text-embedding-004', methods: ['embedContent']),
       modelEntry('gemini-embedding-001', methods: ['embedContent']),
       modelEntry('gemini-3.9-flash-lite', methods: ['countTokens']),
+      modelEntry('gemini-flash-latest'),
+      modelEntry('gemini-flash-lite-latest'),
+      modelEntry('gemini-3-flash-preview'),
+      modelEntry('gemini-2.5-flash-image'),
+      modelEntry('gemini-omni-1.1-flash'),
     ];
 
 http.Response jsonResponse(Object body, [int status = 200, Map<String, String> headers = const {}]) =>

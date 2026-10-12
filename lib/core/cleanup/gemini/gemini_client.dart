@@ -49,6 +49,7 @@ class GeminiClient {
     required String userText,
     required List<int> wav,
     bool minimalThinking = true,
+    String thinkingLevel = 'minimal',
     double temperature = 0.2,
     int maxOutputTokens = 8192,
   }) async {
@@ -73,7 +74,7 @@ class GeminiClient {
         'temperature': temperature,
         'maxOutputTokens': maxOutputTokens,
         'responseMimeType': 'text/plain',
-        if (minimalThinking) 'thinkingConfig': {'thinkingLevel': 'minimal'},
+        if (minimalThinking) 'thinkingConfig': {'thinkingLevel': thinkingLevel},
       },
     };
     final uri = base.resolve('models/$model:generateContent');
@@ -157,6 +158,25 @@ class GeminiClient {
 
     if (reason == 'API_KEY_INVALID' || status == 401 || (status == 403 && statusText == 'PERMISSION_DENIED')) {
       return CleanupFailure(CleanupFailureKind.invalidApiKey, 'Gemini rejected the API key. Check it in Settings.');
+    }
+    final lower = message.toLowerCase();
+    if (lower.contains('no longer available to new users')) {
+      return const CleanupFailure(
+        CleanupFailureKind.modelUnavailable,
+        'This Gemini model is no longer available to new users.',
+      );
+    }
+    if (lower.contains('developer instruction is not enabled')) {
+      return const CleanupFailure(
+        CleanupFailureKind.modelUnavailable,
+        'This Gemini model does not accept the instructions Ramble Voice needs.',
+      );
+    }
+    if ((status == 429 || statusText == 'RESOURCE_EXHAUSTED') && RegExp(r'limit:\s*0\b').hasMatch(message)) {
+      return const CleanupFailure(
+        CleanupFailureKind.modelNotOnFreeTier,
+        'This Gemini model has no free-tier quota. Pick another model, or enable billing for your key.',
+      );
     }
     if (status == 429 || statusText == 'RESOURCE_EXHAUSTED') {
       return daily

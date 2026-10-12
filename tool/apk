@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Builds the release APK locally with a bounded memory footprint and installs
+# it on the connected device. Usage: tool/apk [--no-install]
+# - Refuses to start with < 3 GB available (the desktop must stay usable).
+# - Gradle heap is capped in android/gradle.properties; the daemon is stopped
+#   afterwards so it does not keep holding memory.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+avail_kb=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)
+if [ "$avail_kb" -lt $((3 * 1024 * 1024)) ]; then
+  echo "tool/apk: only $((avail_kb / 1024)) MB available; need 3 GB. Close something or use CI." >&2
+  exit 1
+fi
+export RAMBLE_FL_TIMEOUT=1500
+status=0
+tool/fl env JAVA_HOME="$HOME/development/jdk21" ANDROID_HOME="$HOME/Android/Sdk" \
+  flutter build apk --release --target-platform android-arm64 || status=$?
+tool/fl bash -c 'cd android && JAVA_HOME=$HOME/development/jdk21 ./gradlew --stop -q' >/dev/null 2>&1 || true
+[ "$status" -eq 0 ] || exit "$status"
+apk=build/app/outputs/flutter-apk/app-release.apk
+echo "tool/apk: built $apk"
+if [ "${1:-}" != "--no-install" ]; then
+  "$HOME/Android/Sdk/platform-tools/adb" install -r "$apk"
+fi

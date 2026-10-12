@@ -71,7 +71,7 @@ class LinuxIntegration {
         }
       }));
       try {
-        final status = await hotkeys.bind();
+        final status = await hotkeys.bind(preferredTrigger: container.read(settingsProvider).hotkeyTrigger);
         _holdSupported = status.supportsRelease;
         container.read(hotkeyStatusProvider.notifier).set(status);
       } catch (_) {

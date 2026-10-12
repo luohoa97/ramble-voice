@@ -5,3 +5,7 @@
 tags:
   live:
     skip: "live test: run with --run-skipped -t live"
+  # Offscreen screenshots of every screen (test/goldens). A plain run only
+  # builds each screen; the PNGs are written with
+  #   tool/fl flutter test --update-goldens test/goldens
+  golden: {}

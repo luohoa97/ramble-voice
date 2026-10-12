@@ -15,9 +15,12 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app/providers.dart';
 import 'core/settings/app_settings.dart';
+import 'ime/edit_session.dart';
 import 'ime/ime_app.dart';
 import 'platform/android/android_model_downloads.dart';
 import 'platform/android/android_services.dart';
+import 'platform/android/ime_auto_start.dart';
+import 'platform/platform_services.dart';
 
 /// Dictation started from the keyboard types its result into the focused field.
 class _KeyboardOrigin extends DictationOriginNotifier {
@@ -41,32 +44,68 @@ Future<void> imeMain() async {
   // Models are downloaded by the app into <externalFilesDir>/models; the
   // keyboard only reads them, so it needs the path but not the service.
   final external = await getExternalStorageDirectory();
-  final downloads = external == null ? null : AndroidModelDownloads(directory: Directory(p.join(external.path, 'models')));
+  final downloads = external == null
+      ? null
+      : AndroidModelDownloads(
+          directory: Directory(p.join(external.path, 'models')),
+        );
+
+  final container = ProviderContainer(
+    overrides: [
+      appPathsProvider.overrideWithValue(paths),
+      if (downloads != null)
+        modelDownloaderProvider.overrideWithValue(downloads),
+      platformServicesProvider.overrideWithValue(services),
+      initialSettingsProvider.overrideWithValue(settings),
+      imeBridgeProvider.overrideWithValue(bridge),
+      dictationOriginProvider.overrideWith(_KeyboardOrigin.new),
+      outcomeHookProvider.overrideWith((ref) {
+        return (outcome) async {
+          final result = await services.inserter.insert(outcome.text);
+          ref.read(lastInsertProvider.notifier).set(result);
+          if (result.method == InsertMethod.typed) {
+            ref
+                .read(lastDictationProvider.notifier)
+                .set(
+                  LastDictation(
+                    text: outcome.text,
+                    packageName: bridge.current.packageName,
+                  ),
+                );
+          }
+          // Ramble is for dictation; typing stays in Gboard. Hop back after
+          // a short pause that leaves time for Undo.
+          if (result.delivered && ref.read(settingsProvider).autoSwitchBack) {
+            unawaited(
+              Future<void>.delayed(
+                const Duration(milliseconds: 1500),
+                () async {
+                  if (ref.read(lastInsertProvider) == result) {
+                    await bridge.switchToPreviousInputMethod(auto: true);
+                  }
+                },
+              ),
+            );
+          }
+        };
+      }),
+    ],
+  );
+
+  // The floating mic switches to this keyboard and expects it to listen.
+  final controller = container.read(dictationControllerProvider);
+  ImeAutoStart(
+    bridge: bridge,
+    onStart: () {
+      container
+          .read(dictationOriginProvider.notifier)
+          .set(DictationOrigin.keyboard);
+      return controller.start();
+    },
+    onStop: controller.stop,
+  );
 
   runApp(
-    ProviderScope(
-      overrides: [
-        appPathsProvider.overrideWithValue(paths),
-        if (downloads != null) modelDownloaderProvider.overrideWithValue(downloads),
-        platformServicesProvider.overrideWithValue(services),
-        initialSettingsProvider.overrideWithValue(settings),
-        imeBridgeProvider.overrideWithValue(bridge),
-        dictationOriginProvider.overrideWith(_KeyboardOrigin.new),
-        outcomeHookProvider.overrideWith((ref) {
-          return (outcome) async {
-            final result = await services.inserter.insert(outcome.text);
-            ref.read(lastInsertProvider.notifier).set(result);
-            // Ramble is for dictation; typing stays in Gboard. Hop back after
-            // a short pause that leaves time for Undo.
-            if (result.delivered && ref.read(settingsProvider).autoSwitchBack) {
-              unawaited(Future<void>.delayed(const Duration(milliseconds: 1500), () async {
-                if (ref.read(lastInsertProvider) == result) await bridge.switchToPreviousInputMethod();
-              }));
-            }
-          };
-        }),
-      ],
-      child: const ImeApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const ImeApp()),
   );
 }

@@ -19,6 +19,11 @@ enum CleanupMode {
 
   /// Word-for-word transcript, used for "show original".
   verbatim,
+
+  /// The audio is a spoken editing instruction applied to
+  /// [CleanupRequest.sourceText]. Only ever started by an explicit Edit
+  /// action, never by normal dictation.
+  edit,
 }
 
 class CleanupRequest {
@@ -26,13 +31,17 @@ class CleanupRequest {
     required this.pcm,
     required this.style,
     this.mode = CleanupMode.clean,
-  });
+    this.sourceText,
+  }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
 
   /// [Pcm]-format audio (16 kHz mono s16le), at most the engine's
   /// [CleanupEngine.maxAudioPerRequest] long. The engine wraps it as needed.
   final Uint8List pcm;
   final StyleProfile style;
   final CleanupMode mode;
+
+  /// The text to revise; required for (and only used by) [CleanupMode.edit].
+  final String? sourceText;
 }
 
 /// Readiness of an engine before a request is attempted.
@@ -76,6 +85,13 @@ enum CleanupFailureKind {
   outOfMemory,
   rateLimited,
   dailyQuotaExceeded,
+
+  /// The chosen cloud model has no quota on this key's tier (`limit: 0`).
+  modelNotOnFreeTier,
+
+  /// The chosen cloud model cannot be used with this key at all (retired for
+  /// new users, or it rejects the instructions the app needs).
+  modelUnavailable,
   noNetwork,
   missingApiKey,
   invalidApiKey,
@@ -87,7 +103,7 @@ enum CleanupFailureKind {
 
   /// Whether falling back to the on-device engine makes sense.
   bool get cloudFallbackEligible => switch (this) {
-        rateLimited || dailyQuotaExceeded || noNetwork || server || audioTooLong => true,
+        rateLimited || dailyQuotaExceeded || modelNotOnFreeTier || modelUnavailable || noNetwork || server || audioTooLong => true,
         _ => false,
       };
 

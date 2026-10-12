@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'app/error_log.dart';
 import 'app/providers.dart';
 import 'core/settings/app_settings.dart';
 import 'platform/android/android_model_downloads.dart';
@@ -45,6 +46,7 @@ Future<void> bubbleMain() async {
   final bridge = BubbleBridge();
 
   final support = await getApplicationSupportDirectory();
+  installErrorLog(support);
   final paths = AppPaths(support: support);
   final settings = await SettingsStore(paths.settingsFile).load();
   final system = AndroidSystem();

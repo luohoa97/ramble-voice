@@ -18,6 +18,9 @@ enum GeminiFamily {
   final String label;
 }
 
+/// How a model answered the health probe.
+enum GeminiHealth { unknown, fast, slow, failed }
+
 class GeminiModelInfo {
   const GeminiModelInfo({
     required this.id,
@@ -30,6 +33,8 @@ class GeminiModelInfo {
     this.inputTokenLimit,
     this.freeTierUnavailable = false,
     this.unavailableReason,
+    this.health = GeminiHealth.unknown,
+    this.latency,
   });
 
   /// Model id without the `models/` prefix, e.g. `gemini-3.8-flash`.
@@ -55,12 +60,38 @@ class GeminiModelInfo {
   /// The model cannot be used with this key, for either reason.
   bool get unavailable => freeTierUnavailable || unavailableReason != null;
 
+  /// The last health probe result for this key.
+  final GeminiHealth health;
+
+  /// Probe round-trip time, when the probe succeeded.
+  final Duration? latency;
+
+  /// "Fast · 3.2 s", "Slow · 14 s", "Not responding", or null before a probe.
+  String? get healthLabel {
+    String secs(Duration d) {
+      final s = d.inMilliseconds / 1000;
+      return s < 10 ? '${s.toStringAsFixed(1)} s' : '${s.round()} s';
+    }
+
+    return switch (health) {
+      GeminiHealth.unknown => null,
+      GeminiHealth.fast => 'Fast · ${secs(latency ?? Duration.zero)}',
+      GeminiHealth.slow => 'Slow · ${secs(latency ?? Duration.zero)}',
+      GeminiHealth.failed => 'Not responding',
+    };
+  }
+
   /// `Pro`, `Flash` or `Flash-Lite`.
   String get tier => family.label;
 
   double get version => alias ? 1e6 : major + minor / 100;
 
-  GeminiModelInfo copyWith({bool? freeTierUnavailable, String? unavailableReason}) => GeminiModelInfo(
+  GeminiModelInfo copyWith({
+    bool? freeTierUnavailable,
+    String? unavailableReason,
+    GeminiHealth? health,
+    Duration? latency,
+  }) => GeminiModelInfo(
         id: id,
         major: major,
         minor: minor,
@@ -71,6 +102,8 @@ class GeminiModelInfo {
         inputTokenLimit: inputTokenLimit,
         freeTierUnavailable: freeTierUnavailable ?? this.freeTierUnavailable,
         unavailableReason: unavailableReason ?? this.unavailableReason,
+        health: health ?? this.health,
+        latency: latency ?? this.latency,
       );
 
   @override
@@ -186,6 +219,32 @@ abstract final class GeminiModelSelector {
       }
     }
     return defaultModel(sorted);
+  }
+
+  /// The stable Flash models worth probing and trying, newest first.
+  static List<GeminiModelInfo> stableFlash(List<GeminiModelInfo> sorted) => [
+        for (final m in sorted)
+          if (m.family == GeminiFamily.flash && !m.alias && !m.preview && !m.unavailable) m,
+      ];
+
+  /// The newest stable Flash-Lite (or preview if there is no stable one).
+  static GeminiModelInfo? liteBackup(List<GeminiModelInfo> sorted) =>
+      _newest(sorted, GeminiFamily.flashLite) ?? _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
+
+  /// Automatic order once a health probe has run: Flash models that answered
+  /// quickly, newest to oldest; then Flash models that answered slowly; then
+  /// the newest Flash-Lite. Models that did not answer are left out.
+  /// Null when nothing was probed yet.
+  static List<GeminiModelInfo>? chainByHealth(List<GeminiModelInfo> sorted) {
+    final flash = stableFlash(sorted);
+    if (flash.every((m) => m.health == GeminiHealth.unknown)) return null;
+    final out = [
+      ...flash.where((m) => m.health == GeminiHealth.fast),
+      ...flash.where((m) => m.health == GeminiHealth.slow),
+    ];
+    final backup = liteBackup(sorted);
+    if (backup != null && backup.health != GeminiHealth.failed) out.add(backup);
+    return out.isEmpty && backup != null ? [backup] : out;
   }
 
   /// Models to try in order: [first], then the newest stable Flash-Lite as the

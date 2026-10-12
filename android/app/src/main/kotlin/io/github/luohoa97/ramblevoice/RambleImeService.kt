@@ -97,7 +97,13 @@ class RambleImeService : InputMethodService() {
      */
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        if (ImeLaunch.hasPendingAutoStart()) ime?.notifyInputStarted(attribute, restarting)
+        if (ImeLaunch.hasPendingAutoStart()) {
+            // Switched in by the floating mic: Android selects us but does not
+            // show the window until the field asks again, so ask ourselves.
+            CrashLog.note("ime requestShowSelf for bubble auto-start")
+            requestShowSelf(0)
+            ime?.notifyInputStarted(attribute, restarting)
+        }
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {

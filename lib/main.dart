@@ -17,6 +17,7 @@ import 'main_ime.dart';
 // ignore: unused_import
 import 'main_bubble.dart';
 import 'app/app.dart';
+import 'app/error_log.dart';
 import 'app/providers.dart';
 import 'core/models/model_catalog.dart';
 import 'core/models/model_downloads.dart';
@@ -40,7 +41,7 @@ Future<void> main() async {
   }
 
   final support = await getApplicationSupportDirectory();
-  _installErrorLog(support);
+  installErrorLog(support);
   final paths = AppPaths(support: support);
   final settings = await SettingsStore(paths.settingsFile).load();
   final PlatformServices services = Platform.isLinux ? await createLinuxServices() : await createAndroidServices();
@@ -72,30 +73,4 @@ Future<void> main() async {
   }
 
   runApp(UncontrolledProviderScope(container: container, child: const RambleApp()));
-}
-
-/// Local-only error log at `<support>/logs/dart.log` (never uploaded), so
-/// failures that the UI only summarises can be diagnosed.
-void _installErrorLog(Directory support) {
-  final log = File('${support.path}/logs/dart.log');
-  try {
-    log.parent.createSync(recursive: true);
-    if (log.existsSync() && log.lengthSync() > 256 * 1024) log.renameSync('${log.path}.old');
-  } catch (_) {}
-  void write(String what, Object error, StackTrace? stack) {
-    try {
-      log.writeAsStringSync('${DateTime.now().toIso8601String()} $what: $error\n$stack\n\n', mode: FileMode.append);
-    } catch (_) {}
-  }
-
-  final previous = FlutterError.onError;
-  FlutterError.onError = (details) {
-    write('FlutterError', details.exception, details.stack);
-    previous?.call(details);
-  };
-  PlatformDispatcher.instance.onError = (error, stack) {
-    write('uncaught', error, stack);
-    return false;
-  };
-  appErrorLog = write;
 }

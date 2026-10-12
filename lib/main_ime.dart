@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'app/error_log.dart';
 import 'app/providers.dart';
 import 'core/settings/app_settings.dart';
 import 'ime/edit_session.dart';
@@ -37,6 +38,7 @@ Future<void> imeMain() async {
   final bridge = ImeBridge();
 
   final support = await getApplicationSupportDirectory();
+  installErrorLog(support);
   final paths = AppPaths(support: support);
   final settings = await SettingsStore(paths.settingsFile).load();
   final services = await createAndroidServices(keyboard: true, bridge: bridge);

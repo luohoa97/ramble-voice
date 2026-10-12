@@ -131,6 +131,7 @@ final geminiEngineProvider = Provider<GeminiEngine>((ref) {
     client: ref.watch(geminiClientProvider),
     cache: ref.watch(geminiModelCacheProvider),
     preferredModel: ref.watch(settingsProvider.select((s) => s.geminiModel)),
+    healthProbe: true,
   );
 });
 
@@ -237,6 +238,12 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
       }
     },
   );
+  final failures = controller.states.listen((s) {
+    if (s is DictationFailed) {
+      appErrorLog?.call('dictation failed (${s.kind?.name ?? s.audioError?.name})', s.message, null);
+    }
+  });
+  ref.onDispose(failures.cancel);
   ref.onDispose(controller.dispose);
   return controller;
 });

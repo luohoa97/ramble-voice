@@ -36,6 +36,14 @@ class GeminiModelCache {
   final _noFreeTier = <String>{};
   final _unavailable = <String, String>{};
   final _slowUntil = <String, DateTime>{};
+  final _health = <String, ({GeminiHealth health, Duration? latency})>{};
+  DateTime? _probedAt;
+
+  /// The probe in flight, if any. Awaiting it is safe: it never throws.
+  Future<void>? probing;
+
+  /// How long a probe result is trusted.
+  static const probeTtl = Duration(hours: 6);
 
   List<GeminiModelInfo>? get(String key) {
     if (_models == null || _forKey != key || _fetchedAt == null) return null;
@@ -47,6 +55,8 @@ class GeminiModelCache {
       _thinking.clear();
       _noFreeTier.clear();
       _unavailable.clear();
+      _health.clear();
+      _probedAt = null;
     }
     _models = models;
     _forKey = key;
@@ -73,12 +83,33 @@ class GeminiModelCache {
     return until != null && _clock().isBefore(until);
   }
 
+  /// Whether a health probe is due for the current list (never probed, or
+  /// older than [probeTtl]) and none is running.
+  bool probeDue() {
+    if (probing != null) return false;
+    final at = _probedAt;
+    return at == null || _clock().difference(at) >= probeTtl;
+  }
+
+  /// Marks the probe as run now, so it is not started twice.
+  void probeStarted() => _probedAt = _clock();
+
+  void recordHealth(String modelId, GeminiHealth health, Duration? latency) =>
+      _health[modelId] = (health: health, latency: latency);
+
+  GeminiHealth healthOf(String modelId) => _health[modelId]?.health ?? GeminiHealth.unknown;
+
   /// [models] with [GeminiModelInfo.freeTierUnavailable] and
   /// [GeminiModelInfo.unavailableReason] applied.
   List<GeminiModelInfo> annotate(List<GeminiModelInfo> models) => [
         for (final m in models)
-          if (_noFreeTier.contains(m.id) || _unavailable.containsKey(m.id))
-            m.copyWith(freeTierUnavailable: _noFreeTier.contains(m.id) ? true : null, unavailableReason: _unavailable[m.id])
+          if (_noFreeTier.contains(m.id) || _unavailable.containsKey(m.id) || _health.containsKey(m.id))
+            m.copyWith(
+              freeTierUnavailable: _noFreeTier.contains(m.id) ? true : null,
+              unavailableReason: _unavailable[m.id],
+              health: _health[m.id]?.health,
+              latency: _health[m.id]?.latency,
+            )
           else
             m,
       ];
@@ -97,6 +128,10 @@ class GeminiEngine implements CleanupEngine {
     GeminiModelCache? cache,
     this.preferredModel,
     this.overloadBackoff = const Duration(milliseconds: 1500),
+    this.healthProbe = false,
+    this.probeTimeout = const Duration(seconds: 15),
+    this.fastLatency = const Duration(seconds: 10),
+    this.pickedModelTimeout = const Duration(seconds: 20),
   }) : cache = cache ?? GeminiModelCache();
 
   /// Returns the key, or null when none is configured.
@@ -109,6 +144,23 @@ class GeminiEngine implements CleanupEngine {
 
   /// Wait before the single retry after a 503 "high demand".
   final Duration overloadBackoff;
+
+  /// Probe the newest Flash models in the background when the model list
+  /// resolves (at most every [GeminiModelCache.probeTtl]) and order the
+  /// automatic chain by how fast they answered. Off in tests that count
+  /// requests.
+  final bool healthProbe;
+
+  /// Give up on one probe request after this long: the model counts as not
+  /// responding.
+  final Duration probeTimeout;
+
+  /// A probe answered within this is "fast".
+  final Duration fastLatency;
+
+  /// Request timeout for a model the user picked when the probe found it slow
+  /// or not responding, so a bad pick falls back quickly.
+  final Duration pickedModelTimeout;
 
   @override
   EngineKind get kind => EngineKind.gemini;
@@ -132,10 +184,65 @@ class GeminiEngine implements CleanupEngine {
   Future<List<GeminiModelInfo>> availableModels({bool refresh = false}) async {
     final key = await _key();
     final cached = refresh ? null : cache.get(key);
-    if (cached != null) return cached;
+    if (cached != null) {
+      _probeIfDue(key, cached);
+      return cached;
+    }
     final models = GeminiModelSelector.parse(await client.listModels(key));
     cache.put(key, models);
-    return cache.annotate(models);
+    final annotated = cache.annotate(models);
+    _probeIfDue(key, annotated);
+    return annotated;
+  }
+
+  void _probeIfDue(String key, List<GeminiModelInfo> models) {
+    if (!healthProbe || !cache.probeDue()) return;
+    cache.probing = probeHealth(models: models).whenComplete(() => cache.probing = null);
+  }
+
+  /// Sends a tiny request to the four newest stable Flash models (and the
+  /// user's pick) in parallel and records how fast each answered. Never
+  /// throws.
+  Future<void> probeHealth({List<GeminiModelInfo>? models}) async {
+    try {
+      final key = await _key();
+      final list = models ?? await availableModels();
+      cache.probeStarted();
+      final targets = GeminiModelSelector.stableFlash(list).take(4).toList();
+      final picked = preferredModel;
+      if (picked != null && targets.every((m) => m.id != picked)) {
+        for (final m in list) {
+          if (m.id == picked && !m.unavailable) targets.add(m);
+        }
+      }
+      final wav = WavEncoder.encode(Uint8List(Pcm.bytesFor(const Duration(milliseconds: 500))));
+      await Future.wait([for (final m in targets) _probeOne(key, m, wav)]);
+    } catch (_) {
+      // A probe is best effort.
+    }
+  }
+
+  Future<void> _probeOne(String key, GeminiModelInfo model, Uint8List wav) async {
+    final watch = Stopwatch()..start();
+    try {
+      await _generate(
+        key,
+        model,
+        systemInstruction: 'Reply with the single word OK.',
+        userText: 'Test.',
+        wav: wav,
+        maxOutputTokens: 16,
+        timeout: probeTimeout,
+      );
+      watch.stop();
+      final latency = watch.elapsed;
+      cache.recordHealth(model.id, latency < fastLatency ? GeminiHealth.fast : GeminiHealth.slow, latency);
+    } on CleanupFailure catch (f) {
+      _remember(model, f);
+      cache.recordHealth(model.id, GeminiHealth.failed, null);
+    } catch (_) {
+      cache.recordHealth(model.id, GeminiHealth.failed, null);
+    }
   }
 
   Future<GeminiModelInfo> resolveModel({bool refresh = false}) async {
@@ -201,6 +308,7 @@ class GeminiEngine implements CleanupEngine {
     required String userText,
     required List<int> wav,
     int maxOutputTokens = 8192,
+    Duration? timeout,
   }) async {
     while (true) {
       final mode = cache.thinkingFor(model.id);
@@ -214,7 +322,7 @@ class GeminiEngine implements CleanupEngine {
           minimalThinking: mode != GeminiThinking.none,
           thinkingLevel: mode.level,
           maxOutputTokens: maxOutputTokens,
-          timeout: requestTimeout(wav.length),
+          timeout: timeout ?? requestTimeout(wav.length),
         );
       } on CleanupFailure catch (f) {
         final next = _nextThinking(mode, f);
@@ -265,7 +373,9 @@ class GeminiEngine implements CleanupEngine {
 
     for (var i = 0; i < chain.length; i++) {
       final model = chain[i];
-      Future<String> call() => _generate(key, model, systemInstruction: system, userText: userText, wav: wav);
+      final timeout = _timeoutFor(model, wav.length);
+      Future<String> call() =>
+          _generate(key, model, systemInstruction: system, userText: userText, wav: wav, timeout: timeout);
       try {
         try {
           return CleanupPrompt.tidyFor(request, await call());
@@ -293,6 +403,18 @@ class GeminiEngine implements CleanupEngine {
     throw last ?? const CleanupFailure(CleanupFailureKind.unknown, 'No Gemini model could be used.');
   }
 
+  /// The user's own pick keeps the first place, but when the probe found it
+  /// slow or not responding it only gets [pickedModelTimeout].
+  Duration _timeoutFor(GeminiModelInfo model, int wavBytes) {
+    final normal = requestTimeout(wavBytes);
+    final picked = preferredModel == model.id;
+    final health = cache.healthOf(model.id);
+    if (picked && (health == GeminiHealth.slow || health == GeminiHealth.failed) && pickedModelTimeout < normal) {
+      return pickedModelTimeout;
+    }
+    return normal;
+  }
+
   /// Remembers per-model dead ends so later requests skip the model.
   void _remember(GeminiModelInfo model, CleanupFailure f) {
     if (f.kind == CleanupFailureKind.modelNotOnFreeTier) cache.markFreeTierUnavailable(model.id);
@@ -308,7 +430,10 @@ class GeminiEngine implements CleanupEngine {
         'Google did not list any Gemini model that can transcribe audio for this key.',
       );
     }
-    final chain = GeminiModelSelector.chain(models, first);
+    final picked = preferredModel != null && models.any((m) => m.id == preferredModel && !m.unavailable);
+    // Automatic mode with probe results: healthy Flash models first.
+    final byHealth = picked ? null : GeminiModelSelector.chainByHealth(models);
+    final chain = byHealth ?? GeminiModelSelector.chain(models, first);
     // Models that just stalled go last so the next dictation doesn't wait.
     return [...chain.where((m) => !cache.isSlow(m.id)), ...chain.where((m) => cache.isSlow(m.id))];
   }

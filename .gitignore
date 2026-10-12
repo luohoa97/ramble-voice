@@ -76,3 +76,7 @@ flatpak-repo/
 
 # Screenshot harness output (regenerate: tool/fl flutter test --update-goldens test/goldens)
 test/goldens/out/
+
+# Golden test failure diffs (generated)
+test/goldens/failures/
+**/failures/*.png

@@ -62,7 +62,7 @@ void main() {
     expect(find.text('Gemini API key'), findsNothing);
 
     await tester.tap(find.text('Gemini cloud'));
-    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await pumpFor(tester);
     expect(find.text('Gemma 4 E4B'), findsNothing);
     expect(find.text('Gemini API key'), findsOneWidget);
   });

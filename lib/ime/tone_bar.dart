@@ -7,7 +7,6 @@ import '../app/providers.dart';
 import '../core/style/app_styles.dart';
 import '../core/style/style_profile.dart';
 import '../ui/util/app_label.dart';
-import '../ui/widgets/style_chips.dart';
 
 /// Saves [preset] for the app the keyboard is typing into, or as the global
 /// tone when the app is unknown.
@@ -20,80 +19,74 @@ Future<void> setKeyboardTone(WidgetRef ref, StylePreset preset) {
       );
 }
 
-/// The tone chips for the keyboard. They show the tone in effect for the
-/// current app; tapping one saves an override for that app.
-class ToneChips extends ConsumerWidget {
-  const ToneChips({super.key, required this.onEdit});
+/// The one style chip of the keyboard: shows the tone in effect for the
+/// current app ("Casual"). Its menu lists the four tones, "Use for all apps",
+/// "Reset for this app" and a way to edit custom instructions.
+class ToneMenu extends ConsumerWidget {
+  const ToneMenu({super.key, required this.onEdit, this.onTick});
 
+  /// Opens custom instructions and vocabulary in the app.
   final VoidCallback onEdit;
 
+  /// Haptic tick on press.
+  final VoidCallback? onTick;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final pkg = ref.watch(currentPackageProvider);
-    return StyleChipRow(
-      compact: true,
-      centered: false,
-      selected: settings.styleForApp(pkg),
-      hasCustom: settings.style.customInstructions.trim().isNotEmpty,
-      onEdit: onEdit,
-      onSelected: (p) => setKeyboardTone(ref, p),
-    );
-  }
-}
-
-/// "for Gmail" pill. Its menu holds "Use for all apps" and "Reset" for the
-/// app's override. Hidden when the app is unknown.
-class ToneHint extends ConsumerWidget {
-  const ToneHint({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pkg = ref.watch(currentPackageProvider);
-    if (pkg == null) return const SizedBox.shrink();
-    final settings = ref.watch(settingsProvider);
-    final label = ref.watch(appLabelProvider(pkg)).value ?? pkg;
     final effective = settings.styleForApp(pkg);
-    final hasOverride = settings.appStyles.containsKey(pkg);
-    final canGlobal = effective != settings.style.preset;
+    final label = pkg == null ? null : (ref.watch(appLabelProvider(pkg)).value ?? pkg);
+    final hasOverride = pkg != null && settings.appStyles.containsKey(pkg);
+    final canGlobal = pkg != null && effective != settings.style.preset;
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
 
-    Future<void> apply(String action) {
+    Future<void> act(String action) {
+      if (action == 'edit') {
+        onEdit();
+        return Future.value();
+      }
+      final preset = StylePreset.values.asNameMap()[action];
+      if (preset != null) return setKeyboardTone(ref, preset);
       return ref.read(settingsProvider.notifier).update((s) {
         final next = {...s.appStyles}..remove(pkg);
-        if (action == 'all') {
-          return s.copyWith(appStyles: next, style: s.style.copyWith(preset: effective));
-        }
-        return s.copyWith(appStyles: next);
+        return action == 'all'
+            ? s.copyWith(appStyles: next, style: s.style.copyWith(preset: effective))
+            : s.copyWith(appStyles: next);
       });
     }
 
     return PopupMenuButton<String>(
-      tooltip: 'Tone for $label',
-      onSelected: apply,
+      tooltip: label == null ? 'Tone' : 'Tone for $label',
+      onOpened: onTick,
+      onSelected: act,
       itemBuilder: (_) => [
+        if (label != null)
+          PopupMenuItem<String>(enabled: false, height: 32, child: Text('For $label', style: t.labelMedium)),
+        for (final p in StylePreset.values)
+          CheckedPopupMenuItem<String>(value: p.name, checked: p == effective, child: Text(p.label)),
+        const PopupMenuDivider(),
         if (canGlobal) PopupMenuItem(value: 'all', child: Text('Use ${effective.label} for all apps')),
         if (hasOverride) const PopupMenuItem(value: 'reset', child: Text('Reset for this app')),
-        if (!canGlobal && !hasOverride)
-          const PopupMenuItem(enabled: false, child: Text('Tap a tone to set it for this app')),
+        const PopupMenuItem(value: 'edit', child: Text('Custom instructions')),
       ],
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48, maxWidth: 140),
+        constraints: const BoxConstraints(minHeight: 48),
         child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  'for $label',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: t.labelMedium?.copyWith(color: c.onSurfaceVariant),
-                ),
+          widthFactor: 1,
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: c.secondaryContainer, borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(effective.label, style: t.labelLarge?.copyWith(color: c.onSecondaryContainer)),
+                  Icon(Icons.arrow_drop_down_rounded, size: 20, color: c.onSecondaryContainer),
+                ],
               ),
-              Icon(Icons.arrow_drop_down_rounded, size: 20, color: c.onSurfaceVariant),
-            ],
+            ),
           ),
         ),
       ),

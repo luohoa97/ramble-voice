@@ -10,6 +10,7 @@ import '../../../core/cleanup/cleanup_engine.dart';
 import '../../../core/cleanup/gemini/gemini_models.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../util/open_url.dart';
+import 'gemini_model_picker.dart';
 import '../../util/platform_flags.dart';
 
 const geminiFreeTierWarning = 'Free-tier requests may be used by Google to improve its products.';
@@ -233,7 +234,7 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _ModelPicker(selected: settings.geminiModel, hasKey: hasKey),
+          child: GeminiModelPicker(selected: settings.geminiModel, hasKey: hasKey),
         ),
         const SizedBox(height: 4),
         SwitchListTile(
@@ -243,48 +244,6 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
           onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(fallbackToOnDevice: v)),
         ),
       ],
-    );
-  }
-}
-
-class _ModelPicker extends ConsumerWidget {
-  const _ModelPicker({required this.selected, required this.hasKey});
-
-  final String? selected;
-  final bool hasKey;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Theme.of(context).textTheme;
-    final c = Theme.of(context).colorScheme;
-    if (!hasKey) {
-      return Text('Add a key to choose a model.', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant));
-    }
-    final models = ref.watch(geminiModelsProvider);
-    return models.when(
-      loading: () => const LinearProgressIndicator(semanticsLabel: 'Loading models'),
-      error: (e, _) => Text(
-        e is CleanupFailure ? e.message : 'The model list could not be loaded.',
-        style: t.bodyMedium?.copyWith(color: c.error),
-      ),
-      data: (list) {
-        final current = list.any((m) => m.id == selected) ? selected : null;
-        return DropdownMenu<String?>(
-          key: ValueKey(current),
-          expandedInsets: EdgeInsets.zero,
-          label: const Text('Gemini model'),
-          initialSelection: current,
-          dropdownMenuEntries: [
-            const DropdownMenuEntry<String?>(value: null, label: 'Newest stable (automatic)'),
-            for (final m in list)
-              DropdownMenuEntry<String?>(value: m.id, label: m.preview ? '${m.id} (preview)' : m.id),
-          ],
-          onSelected: (id) {
-            ref.read(settingsProvider.notifier).update((s) => s.copyWith(geminiModel: () => id));
-            ref.invalidate(activeEngineReadinessProvider);
-          },
-        );
-      },
     );
   }
 }

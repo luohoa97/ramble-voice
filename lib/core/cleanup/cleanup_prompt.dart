@@ -87,8 +87,17 @@ abstract final class CleanupPrompt {
 
   /// The spec prompt with [rules] inserted before its final sentence, so
   /// "Output only the cleaned text." stays the last instruction.
+  /// Added for [Polish.full], before the final sentence.
+  static const String polishFull =
+      "Polish fully: correct grammar, fix awkward phrasing and word order, and make every sentence clear and complete, while keeping the speaker's meaning, facts, and voice.";
+
   static String build(StyleProfile profile) {
-    final extras = [profile.describeLanguage(), profile.describeContacts(), profile.describeSnippets()]
+    final extras = [
+      if (profile.polish == Polish.full) polishFull,
+      profile.describeLanguage(),
+      profile.describeContacts(),
+      profile.describeSnippets(),
+    ]
         .where((s) => s.isNotEmpty)
         .join(' ');
     return template

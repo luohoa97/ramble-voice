@@ -181,8 +181,11 @@ List<Override> overridesFor(Scene s, Device d) {
     modelDownloaderProvider.overrideWithValue(FakeDownloads(s.downloads, canPause: s.pausable)),
     geminiKeySourceProvider.overrideWith((ref) async => s.keySource),
     geminiModelsProvider.overrideWith((ref) async => const [
+          GeminiModelInfo(id: 'gemini-3.8-pro', major: 3, minor: 8, preview: false, family: GeminiFamily.pro, freeTierUnavailable: true),
+          GeminiModelInfo(id: 'gemini-3.8-flash', major: 3, minor: 8, preview: false, family: GeminiFamily.flash),
+          GeminiModelInfo(id: 'gemini-3.7-flash', major: 3, minor: 7, preview: false, family: GeminiFamily.flash),
           GeminiModelInfo(id: 'gemini-3.1-flash-lite', major: 3, minor: 1, preview: false),
-          GeminiModelInfo(id: 'gemini-3.1-flash-lite-preview', major: 3, minor: 1, preview: true),
+          GeminiModelInfo(id: 'gemini-3.2-flash-lite-preview', major: 3, minor: 2, preview: true),
         ]),
     verbatimProvider.overrideWith((ref, id) async => 'um can you uh move the design review to thursday afternoon i have a clash in the morning and i would like priya to be there'),
     isAndroidProvider.overrideWithValue(d.android),

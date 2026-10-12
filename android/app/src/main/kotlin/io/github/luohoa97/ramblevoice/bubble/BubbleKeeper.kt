@@ -61,7 +61,7 @@ object BubbleKeeper {
         val open = PendingIntent.getActivity(
             app,
             0,
-            Intent(Settings.ACTION_ACCESSIBILITY_DETAILS_SETTINGS)
+            Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
                 .putExtra(Intent.EXTRA_COMPONENT_NAME, ComponentName(app, RambleBubbleService::class.java).flattenToString())
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

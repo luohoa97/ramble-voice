@@ -186,6 +186,7 @@ void main() {
   const gmail = 'com.google.android.gm';
   widgetScene('keyboard_idle', keyboard, keyboardView, const Scene(package: gmail));
   widgetScene('keyboard_listening', keyboard, keyboardView, Scene(package: gmail, state: listening()));
+  widgetScene('keyboard_near_limit', keyboard, keyboardView, Scene(package: gmail, state: listening(seconds: 570, level: 0.3)));
   widgetScene('keyboard_processing', keyboard, keyboardView, const Scene(package: gmail, state: DictationProcessing(recordingId: 'r')));
   widgetScene('keyboard_done', keyboard, keyboardView, Scene(package: gmail, state: DictationDone(outcome())));
   widgetScene(

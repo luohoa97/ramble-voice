@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import '../audio/audio_source.dart';
 import '../audio/pcm.dart';
+import '../audio/speech_detector.dart';
 import '../cleanup/cleanup_engine.dart';
 import '../cleanup/cleanup_pipeline.dart';
 import '../style/style_profile.dart';
@@ -123,6 +124,7 @@ class DictationController {
     this.maxSession = const Duration(minutes: 10),
     this.warnBefore = const Duration(seconds: 30),
     this.minSpeech = const Duration(milliseconds: 400),
+    this.hasSpeech = SpeechDetector.hasSpeech,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
@@ -139,6 +141,10 @@ class DictationController {
   final Duration maxSession;
   final Duration warnBefore;
   final Duration minSpeech;
+
+  /// The speech gate: recordings without speech (steady noise, silence) are
+  /// dropped instead of sent to the model.
+  final bool Function(Uint8List pcm) hasSpeech;
   final DateTime Function() _clock;
 
   final _states = StreamController<DictationState>.broadcast(sync: true);
@@ -302,6 +308,11 @@ class DictationController {
     final pcm = await vault.read(id);
     if (pcm == null) {
       _emit(const DictationFailed(message: 'The recording could not be found.'));
+      return;
+    }
+    if (!hasSpeech(pcm)) {
+      await vault.delete(id);
+      _emit(const DictationIdle(notice: 'No speech detected.'));
       return;
     }
     try {

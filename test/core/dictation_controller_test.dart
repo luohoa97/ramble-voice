@@ -158,6 +158,32 @@ void main() {
     });
   });
 
+  group('speech gate', () {
+    test('a recording without speech is dropped before the engine, with a notice', () async {
+      final rig = await Rig.create();
+      await rig.controller.start();
+      for (var i = 0; i < 3; i++) {
+        rig.audio.capture!.emit(silencePcm(_second));
+      }
+      await rig.pump();
+      await rig.controller.stop();
+      expect(rig.controller.state, isA<DictationIdle>());
+      expect((rig.controller.state as DictationIdle).notice, 'No speech detected.');
+      expect(rig.primary.requests, isEmpty);
+      expect(await rig.vault.pending(), isEmpty);
+      expect(rig.files, isEmpty);
+      expect(rig.outcomes, isEmpty);
+    });
+
+    test('speech goes through as before', () async {
+      final rig = await Rig.create();
+      await rig.controller.start();
+      await rig.speak(1);
+      await rig.controller.stop();
+      expect(rig.controller.state, isA<DictationDone>());
+    });
+  });
+
   group('listening state', () {
     test('elapsed and level follow the blocks', () async {
       final rig = await Rig.create();

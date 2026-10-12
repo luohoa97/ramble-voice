@@ -9,6 +9,7 @@ import 'package:ramble_voice/core/style/style_profile.dart';
 import '../fakes/pcm_fixtures.dart';
 
 void main() {
+  polishTests();
   group('buildEdit', () {
     final out = CleanupPrompt.buildEdit(const StyleProfile(vocabulary: ['Kubernetes'], customInstructions: 'Be terse.'));
 
@@ -140,6 +141,30 @@ void main() {
 
     test('no snippets, no snippet sentence', () {
       expect(CleanupPrompt.build(const StyleProfile()), isNot(contains('shortcut phrases')));
+    });
+  });
+}
+
+void polishTests() {
+  group('polish', () {
+    test('light (default) adds nothing', () {
+      expect(CleanupPrompt.build(const StyleProfile()), isNot(contains('Polish fully')));
+    });
+
+    test('full adds the sentence before the final one', () {
+      final out = CleanupPrompt.build(const StyleProfile(polish: Polish.full));
+      expect(out, contains(CleanupPrompt.polishFull));
+      expect(out, contains('fix awkward phrasing and word order'));
+      expect(out, endsWith('Output only the cleaned text.'));
+      expect(out.indexOf(CleanupPrompt.polishFull), lessThan(out.lastIndexOf('Output only the cleaned text.')));
+    });
+
+    test('is saved and restored, and old files default to light', () {
+      final p = const StyleProfile(polish: Polish.full);
+      expect(StyleProfile.fromJson(p.toJson()).polish, Polish.full);
+      expect(StyleProfile.fromJson(const {}).polish, Polish.light);
+      expect(StyleProfile.fromJson(const {'polish': 'nope'}).polish, Polish.light);
+      expect(p == const StyleProfile(), isFalse);
     });
   });
 }

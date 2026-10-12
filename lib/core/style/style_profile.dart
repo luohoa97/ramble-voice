@@ -29,10 +29,24 @@ enum StylePreset {
   final String instruction;
 }
 
+/// How much the cleanup rewrites.
+enum Polish {
+  /// Remove fillers and false starts, fix punctuation; keep the wording.
+  light('Light', 'Removes um and uh, fixes punctuation, keeps your wording.'),
+
+  /// Also fix grammar and awkward phrasing so every sentence reads well.
+  full('Full', 'Also fixes grammar and awkward phrasing.');
+
+  const Polish(this.label, this.description);
+  final String label;
+  final String description;
+}
+
 /// The user's personal style, injected into every cleanup request.
 class StyleProfile {
   const StyleProfile({
     this.preset = StylePreset.casual,
+    this.polish = Polish.light,
     this.customInstructions = '',
     this.vocabulary = const [],
     this.languages = const [],
@@ -41,6 +55,7 @@ class StyleProfile {
   });
 
   final StylePreset preset;
+  final Polish polish;
   final String customInstructions;
 
   /// Names, jargon and preferred spellings.
@@ -95,6 +110,7 @@ class StyleProfile {
 
   StyleProfile copyWith({
     StylePreset? preset,
+    Polish? polish,
     String? customInstructions,
     List<String>? vocabulary,
     List<String>? languages,
@@ -103,6 +119,7 @@ class StyleProfile {
   }) =>
       StyleProfile(
         preset: preset ?? this.preset,
+        polish: polish ?? this.polish,
         customInstructions: customInstructions ?? this.customInstructions,
         vocabulary: vocabulary ?? this.vocabulary,
         languages: languages ?? this.languages,
@@ -112,12 +129,14 @@ class StyleProfile {
 
   Map<String, Object?> toJson() => {
         'preset': preset.name,
+        'polish': polish.name,
         'custom': customInstructions,
         'vocabulary': vocabulary,
       };
 
   factory StyleProfile.fromJson(Map<String, Object?> json) => StyleProfile(
         preset: StylePreset.values.asNameMap()[json['preset']] ?? StylePreset.casual,
+        polish: Polish.values.asNameMap()[json['polish']] ?? Polish.light,
         customInstructions: json['custom'] as String? ?? '',
         vocabulary: (json['vocabulary'] as List?)?.whereType<String>().toList() ?? const [],
       );

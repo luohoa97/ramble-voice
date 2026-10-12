@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:ramble_voice/app/providers.dart';
 import 'package:ramble_voice/core/audio/audio_source.dart';
@@ -77,4 +78,15 @@ Widget host(Widget child, {List<Override> overrides = const [], Brightness brigh
       home: Scaffold(body: child),
     ),
   );
+}
+
+/// Advances time in frame-sized steps. Prefer this to `pumpAndSettle`, which
+/// never returns while an animation repeats.
+Future<void> pumpFor(WidgetTester tester, [Duration total = const Duration(milliseconds: 400)]) async {
+  var left = total;
+  const step = Duration(milliseconds: 16);
+  while (left > Duration.zero) {
+    await tester.pump(left < step ? left : step);
+    left -= step;
+  }
 }

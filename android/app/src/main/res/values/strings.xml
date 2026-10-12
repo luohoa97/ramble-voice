@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="app_name">Ramble Voice</string>
+    <string name="ime_name">Ramble Voice</string>
+    <string name="ime_subtype_voice">Voice dictation</string>
+    <string name="ime_settings">Ramble Voice settings</string>
+    <string name="share_chooser_title">Share text</string>
+</resources>

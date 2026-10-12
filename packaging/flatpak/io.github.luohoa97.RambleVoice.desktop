@@ -1,0 +1,13 @@
+[Desktop Entry]
+# SPDX-License-Identifier: GPL-3.0-or-later
+Type=Application
+Name=Ramble Voice
+GenericName=Voice dictation
+Comment=Speak a messy ramble, get clean text in your style
+Exec=ramble_voice
+Icon=io.github.luohoa97.RambleVoice
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=dictation;voice;speech;transcription;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

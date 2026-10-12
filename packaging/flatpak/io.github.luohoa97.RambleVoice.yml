@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Flatpak manifest. The Flutter app is built outside the sandbox (see
+# .github/workflows/release.yml) and the finished bundle is copied from
+# ./bundle, which must contain the output of `flutter build linux --release`
+# (the contents of build/linux/<arch>/release/bundle/).
+app-id: io.github.luohoa97.RambleVoice
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: ramble_voice
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio
+  - --filesystem=xdg-run/pipewire-0
+  # Optional ydotool daemon socket, see packaging/linux/host-setup.sh
+  - --filesystem=xdg-run/.ydotool_socket
+  # Secret storage (Gemini key)
+  - --talk-name=org.freedesktop.secrets
+  # Tray icon (StatusNotifierItem)
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+  - --own-name=org.kde.*
+
+modules:
+  - name: gtk4-layer-shell
+    buildsystem: meson
+    config-opts:
+      - -Dexamples=false
+      - -Ddocs=false
+      - -Dtests=false
+      - -Dsmoke-tests=false
+      - -Dintrospection=false
+      - -Dvapi=false
+    sources:
+      - type: archive
+        url: https://github.com/wmww/gtk4-layer-shell/archive/refs/tags/v1.3.0.tar.gz
+        sha256: 1ebb01ab14e98afd1727f68f64981c37bd23305b1f131f5667c02b94cf593192
+
+  - name: wtype
+    buildsystem: meson
+    sources:
+      - type: archive
+        url: https://github.com/atx/wtype/archive/refs/tags/v0.4.tar.gz
+        sha256: da91786d828b6a6e29b884bc510473939eda052658ebef87d7bdeafa6a8746f9
+
+  - name: wl-clipboard
+    buildsystem: meson
+    config-opts:
+      - -Dfishcompletiondir=no
+      - -Dzshcompletiondir=no
+    sources:
+      - type: archive
+        url: https://github.com/bugaevc/wl-clipboard/archive/refs/tags/v2.3.0.tar.gz
+        sha256: b4dc560973f0cd74e02f817ffa2fd44ba645a4f1ea94b7b9614dacc9f895f402
+
+  # Needs libX11, libXtst, libXinerama and libxkbcommon. These are expected in
+  # the GNOME 50 runtime (GTK and at-spi depend on them); not yet verified.
+  - name: xdotool
+    buildsystem: simple
+    build-commands:
+      - make -j"$FLATPAK_BUILDER_N_JOBS" PREFIX=/app
+      - make PREFIX=/app install
+    sources:
+      - type: archive
+        url: https://github.com/jordansissel/xdotool/archive/refs/tags/v4.20260303.1.tar.gz
+        sha256: c1f971a384da588eb99ca0755fc4300316d49c1e612537e3f1de52215e104fa3
+
+  - name: ramble_voice
+    buildsystem: simple
+    build-commands:
+      - install -d /app/lib/ramble_voice /app/bin
+      - cp -a bundle/. /app/lib/ramble_voice/
+      - install -Dm755 ramble_voice.sh /app/bin/ramble_voice
+      - install -Dm644 io.github.luohoa97.RambleVoice.desktop -t /app/share/applications
+      - install -Dm644 io.github.luohoa97.RambleVoice.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 io.github.luohoa97.RambleVoice.svg -t /app/share/icons/hicolor/scalable/apps
+      - install -Dm644 icon-256.png /app/share/icons/hicolor/256x256/apps/io.github.luohoa97.RambleVoice.png
+      - install -Dm644 icon-512.png /app/share/icons/hicolor/512x512/apps/io.github.luohoa97.RambleVoice.png
+      - install -Dm755 host-setup.sh /app/share/ramble-voice/host-setup.sh
+    sources:
+      - type: dir
+        path: bundle
+        dest: bundle
+      - type: script
+        dest-filename: ramble_voice.sh
+        commands:
+          - export LD_LIBRARY_PATH="/app/lib/ramble_voice/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          - exec /app/lib/ramble_voice/ramble_voice "$@"
+      - type: file
+        path: io.github.luohoa97.RambleVoice.desktop
+      - type: file
+        path: io.github.luohoa97.RambleVoice.metainfo.xml
+      - type: file
+        path: ../icons/io.github.luohoa97.RambleVoice.svg
+      - type: file
+        path: ../icons/io.github.luohoa97.RambleVoice-256.png
+        dest-filename: icon-256.png
+      - type: file
+        path: ../icons/io.github.luohoa97.RambleVoice-512.png
+        dest-filename: icon-512.png
+      - type: file
+        path: ../linux/host-setup.sh

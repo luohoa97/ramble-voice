@@ -4,5 +4,5 @@
 # callers don't corrupt .dart_tool or build/. Usage: tool/fl flutter analyze
 set -euo pipefail
 cd "$(dirname "$0")/.."
-exec flock /tmp/ramble-flutter.lock toolbox run -c ramble bash --noprofile --norc -c \
+exec flock /tmp/ramble-flutter.lock timeout --kill-after=30 900 toolbox run -c ramble bash --noprofile --norc -c \
   'export PATH=$HOME/development/flutter/bin:$PATH; cd "$0"; "$@"' "$PWD" "$@"

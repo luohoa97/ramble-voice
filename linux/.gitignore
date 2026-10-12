@@ -1,1 +1,5 @@
 flutter/ephemeral
+flutter/generated_plugin_registrant.*
+flutter/generated_plugins.cmake
+engine/x64-*/
+engine/aarch64-*/

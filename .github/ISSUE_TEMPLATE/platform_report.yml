@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Platform report
+description: Tell us what works on your Linux setup
+labels: [platform-report]
+body:
+  - type: input
+    id: distro
+    attributes:
+      label: Distro and version
+      placeholder: Fedora 44
+    validations:
+      required: true
+  - type: dropdown
+    id: desktop
+    attributes:
+      label: Desktop or compositor
+      options: [GNOME, KDE Plasma, Hyprland, Sway, Other]
+    validations:
+      required: true
+  - type: input
+    id: desktop_version
+    attributes:
+      label: Desktop version
+      placeholder: GNOME 50
+  - type: dropdown
+    id: session
+    attributes:
+      label: Session type
+      options: [Wayland, X11]
+    validations:
+      required: true
+  - type: dropdown
+    id: packaging
+    attributes:
+      label: How you run it
+      options: [Flatpak, Native build]
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Architecture
+      options: [x86_64, aarch64]
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works
+      description: Tick everything that works.
+      options:
+        - label: Global hotkey (press and release)
+        - label: Text insertion into the focused app
+        - label: Overlay
+        - label: Tray icon
+        - label: Microphone capture
+        - label: GPU acceleration (on-device model)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Details
+      description: >-
+        Which insertion method was used (portal, wtype, xdotool, ydotool,
+        clipboard fallback), what failed, and any log output.

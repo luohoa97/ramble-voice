@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="io.github.luohoa97.ramblevoice.MainActivity"
+    android:isDefault="false"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:label="@string/ime_subtype_voice"
+        android:imeSubtypeLocale="en_US"
+        android:imeSubtypeMode="voice"
+        android:isAsciiCapable="false"
+        android:overridesImplicitlyEnabledSubtype="false" />
+</input-method>

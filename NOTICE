@@ -1,0 +1,178 @@
+Ramble Voice
+Copyright (C) the Ramble Voice contributors
+
+Ramble Voice is licensed under the GNU General Public License,
+version 3 or (at your option) any later version
+(SPDX: GPL-3.0-or-later). See the LICENSE file.
+
+This file lists third-party software that Ramble Voice uses or
+distributes, with its license.
+
+== Gemma model weights ==
+
+Gemma model weights are not distributed with Ramble Voice. They are
+downloaded at runtime from Hugging Face and are licensed by Google
+under the Apache License 2.0, not under the GPL.
+
+== Runtime and native components ==
+
+- Flutter framework and engine: BSD-3-Clause (Copyright The Flutter
+  Authors).
+- ardera/flutter-ci engine builds used by the Linux runner: MIT
+  (packaging of the BSD-3-Clause Flutter engine), pinned by SHA-256.
+- LiteRT-LM (via flutter_edge_ai): Apache-2.0.
+- Roboto Flex font: SIL Open Font License 1.1 (OFL-1.1).
+- gtk4-layer-shell: MIT.
+- wtype (Flatpak build only): MIT.
+- xdotool (Flatpak build only): BSD-3-Clause.
+- GTK 4, GLib, PipeWire, PulseAudio client library, libsecret:
+  LGPL/MIT, dynamically linked from the system or the Flatpak
+  runtime.
+
+== Dart and Flutter packages ==
+
+Hosted packages from pubspec.lock (includes build-time tools).
+License names are detected from each package's LICENSE file;
+read the file in the package for the authoritative text.
+
+- _fe_analyzer_shared 109.0.0: BSD-3-Clause
+- analyzer 14.5.0: BSD-3-Clause
+- args 2.7.0: BSD-3-Clause
+- async 2.13.1: BSD-3-Clause
+- background_downloader 9.6.4: MIT
+- boolean_selector 2.1.2: BSD-3-Clause
+- build 4.0.11: BSD-3-Clause
+- build_config 1.3.3: BSD-3-Clause
+- build_daemon 4.1.6: BSD-3-Clause
+- build_runner 2.16.2: BSD-3-Clause
+- built_collection 5.1.2: BSD-3-Clause
+- built_value 8.13.0: BSD-3-Clause
+- characters 1.4.1: BSD-3-Clause
+- charcode 1.4.0: BSD-3-Clause
+- checked_yaml 2.0.4: BSD-3-Clause
+- cli_util 0.6.0: BSD-3-Clause
+- clock 1.1.3: Apache-2.0
+- code_assets 2.1.0: BSD-3-Clause
+- collection 1.19.1: BSD-3-Clause
+- connectivity_plus 7.3.2: BSD-3-Clause
+- connectivity_plus_platform_interface 2.1.0: BSD-3-Clause
+- convert 3.1.2: BSD-3-Clause
+- cross_file 0.3.5+5: BSD-3-Clause
+- crypto 3.0.7: BSD-3-Clause
+- cupertino_ui 1.1.2: BSD-3-Clause
+- dart_style 3.1.13: BSD-3-Clause
+- dbus 0.8.0: MPL-2.0
+- decimal 3.2.6: Apache-2.0
+- drift 2.35.2: MIT
+- drift_dev 2.35.1: MIT
+- dynamic_color 2.1.0: Apache-2.0
+- email_validator 3.0.0: MIT
+- equatable 2.1.0: MIT
+- fake_async 1.3.3: Apache-2.0
+- ffi 2.2.0: BSD-3-Clause
+- ffi_leak_tracker 0.1.2: BSD-3-Clause
+- file 7.0.1: BSD-3-Clause
+- fixnum 1.1.1: BSD-3-Clause
+- flutter_edge_ai 2.2.0: MIT
+- flutter_edge_ai_litertlm 1.12.0: MIT
+- flutter_lints 6.0.0: BSD-3-Clause
+- flutter_riverpod 3.4.3: MIT
+- flutter_secure_storage 11.2.0: BSD-3-Clause
+- flutter_secure_storage_darwin 0.4.3: BSD-3-Clause
+- flutter_secure_storage_linux 3.0.3: BSD-3-Clause
+- flutter_secure_storage_platform_interface 2.1.1: BSD-3-Clause
+- flutter_secure_storage_web 2.1.1: BSD-3-Clause
+- flutter_secure_storage_windows 4.2.2: BSD-3-Clause
+- genai_primitives 0.2.4: BSD-3-Clause
+- glob 2.2.0: BSD-3-Clause
+- go_router 18.0.2: BSD-3-Clause
+- graphs 2.3.2: BSD-3-Clause
+- hooks 2.2.0: BSD-3-Clause
+- http 1.6.0: BSD-3-Clause
+- http_multi_server 3.2.2: BSD-3-Clause
+- http_parser 4.1.2: BSD-3-Clause
+- intl 0.20.3: BSD-3-Clause
+- io 1.1.0: BSD-3-Clause
+- jni 1.1.0: BSD-3-Clause
+- jni_flutter 1.0.4+1: BSD-3-Clause
+- jni_util 1.0.0: BSD-3-Clause
+- json_annotation 4.12.0: BSD-3-Clause
+- json_schema_builder 0.1.7: BSD-3-Clause
+- large_file_handler 0.5.2: MIT
+- leak_tracker 11.0.2: BSD-3-Clause
+- leak_tracker_flutter_testing 3.0.10: BSD-3-Clause
+- leak_tracker_testing 3.0.2: BSD-3-Clause
+- lints 6.1.0: BSD-3-Clause
+- listen 1.0.1: BSD-3-Clause
+- logging 1.3.0: BSD-3-Clause
+- matcher 0.12.20: BSD-3-Clause
+- material_3_expressive 1.1.6: MIT
+- material_color_utilities 0.13.0: Apache-2.0
+- material_new_shapes 1.0.0: MIT
+- material_ui 1.6.0: BSD-3-Clause
+- meta 1.19.0: BSD-3-Clause
+- mime 2.1.0: BSD-3-Clause
+- mocktail 1.0.5: MIT
+- motor 1.1.0: MIT
+- mutex 3.1.0: BSD-3-Clause
+- native_toolchain_c 0.19.5: BSD-3-Clause
+- nm 0.6.0: MPL-2.0
+- objective_c 9.6.2: BSD-3-Clause
+- package_config 3.0.0: BSD-3-Clause
+- path 1.9.1: BSD-3-Clause
+- path_provider 2.1.6: BSD-3-Clause
+- path_provider_android 2.3.1: BSD-3-Clause
+- path_provider_foundation 2.6.0: BSD-3-Clause
+- path_provider_linux 2.2.2: BSD-3-Clause
+- path_provider_platform_interface 2.1.3: BSD-3-Clause
+- path_provider_windows 2.3.0: BSD-3-Clause
+- permission_handler 13.0.2: MIT
+- permission_handler_android 14.1.0: MIT
+- permission_handler_apple 9.6.2: MIT
+- permission_handler_html 0.1.4+1: MIT
+- permission_handler_platform_interface 4.4.1: MIT
+- permission_handler_windows 0.2.2: MIT
+- petitparser 7.1.0: MIT
+- platform 3.2.0: BSD-3-Clause
+- plugin_platform_interface 2.1.8: BSD-3-Clause
+- pool 1.5.3: BSD-3-Clause
+- process 5.0.6: BSD-3-Clause
+- pub_semver 2.2.1: BSD-3-Clause
+- pubspec_parse 1.6.0: BSD-3-Clause
+- rational 2.2.3: Apache-2.0
+- recase 4.1.0: BSD-2-Clause
+- record_use 1.1.1: BSD-3-Clause
+- riverpod 3.4.3: MIT
+- shared_preferences 2.5.6: BSD-3-Clause
+- shared_preferences_android 2.4.28: BSD-3-Clause
+- shared_preferences_foundation 2.5.7: BSD-3-Clause
+- shared_preferences_linux 2.4.1: BSD-3-Clause
+- shared_preferences_platform_interface 2.4.2: BSD-3-Clause
+- shared_preferences_web 2.4.3: BSD-3-Clause
+- shared_preferences_windows 2.4.1: BSD-3-Clause
+- shelf 1.4.2: BSD-3-Clause
+- shelf_web_socket 3.0.0: BSD-3-Clause
+- source_gen 4.3.0: BSD-3-Clause
+- source_span 1.10.2: BSD-3-Clause
+- sqlite3 3.7.0: MIT
+- sqlparser 0.45.0: MIT
+- stack_trace 1.12.2: BSD-3-Clause
+- state_notifier 1.0.0: MIT
+- stream_channel 2.1.4: BSD-3-Clause
+- stream_transform 2.1.2: BSD-3-Clause
+- string_scanner 1.4.1: BSD-3-Clause
+- term_glyph 1.2.2: BSD-3-Clause
+- test_api 0.7.12: BSD-3-Clause
+- typed_data 1.4.0: BSD-3-Clause
+- uuid 4.6.0: MIT
+- vector_math 2.4.0: BSD-3-Clause
+- vm_service 15.3.0: BSD-3-Clause
+- watcher 1.2.1: BSD-3-Clause
+- web 1.1.1: BSD-3-Clause
+- web_socket 1.0.1: BSD-3-Clause
+- web_socket_channel 3.0.3: BSD-3-Clause
+- win32 6.4.0: BSD-3-Clause
+- xdg_directories 1.1.0: BSD-3-Clause
+- xml 7.1.0: MIT
+- yaml 3.1.4: MIT
+- yaml_edit 2.2.4: BSD-3-Clause

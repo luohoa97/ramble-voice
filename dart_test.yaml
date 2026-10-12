@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# `live` tests call real services or load a real model. They are skipped by
+# default; run them with:
+#   GEMINI_API_KEY=... tool/fl flutter test --run-skipped -t live test/live
+tags:
+  live:
+    skip: "live test: run with --run-skipped -t live"

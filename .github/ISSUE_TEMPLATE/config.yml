@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/luohoa97/ramble-voice/security/advisories/new
+    about: Please report vulnerabilities privately, not as a public issue.

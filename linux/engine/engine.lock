@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Pinned Flutter embedder engine (ardera/flutter-ci, MIT). Format: sha256  asset
+# Engine revision (must equal bin/internal/engine.version of the Flutter SDK):
+ENGINE_REVISION=deb287481e3ce9468f3434937ced4240a70539ca
+ENGINE_REPO=ardera/flutter-ci
+33c2a57bec9c074e0ac4cd6b827cfce65021eb935e6858f5c6042c2d288dd9e2  engine-x64-generic-debug.tar.xz
+881804619a9974c99886bf7b2226d5ccb591d30631e40cfb549c4b298ab6851d  engine-x64-generic-profile.tar.xz
+e33d006ad88991dd5d9487a262c2d338c06f252b9519748871c89cc97b7ba0ce  engine-x64-generic-release.tar.xz
+83b316c4d5044ca298b1f2d7603df578829ca04f82048c8c559d2d0c48765c4b  engine-aarch64-generic-debug.tar.xz
+11145125a8d216804e60cb5c42582bfbb9e895f75dab51fa4c368d2c55a67e31  engine-aarch64-generic-profile.tar.xz
+b420dceec6b3f653723520271ccaac3162f4b20fc0e904461fbdfa4b5f5be4e1  engine-aarch64-generic-release.tar.xz
+# flutter_embedder.h (from Google's linux-x64-embedder.zip at the same revision, vendored in engine/)
+94122469b254a932394bb5bb5c625317426eefd6e23d4366e32372c70ac5be37  flutter_embedder.h

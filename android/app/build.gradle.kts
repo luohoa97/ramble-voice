@@ -1,12 +1,24 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing: android/key.properties (storeFile, storePassword, keyAlias,
+// keyPassword). When absent (local builds, forks) release falls back to the
+// debug key so `flutter build apk` still produces an installable APK.
+val keyProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
-    namespace = "io.github.luohoa97.ramble_voice"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "io.github.luohoa97.ramblevoice"
+    // Android 16 (API 36) is the floor; take whatever newer level Flutter defaults to.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -15,26 +27,52 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "io.github.luohoa97.ramble_voice"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
+        applicationId = "io.github.luohoa97.ramblevoice"
+        // Android 16+ only. LiteRT-LM needs >= 30 and arm64-v8a.
+        minSdk = 36
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Keep .so files uncompressed and page-aligned in the APK (16 KB
+            // page size devices map them straight from the APK).
+            useLegacyPackaging = false
+        }
+    }
+
+    signingConfigs {
+        if (keyProperties.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(keyProperties.getProperty("storeFile"))
+                storePassword = keyProperties.getProperty("storePassword")
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
+    }
+
+    lint {
+        // Release lint downloads data and is slow in CI; run it separately if wanted.
+        checkReleaseBuilds = false
     }
 }
 
@@ -42,6 +80,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.16.0")
 }
 
 flutter {

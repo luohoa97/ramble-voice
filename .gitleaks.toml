@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title = "Ramble Voice gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "gemini-api-key"
+description = "Google AI Studio / Gemini API key"
+regex = '''AIza[0-9A-Za-z_\-]{35}'''
+keywords = ["aiza"]

@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Android, Linux (Flatpak), Linux (native build)]
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine
+      options: [On-device Gemma, Gemini cloud, Both / not sure]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device or distro and desktop
+      placeholder: "Pixel 9, Android 16 / Fedora 44, GNOME 50 Wayland"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        Run from a terminal for logs (Linux: `ramble_voice`; Flatpak:
+        `flatpak run io.github.luohoa97.RambleVoice`). Remove any API keys and
+        private text first.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed API keys and private dictated text from this report.
+          required: true

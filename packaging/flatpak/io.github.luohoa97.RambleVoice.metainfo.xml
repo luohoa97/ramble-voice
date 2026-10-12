@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component type="desktop-application">
+  <id>io.github.luohoa97.RambleVoice</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Ramble Voice</name>
+  <summary>Speak a messy ramble, get clean text in your style</summary>
+  <developer id="io.github.luohoa97">
+    <name>luohoa97</name>
+  </developer>
+  <description>
+    <p>
+      Ramble Voice is a voice dictation app. You speak freely, with pauses,
+      false starts and filler, and a voice-native language model hears the audio
+      and returns clean text written in your style.
+    </p>
+    <p>
+      It is text-only: spoken instructions are transcribed, never obeyed, and the
+      app never runs commands. There is no backend, no telemetry and no
+      analytics.
+    </p>
+    <ul>
+      <li>On-device by default with Gemma 4, downloaded once from Hugging Face</li>
+      <li>Optional Gemini cloud mode with your own free API key</li>
+      <li>Global hotkey with hold-to-talk, text insertion, overlay and tray on supported desktops</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.luohoa97.RambleVoice.desktop</launchable>
+  <url type="homepage">https://github.com/luohoa97/ramble-voice</url>
+  <url type="bugtracker">https://github.com/luohoa97/ramble-voice/issues</url>
+  <url type="vcs-browser">https://github.com/luohoa97/ramble-voice</url>
+  <screenshots>
+    <!-- Placeholders: replace with real hosted screenshots before publishing. -->
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/luohoa97/ramble-voice/main/docs/screenshots/home.png</image>
+      <caption>Home screen</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/luohoa97/ramble-voice/main/docs/screenshots/settings.png</image>
+      <caption>Engine settings</caption>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1" />
+  <supports>
+    <control>keyboard</control>
+    <control>pointer</control>
+    <control>touch</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <recommends>
+    <memory>6144</memory>
+    <control>keyboard</control>
+    <control>pointer</control>
+    <control>touch</control>
+  </recommends>
+  <categories>
+    <category>Utility</category>
+    <category>Accessibility</category>
+  </categories>
+  <keywords>
+    <keyword>dictation</keyword>
+    <keyword>voice</keyword>
+    <keyword>speech</keyword>
+  </keywords>
+  <releases>
+    <release version="0.1.0" date="2026-10-12">
+      <description>
+        <p>First public release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

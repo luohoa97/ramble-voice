@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that is hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Android, Linux, Both]
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: >-
+        Reminder: Ramble Voice is text-only, has no telemetry or backend, and
+        never executes dictated content. Requests that conflict with these are
+        out of scope.

@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-test:
+    name: Analyze and test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Check generated files are up to date
+        run: |
+          git add -N .
+          if ! git diff --exit-code; then
+            echo "::error::Generated files are stale. Run build_runner and commit the result."
+            exit 1
+          fi
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+
+  spdx:
+    name: SPDX headers
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: tool/check_spdx.sh
+
+  weights-guard:
+    name: No model weights or large files
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: tool/check_no_weights.sh
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # GITLEAKS_LICENSE is only required for organization accounts, not for
+      # personal accounts. Rules are in .gitleaks.toml.
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml

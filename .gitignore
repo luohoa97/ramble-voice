@@ -67,7 +67,6 @@ secrets/
 *.tflite
 models/
 # Linux GTK4 runner engine downloads and build output
-linux/engine/
 build/
 *.flatpak
 .flatpak-builder/

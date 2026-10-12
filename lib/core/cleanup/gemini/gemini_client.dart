@@ -102,6 +102,12 @@ class GeminiClient {
     if (reason == 'SAFETY' || reason == 'PROHIBITED_CONTENT' || reason == 'BLOCKLIST') {
       throw CleanupFailure(CleanupFailureKind.blocked, 'Gemini blocked the response ($reason).');
     }
+    if (reason == 'RECITATION') {
+      throw const CleanupFailure(
+        CleanupFailureKind.blocked,
+        'Gemini will not write out copyrighted text such as song lyrics. Ask for an original version instead.',
+      );
+    }
     final parts = ((first['content'] as Map?)?['parts'] as List?) ?? const [];
     final text = parts
         .cast<Map<String, Object?>>()

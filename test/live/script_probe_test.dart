@@ -14,7 +14,7 @@ import 'package:ramble_voice/core/style/style_profile.dart';
 
 /// Words from other languages come out in their own script, e.g. a spoken
 /// "sayonara" in English speech becomes さようなら.
-/// GEMINI_API_KEY=... RAMBLE_WAV=path RAMBLE_EXPECT=regex [RAMBLE_MODELS=a,b] [RAMBLE_GAIN=0]
+/// GEMINI_API_KEY=... RAMBLE_WAV=path RAMBLE_EXPECT=regex [RAMBLE_MODELS=a,b] [RAMBLE_GAIN=0] [RAMBLE_EDIT=text to edit]
 /// tool/fl flutter test --run-skipped -t live test/live/script_probe_test.dart
 void main() {
   final env = Platform.environment;
@@ -30,6 +30,8 @@ void main() {
             ? WavEncoder.decode(File(wavPath!).readAsBytesSync())
             : AutoGain.normalize(WavEncoder.decode(File(wavPath!).readAsBytesSync())),
         style: const StyleProfile(languages: ['en', 'zh', 'ja']),
+        mode: env['RAMBLE_EDIT'] == null ? CleanupMode.clean : CleanupMode.edit,
+        sourceText: env['RAMBLE_EDIT'],
       ));
       // ignore: avoid_print
       print('PROBE $model: $out');

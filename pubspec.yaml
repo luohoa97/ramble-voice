@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: ramble_voice
+description: "Voice dictation that turns messy rambles into clean text, on-device or with Gemini."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+  flutter: ">=3.47.7"
+
+# Linux note: the Linux build uses a custom GTK4 runner (linux/runner). It does
+# not register Flutter's GTK3 method-channel plugins, so Linux code paths must
+# only use pure-Dart, D-Bus or dart:ffi integrations. See docs/ARCHITECTURE.md.
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: 1.6.0
+  material_3_expressive: 1.1.6
+  material_new_shapes: ^1.0.0
+  motor: ^1.1.0
+  flutter_riverpod: ^3.4.3
+  go_router: ^18.0.2
+  drift: ^2.35.2
+  sqlite3: ^3.7.0
+  dbus: ^0.8.0
+  http: ^1.6.0
+  path_provider: ^2.1.6
+  path: ^1.9.1
+  crypto: ^3.0.7
+  flutter_edge_ai: 2.2.0
+  flutter_edge_ai_litertlm: 1.12.0
+  flutter_secure_storage: ^11.2.0
+  permission_handler: ^13.0.2
+  dynamic_color: ^2.1.0
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.16.2
+  drift_dev: ^2.35.1
+  mocktail: ^1.0.5
+
+flutter:
+  uses-material-design: true

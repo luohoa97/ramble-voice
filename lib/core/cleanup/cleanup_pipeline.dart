@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import 'dart:typed_data';
+
+import '../audio/chunker.dart';
+import '../style/style_profile.dart';
+import 'cleanup_engine.dart';
+
+class PipelineProgress {
+  const PipelineProgress({
+    required this.engine,
+    required this.chunk,
+    required this.chunks,
+    this.fellBack = false,
+  });
+
+  final EngineKind engine;
+
+  /// 1-based index of the chunk being processed.
+  final int chunk;
+  final int chunks;
+  final bool fellBack;
+}
+
+class PipelineResult {
+  const PipelineResult({
+    required this.text,
+    required this.engine,
+    this.fallbackReason,
+    this.chunks = 1,
+  });
+
+  final String text;
+  final EngineKind engine;
+
+  /// Set when the primary engine failed and [engine] is the fallback.
+  final CleanupFailure? fallbackReason;
+  final int chunks;
+
+  bool get fellBack => fallbackReason != null;
+}
+
+/// Runs a whole recording through an engine: chunks it to the engine's
+/// per-request limit, cleans each chunk, stitches the text, and falls back to
+/// a second engine (on-device Gemma) when the cloud engine is rate limited,
+/// offline or out of quota.
+class CleanupPipeline {
+  const CleanupPipeline({this.searchWindow = const Duration(seconds: 6)});
+
+  final Duration searchWindow;
+
+  Future<PipelineResult> run({
+    required Uint8List pcm,
+    required StyleProfile style,
+    required CleanupEngine primary,
+    CleanupEngine? fallback,
+    CleanupMode mode = CleanupMode.clean,
+    void Function(PipelineProgress)? onProgress,
+  }) async {
+    try {
+      return await _runWith(primary, pcm, style, mode, onProgress, fellBack: false);
+    } on CleanupFailure catch (failure) {
+      if (fallback == null || !failure.kind.cloudFallbackEligible || fallback.kind == primary.kind) {
+        rethrow;
+      }
+      final ready = await fallback.readiness();
+      if (ready is! EngineReady) rethrow;
+      final result = await _runWith(fallback, pcm, style, mode, onProgress, fellBack: true);
+      return PipelineResult(
+        text: result.text,
+        engine: fallback.kind,
+        fallbackReason: failure,
+        chunks: result.chunks,
+      );
+    }
+  }
+
+  Future<PipelineResult> _runWith(
+    CleanupEngine engine,
+    Uint8List pcm,
+    StyleProfile style,
+    CleanupMode mode,
+    void Function(PipelineProgress)? onProgress, {
+    required bool fellBack,
+  }) async {
+    final limit = engine.maxAudioPerRequest;
+    final window = searchWindow < limit ~/ 2 ? searchWindow : limit ~/ 4;
+    final spans = SilenceChunker(maxChunk: limit, searchWindow: window).plan(pcm);
+    if (spans.isEmpty) {
+      throw const CleanupFailure(CleanupFailureKind.emptyResult, 'The recording is empty.');
+    }
+    final parts = <String>[];
+    for (var i = 0; i < spans.length; i++) {
+      onProgress?.call(PipelineProgress(
+        engine: engine.kind,
+        chunk: i + 1,
+        chunks: spans.length,
+        fellBack: fellBack,
+      ));
+      final span = spans[i];
+      parts.add(await engine.process(CleanupRequest(
+        pcm: Uint8List.sublistView(pcm, span.start, span.end),
+        style: style,
+        mode: mode,
+      )));
+    }
+    final text = TextStitcher.join(parts);
+    if (text.isEmpty) {
+      throw const CleanupFailure(CleanupFailureKind.emptyResult, 'No speech was recognised.');
+    }
+    return PipelineResult(text: text, engine: engine.kind, chunks: spans.length);
+  }
+}

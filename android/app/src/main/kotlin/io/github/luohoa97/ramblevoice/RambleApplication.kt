@@ -17,6 +17,7 @@ import io.flutter.embedding.engine.dart.DartExecutor
 class RambleApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         BubbleKeeper.sync(this)
     }
 

@@ -20,6 +20,7 @@ import '../widgets/limit_chip.dart';
 import '../widgets/mic_button.dart';
 import '../widgets/notice_banner.dart';
 import '../widgets/result_panel.dart';
+import '../widgets/setup_banner.dart';
 import '../widgets/style_chips.dart';
 import 'settings/style_section.dart';
 
@@ -115,7 +116,7 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
     final status = switch (state) {
       DictationIdle(:final notice) => notice ?? (isLinux ? 'Press Space or click to dictate' : 'Tap to dictate'),
       DictationStarting() => 'Starting microphone',
-      DictationListening() => 'Listening',
+      DictationListening(:final paused) => paused ? 'Paused' : 'Listening',
       DictationProcessing(:final progress) => progress != null && progress.chunks > 1
           ? 'Cleaning up, part ${progress.chunk} of ${progress.chunks}'
           : 'Cleaning up',
@@ -171,6 +172,7 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
                     ),
                   ),
                 ),
+                const SliverToBoxAdapter(child: SetupBanner()),
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
@@ -203,6 +205,36 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
                             ExcludeSemantics(child: Text(formatClock(state.elapsed), style: styles.timerLarge)),
                             Semantics(label: 'Elapsed ${formatClock(state.elapsed)}', child: const SizedBox.shrink()),
                             if (state.nearLimit) ...[const SizedBox(height: Space.x1), LimitChip(state: state)],
+                            const SizedBox(height: Space.x2),
+                            Wrap(
+                              spacing: Space.x1,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                FilledButton.tonalIcon(
+                                  onPressed: () {
+                                    _haptic('tick');
+                                    state.paused ? _controller.resume() : _controller.pause();
+                                  },
+                                  icon: Icon(state.paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+                                  label: Text(state.paused ? 'Resume' : 'Pause'),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    _haptic('tick');
+                                    _controller.discard();
+                                  },
+                                  icon: const Icon(Icons.delete_outline_rounded),
+                                  label: const Text('Discard'),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (state is DictationIdle && state.discardedId != null) ...[
+                            const SizedBox(height: Space.x1),
+                            TextButton(
+                              onPressed: () => _controller.undoDiscard(state.discardedId!),
+                              child: const Text('Undo discard'),
+                            ),
                           ],
                           if (state is DictationDone) ...[
                             const SizedBox(height: Space.x3),

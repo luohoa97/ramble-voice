@@ -32,8 +32,10 @@ class AppSettings {
     this.useContactNames = false,
     this.snippets = const [],
     this.appStyles = const {},
+    this.completedSetup = const {},
     this.bubbleBlockedApps = const [],
     this.bubbleSize = BubbleSize.medium,
+    this.bubbleAutoRestore = false,
   });
 
   final EngineKind engine;
@@ -80,9 +82,17 @@ class AppSettings {
   final List<String> bubbleBlockedApps;
   final BubbleSize bubbleSize;
 
+  /// Opt-in: turn the floating mic back on if the system switched it off.
+  /// Needs WRITE_SECURE_SETTINGS granted over adb.
+  final bool bubbleAutoRestore;
+
   /// Keyboard: tone overrides per app, keyed by Android package name. Apps
   /// without an entry use the built-in defaults, then [StyleProfile.preset].
   final Map<String, StylePreset> appStyles;
+
+  /// Setup guide steps the user has finished, by id. `dismissed` hides the
+  /// "Finish setup" banner.
+  final Set<String> completedSetup;
 
   GemmaVariant get gemmaVariant => ModelCatalog.byId(gemmaVariantId) ?? ModelCatalog.defaultVariant;
   Duration get maxSession => Duration(minutes: maxSessionMinutes);
@@ -104,8 +114,10 @@ class AppSettings {
     bool? useContactNames,
     List<Snippet>? snippets,
     Map<String, StylePreset>? appStyles,
+    Set<String>? completedSetup,
     List<String>? bubbleBlockedApps,
     BubbleSize? bubbleSize,
+    bool? bubbleAutoRestore,
   }) =>
       AppSettings(
         engine: engine ?? this.engine,
@@ -124,8 +136,10 @@ class AppSettings {
         useContactNames: useContactNames ?? this.useContactNames,
         snippets: snippets ?? this.snippets,
         appStyles: appStyles ?? this.appStyles,
+        completedSetup: completedSetup ?? this.completedSetup,
         bubbleBlockedApps: bubbleBlockedApps ?? this.bubbleBlockedApps,
         bubbleSize: bubbleSize ?? this.bubbleSize,
+        bubbleAutoRestore: bubbleAutoRestore ?? this.bubbleAutoRestore,
       );
 
   Map<String, Object?> toJson() => {
@@ -145,8 +159,10 @@ class AppSettings {
         'useContactNames': useContactNames,
         'snippets': [for (final s in snippets) s.toJson()],
         'appStyles': {for (final e in appStyles.entries) e.key: e.value.name},
+        'completedSetup': completedSetup.toList()..sort(),
         'bubbleBlockedApps': bubbleBlockedApps,
         'bubbleSize': bubbleSize.name,
+        'bubbleAutoRestore': bubbleAutoRestore,
       };
 
   /// [deviceLanguages] is used when the file has no language choice yet, or
@@ -173,10 +189,12 @@ class AppSettings {
             if (e is Map) Snippet.fromJson(e.cast<String, Object?>()),
         ],
         appStyles: _appStylesFromJson(j['appStyles']),
+        completedSetup: {...((j['completedSetup'] as List?)?.whereType<String>() ?? const <String>[])},
         bubbleBlockedApps: [
           if (j['bubbleBlockedApps'] case final List<Object?> l) ...l.whereType<String>(),
         ],
         bubbleSize: BubbleSize.values.asNameMap()[j['bubbleSize']] ?? BubbleSize.medium,
+        bubbleAutoRestore: j['bubbleAutoRestore'] as bool? ?? false,
       );
 }
 

@@ -232,7 +232,12 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                       onHoldEnd: _holdEnd,
                       onUndo: () {
                         _tick();
-                        _undo();
+                        final id = state is DictationIdle ? state.discardedId : null;
+                        if (id != null) {
+                          unawaited(ref.read(dictationControllerProvider).undoDiscard(id));
+                        } else {
+                          _undo();
+                        }
                       },
                       onFix: (r) {
                         _tick();
@@ -252,22 +257,42 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
               height: 56,
               child: Row(
                 children: [
-                  _TextKey(
-                    label: 'ABC',
-                    semantics: 'Switch to typing keyboard',
-                    onPressed: () {
-                      _tick();
-                      unawaited(_bridge.switchToPreviousInputMethod());
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _EditButton(
-                    enabled: !_info.isPassword,
-                    onPressed: () {
-                      _tick();
-                      unawaited(ref.read(imeEditProvider.notifier).begin());
-                    },
-                  ),
+                  if (state is DictationListening) ...[
+                    _PauseButton(
+                      paused: state.paused,
+                      onPressed: () {
+                        _tick();
+                        final c = ref.read(dictationControllerProvider);
+                        unawaited(state.paused ? c.resume() : c.pause());
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _KeyButton(
+                      icon: Icons.delete_outline_rounded,
+                      label: 'Discard recording',
+                      onPressed: () {
+                        _tick();
+                        unawaited(ref.read(dictationControllerProvider).discard());
+                      },
+                    ),
+                  ] else ...[
+                    _TextKey(
+                      label: 'ABC',
+                      semantics: 'Switch to typing keyboard',
+                      onPressed: () {
+                        _tick();
+                        unawaited(_bridge.switchToPreviousInputMethod());
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _EditButton(
+                      enabled: !_info.isPassword,
+                      onPressed: () {
+                        _tick();
+                        unawaited(ref.read(imeEditProvider.notifier).begin());
+                      },
+                    ),
+                  ],
                   const Spacer(),
                   _RepeatKey(
                     icon: Icons.backspace_outlined,
@@ -332,7 +357,8 @@ class _EngineLabel extends ConsumerWidget {
   static String text(EngineKind engine, String gemmaLabel, AsyncValue<EngineReadiness> r) {
     final detail = r.value is EngineReady ? (r.value! as EngineReady).detail : null;
     if (engine == EngineKind.onDevice) {
-      return detail == null || detail.isEmpty ? gemmaLabel : '$gemmaLabel · $detail';
+      final short = gemmaLabel.replaceFirst('Gemma 4 ', 'Gemma ');
+      return short;
     }
     if (detail == null) return 'Gemini';
     final m = RegExp(r'^gemini-(\d+(?:\.\d+)?)-(pro|flash-lite|flash)').firstMatch(detail);
@@ -347,6 +373,8 @@ class _EngineLabel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final mq = MediaQuery.of(context);
+    if (mq.size.width < 380 || mq.textScaler.scale(14) > 14 * 1.3) return const SizedBox.shrink();
     final settings = ref.watch(settingsProvider);
     final readiness = ref.watch(activeEngineReadinessProvider);
     final warn = readiness.value is EngineNotReady;
@@ -412,7 +440,7 @@ class _Center extends StatelessWidget {
               final size = math.max(88.0, math.min(136.0, c.maxHeight - 4));
               return Center(
                 child: MicButton(
-                  state: s,
+                  state: s is DictationListening && s.paused ? const DictationIdle() : s,
                   size: size,
                   enabled: !info.isPassword,
                   onTap: onToggle,
@@ -441,9 +469,11 @@ class _Status extends StatelessWidget {
   final VoidCallback onUndo;
 
   static String textFor(DictationState s, ImeInputInfo info) => switch (s) {
+        DictationIdle(:final discardedId) when discardedId != null => 'Discarded',
         DictationIdle(:final notice) => notice ??
             (info.isPassword ? 'Dictation is off in password fields' : 'Hold to talk, tap to toggle'),
         DictationStarting() => 'Starting microphone',
+        DictationListening(:final elapsed, :final paused) when paused => 'Paused · ${formatClock(elapsed)}',
         DictationListening(:final elapsed, :final nearLimit, :final remaining) =>
           nearLimit ? '${formatClock(remaining)} left' : 'Listening ${formatClock(elapsed)}',
         DictationProcessing(:final progress) => progress != null && progress.chunks > 1
@@ -457,8 +487,9 @@ class _Status extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    final showUndo = undoText != null && (state is DictationIdle || state is DictationDone);
-    final text = showUndo ? 'Inserted' : textFor(state, info);
+    final discarded = state is DictationIdle && (state as DictationIdle).discardedId != null;
+    final showUndo = discarded || (undoText != null && (state is DictationIdle || state is DictationDone));
+    final text = discarded ? 'Discarded' : (showUndo ? 'Inserted' : textFor(state, info));
 
     return Semantics(
       liveRegion: true,
@@ -591,6 +622,27 @@ class _TextKey extends StatelessWidget {
           textStyle: WidgetStatePropertyAll(Theme.of(context).textTheme.labelLarge),
         ),
         child: Text(label),
+      ),
+    );
+  }
+}
+
+/// Pause or resume the open recording.
+class _PauseButton extends StatelessWidget {
+  const _PauseButton({required this.paused, required this.onPressed});
+
+  final bool paused;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: onPressed,
+      icon: Icon(paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+      label: Text(paused ? 'Resume' : 'Pause'),
+      style: keyStyle(context).copyWith(
+        fixedSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+        minimumSize: const WidgetStatePropertyAll(Size(88, 48)),
       ),
     );
   }

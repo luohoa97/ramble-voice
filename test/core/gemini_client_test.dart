@@ -263,7 +263,7 @@ void main() {
       expect((await _failure(c.listModels('K'))).kind, CleanupFailureKind.noNetwork);
     });
 
-    test('timeout is noNetwork', () async {
+    test('timeout is timedOut', () async {
       final c = GeminiClient(
         httpClient: MockClient((_) async {
           await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -272,7 +272,7 @@ void main() {
         timeout: const Duration(milliseconds: 50),
       );
       final f = await _failure(_generate(c));
-      expect(f.kind, CleanupFailureKind.noNetwork);
+      expect(f.kind, CleanupFailureKind.timedOut);
       expect(f.cause, isA<TimeoutException>());
       await Future<void>.delayed(const Duration(milliseconds: 450));
     });

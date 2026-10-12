@@ -27,6 +27,8 @@ GoRouter buildRouter({required ValueListenable<bool> onboarded}) {
     },
     routes: [
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
+      // The same guide, opened again from Settings.
+      GoRoute(path: '/setup', builder: (_, _) => const OnboardingScreen()),
       ShellRoute(
         navigatorKey: _shellKey,
         builder: (context, state, child) => AppShell(location: state.matchedLocation, child: child),

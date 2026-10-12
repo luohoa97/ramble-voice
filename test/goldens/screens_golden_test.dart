@@ -11,13 +11,15 @@ import 'package:ramble_voice/core/dictation/dictation_controller.dart';
 import 'package:ramble_voice/core/settings/app_settings.dart';
 import 'package:ramble_voice/core/style/style_profile.dart';
 import 'package:ramble_voice/ui/screens/onboarding_screen.dart';
+import 'package:ramble_voice/ui/screens/onboarding/setup_status.dart';
 import 'package:ramble_voice/ui/widgets/engine_chip.dart';
 
 import 'harness.dart';
 
-const _gemini = AppSettings(onboarded: true, engine: EngineKind.gemini);
+const _gemini = AppSettings(onboarded: true, completedSetup: {'dismissed'}, engine: EngineKind.gemini);
 const _custom = AppSettings(
   onboarded: true,
+  completedSetup: {'dismissed'},
   style: StyleProfile(preset: StylePreset.professional, customInstructions: 'Keep British spelling.'),
 );
 
@@ -153,7 +155,7 @@ void main() {
     'settings_lower',
     phone,
     '/settings',
-    const Scene(settings: AppSettings(onboarded: true, appStyles: {'com.example.notes': StylePreset.notes, 'com.google.android.gm': StylePreset.casual})),
+    const Scene(settings: AppSettings(onboarded: true, completedSetup: {'dismissed'}, appStyles: {'com.example.notes': StylePreset.notes, 'com.google.android.gm': StylePreset.casual})),
     act: (t) async {
       await t.drag(find.byType(Scrollable).first, const Offset(0, -1100));
       await settle(t);
@@ -170,20 +172,49 @@ void main() {
     },
   );
 
-  // ---- Onboarding ----
-  for (var step = 0; step < 4; step++) {
-    for (final d in [phone, desktop]) {
-      widgetScene(
-        'onboarding${step + 1}',
-        d,
-        () => OnboardingScreen(initialStep: step),
-        step == 1 ? Scene(downloads: {'gemma-4-e4b': downloading(0.12)}) : const Scene(settings: AppSettings()),
-      );
-    }
+  // ---- Setup guide ----
+  const none = SetupStatus();
+  const mid = SetupStatus(micGranted: true);
+  final androidSteps = <(String, int, SetupStatus)>[
+    ('welcome', 0, none),
+    ('mic', 1, none),
+    ('mic_done', 1, mid),
+    ('engine', 2, mid),
+    ('keyboard', 3, SetupStatus(micGranted: true, engineReady: true)),
+    ('bubble', 4, SetupStatus(micGranted: true, engineReady: true, keyboardEnabled: true)),
+    ('try', 5, SetupStatus(micGranted: true, engineReady: true, keyboardEnabled: true, bubbleEnabled: true)),
+    ('tips', 6, SetupStatus(micGranted: true, engineReady: true, keyboardEnabled: true, bubbleEnabled: true)),
+  ];
+  for (final (name, step, status) in androidSteps) {
+    widgetScene(
+      'setup_$name',
+      phone,
+      () => OnboardingScreen(initialStep: step),
+      Scene(
+        settings: const AppSettings(),
+        setup: status,
+        manufacturer: name == 'bubble' ? 'honor' : 'google',
+        downloads: {'gemma-4-e4b': downloading(0.12)},
+      ),
+    );
   }
+  widgetScene('setup_engine_gemini', phone, () => const OnboardingScreen(initialStep: 2),
+      const Scene(settings: _gemini, setup: mid));
+  for (var i = 0; i < 4; i++) {
+    widgetScene('setup_linux$i', desktop, () => OnboardingScreen(initialStep: i), const Scene(settings: AppSettings(), setup: none));
+  }
+  widgetScene('setup_welcome', desktop, () => const OnboardingScreen(), const Scene(settings: AppSettings(), setup: none));
+  routeScene('record_setup_banner', phone, '/', const Scene(settings: AppSettings(onboarded: true), setup: SetupStatus(micGranted: true)));
 
   // ---- Keyboard ----
   const gmail = 'com.google.android.gm';
+  for (final d in [keyboard, keyboardLarge, keyboardSmall]) {
+    widgetScene('kb_idle', d, keyboardView, const Scene(package: gmail));
+    widgetScene('kb_listening', d, keyboardView, Scene(package: gmail, state: listening()));
+    widgetScene('kb_paused', d, keyboardView, Scene(package: gmail, state: DictationListening(
+      elapsed: const Duration(seconds: 42), level: 0, limit: const Duration(minutes: 10), warnBefore: const Duration(seconds: 60), paused: true)));
+    widgetScene('kb_discarded', d, keyboardView, const Scene(package: gmail, state: DictationIdle(notice: 'Recording discarded.', discardedId: 'x')));
+  }
   widgetScene('keyboard_idle', keyboard, keyboardView, const Scene(package: gmail));
   widgetScene('keyboard_listening', keyboard, keyboardView, Scene(package: gmail, state: listening()));
   widgetScene('keyboard_near_limit', keyboard, keyboardView, Scene(package: gmail, state: listening(seconds: 570, level: 0.3)));

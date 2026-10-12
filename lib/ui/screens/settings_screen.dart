@@ -70,6 +70,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       if (isAndroid) const SettingsSection(title: 'Keyboard', children: [AndroidSection()]),
       if (isAndroid) const SettingsSection(title: 'Floating mic', children: [BubbleSection()]),
+      SettingsSection(title: 'Help', children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: Space.gutter),
+          leading: const Icon(Icons.checklist_rounded),
+          title: const Text('Setup guide'),
+          subtitle: const Text('Microphone, engine, keyboard and the floating mic'),
+          onTap: () => context.push('/setup'),
+        ),
+      ]),
       const SettingsSection(title: 'Privacy', children: [PrivacySection()]),
       const SettingsSection(title: 'About', children: [AboutSection()]),
     ];

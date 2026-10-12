@@ -2,12 +2,15 @@
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../platform/android/android_system.dart';
+import 'bubble_setup_panel.dart';
 
 /// Settings for the Android floating mic: turn it on, the one-time sideload
 /// step, size and the per-app blocklist. Android only; mount it inside a
@@ -26,7 +29,9 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
   late final AndroidSystem _system = widget.system ?? AndroidSystem();
   bool? _enabled;
   bool _batteryExempt = false;
+  bool _secureGranted = false;
   bool _oem = false;
+  bool _setupOpen = false;
   List<LaunchableApp> _apps = const [];
 
   @override
@@ -54,10 +59,12 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
     final v = await _system.isBubbleEnabled();
     final battery = await _system.isIgnoringBattery();
     final maker = await _system.manufacturer();
+    final secure = await _system.hasSecureSettingsPermission();
     if (mounted) {
       setState(() {
         _enabled = v;
         _batteryExempt = battery;
+        _secureGranted = secure;
         _oem = ['honor', 'huawei', 'xiaomi', 'redmi', 'poco'].any(maker.contains);
       });
     }
@@ -76,6 +83,9 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
     await ref.read(settingsProvider.notifier).update(change);
     _push(ref.read(settingsProvider));
   }
+
+  static const _grantCommand =
+      'adb shell pm grant io.github.luohoa97.ramblevoice android.permission.WRITE_SECURE_SETTINGS';
 
   String _label(String package) {
     for (final a in _apps) {
@@ -121,11 +131,18 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: FilledButton.tonalIcon(
-            onPressed: _system.openBubbleSettings,
+            onPressed: enabled ? _system.openBubbleSettings : () => setState(() => _setupOpen = true),
             icon: const Icon(Icons.mic_none_rounded),
             label: Text(enabled ? 'Floating mic settings' : 'Turn on floating mic'),
           ),
         ),
+        if (_setupOpen && !enabled) ...[
+          const SizedBox(height: 12),
+          BubbleSetupPanel(onDone: () {
+            unawaited(_check());
+            if (mounted) setState(() => _setupOpen = false);
+          }),
+        ],
         if (!enabled) ...[
           const SizedBox(height: 16),
           Text('Installed outside the Play Store?', style: t.titleSmall),
@@ -194,6 +211,42 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
               label: const Text('Open App launch manager'),
             ),
           ),
+        ],
+        const SizedBox(height: 16),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Auto-restore floating mic'),
+          subtitle: const Text(
+            "If Android or your phone's battery manager turns the floating mic off, Ramble turns it back on. "
+            'To turn the floating mic off for good, turn off this switch first.',
+          ),
+          value: settings.bubbleAutoRestore,
+          onChanged: (v) async {
+            await _change((s) => s.copyWith(bubbleAutoRestore: v));
+            await _system.setBubbleAutoRestore(v);
+            unawaited(_check());
+          },
+        ),
+        if (settings.bubbleAutoRestore) ...[
+          Text(
+            _secureGranted
+                ? 'Permission granted. Auto-restore is active.'
+                : 'Needs a one-time permission from a computer. With USB or wireless debugging connected, run:',
+            style: t.bodyMedium?.copyWith(color: _secureGranted ? c.primary : c.onSurfaceVariant),
+          ),
+          if (!_secureGranted) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: SelectableText(_grantCommand, style: t.bodySmall?.copyWith(fontFamily: 'monospace'))),
+                IconButton(
+                  tooltip: 'Copy command',
+                  icon: const Icon(Icons.copy_rounded),
+                  onPressed: () => Clipboard.setData(const ClipboardData(text: _grantCommand)),
+                ),
+              ],
+            ),
+          ],
         ],
         const SizedBox(height: 16),
         Text('Size', style: t.titleSmall),

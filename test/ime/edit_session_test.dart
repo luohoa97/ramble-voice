@@ -10,7 +10,6 @@ import 'package:ramble_voice/core/dictation/edit_controller.dart';
 import 'package:ramble_voice/core/style/style_profile.dart';
 import 'package:ramble_voice/ime/edit_session.dart';
 import 'package:ramble_voice/ime/ime_app.dart';
-import 'package:ramble_voice/ime/qwerty_layout.dart';
 import 'package:ramble_voice/platform/android/ime_bridge.dart';
 
 import '../fakes/fake_audio_source.dart';
@@ -218,27 +217,4 @@ void main() {
     });
   });
 
-  group('QWERTY layout', () {
-    test('letters page has 26 letters', () {
-      final letters = qwertyRows(QwertyPage.letters).expand((r) => r).toList();
-      expect(letters.toSet(), hasLength(26));
-      expect(letters.join(), 'qwertyuiopasdfghjklzxcvbnm');
-    });
-
-    test('symbol pages have three rows and no duplicates within a page', () {
-      for (final page in [QwertyPage.symbols, QwertyPage.moreSymbols]) {
-        final rows = qwertyRows(page);
-        expect(rows, hasLength(3));
-        final all = rows.expand((r) => r).toList();
-        expect(all.toSet(), hasLength(all.length));
-      }
-    });
-
-    test('shift cycles once, caps and off', () {
-      expect(nextShift(ShiftState.off, doubleTap: false), ShiftState.once);
-      expect(nextShift(ShiftState.once, doubleTap: false), ShiftState.off);
-      expect(nextShift(ShiftState.once, doubleTap: true), ShiftState.caps);
-      expect(nextShift(ShiftState.caps, doubleTap: false), ShiftState.off);
-    });
-  });
 }

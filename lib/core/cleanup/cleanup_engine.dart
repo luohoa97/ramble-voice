@@ -93,6 +93,9 @@ enum CleanupFailureKind {
   /// new users, or it rejects the instructions the app needs).
   modelUnavailable,
   noNetwork,
+
+  /// The cloud model did not answer in time (overloaded or stalled).
+  timedOut,
   missingApiKey,
   invalidApiKey,
   blocked,
@@ -103,13 +106,13 @@ enum CleanupFailureKind {
 
   /// Whether falling back to the on-device engine makes sense.
   bool get cloudFallbackEligible => switch (this) {
-        rateLimited || dailyQuotaExceeded || modelNotOnFreeTier || modelUnavailable || noNetwork || server || audioTooLong => true,
+        rateLimited || dailyQuotaExceeded || modelNotOnFreeTier || modelUnavailable || noNetwork || timedOut || server || audioTooLong => true,
         _ => false,
       };
 
   /// Whether retrying the same engine later may succeed.
   bool get retryable => switch (this) {
-        rateLimited || noNetwork || server || outOfMemory || unknown => true,
+        rateLimited || noNetwork || timedOut || server || outOfMemory || unknown => true,
         _ => false,
       };
 }

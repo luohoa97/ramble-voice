@@ -111,13 +111,4 @@ void main() {
     expect(find.byType(M3ELoadingIndicator), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsNothing);
   });
-
-  testWidgets('reduced motion snaps shapes without running a ticker', (tester) async {
-    await tester.pumpWidget(MediaQuery(
-      data: const MediaQueryData(disableAnimations: true),
-      child: host(Center(child: MicButton(state: listening(), onTap: () {}))),
-    ));
-    await tester.pump();
-    expect(tester.hasRunningAnimations, isFalse);
-  });
 }

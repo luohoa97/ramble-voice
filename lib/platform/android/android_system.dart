@@ -95,6 +95,24 @@ extension BubbleSystem on AndroidSystem {
   /// The user turned the floating mic off from this app: stop watching for it going off.
   Future<void> forgetBubble() => _call('forgetBubble');
 
+  /// Whether WRITE_SECURE_SETTINGS was granted (over adb), which auto-restore needs.
+  Future<bool> hasSecureSettingsPermission() => _bool('hasSecureSettingsPermission');
+
+  /// Turns the opt-in auto-restore on or off. When on and permitted, the
+  /// native side re-adds the bubble service if the system switched it off.
+  Future<void> setBubbleAutoRestore(bool enabled) => _call('setBubbleAutoRestore', enabled);
+
+  /// `Build.VERSION.SDK_INT`, 0 when unknown.
+  Future<int> sdkInt() async {
+    try {
+      return await _channel.invokeMethod<int>('sdkInt') ?? 0;
+    } on PlatformException {
+      return 0;
+    } on MissingPluginException {
+      return 0;
+    }
+  }
+
   Future<List<LaunchableApp>> launchableApps() async {
     try {
       final raw = await _channel.invokeListMethod<Map<Object?, Object?>>('launchableApps') ?? const [];

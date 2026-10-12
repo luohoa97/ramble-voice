@@ -192,7 +192,23 @@ abstract final class GeminiModelSelector {
   /// fast, cheap backup. The pipeline's on-device fallback comes after this.
   static List<GeminiModelInfo> chain(List<GeminiModelInfo> sorted, GeminiModelInfo first) {
     final start = first.unavailable ? (defaultModel(sorted) ?? first) : first;
+    // Then up to two older stable models of the same family and generation,
+    // so a stalled newest model (a busy 3.8 Flash) falls back to 3.7, 3.6;
+    // never to an older generation.
+    final siblings = sorted
+        .where((m) =>
+            start.family != GeminiFamily.flashLite &&
+            m.family == start.family &&
+            m.major == start.major &&
+            m.id != start.id &&
+            !m.alias &&
+            !m.preview &&
+            !m.unavailable)
+        .take(2);
     final backup = _newest(sorted, GeminiFamily.flashLite) ?? _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
-    return [start, if (backup != null && backup.id != start.id) backup];
+    final out = <GeminiModelInfo>[start, ...siblings];
+    if (backup != null && out.every((m) => m.id != backup.id)) out.add(backup);
+    return out;
   }
+
 }

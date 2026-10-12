@@ -205,12 +205,14 @@ void main() {
         CleanupFailureKind.modelNotOnFreeTier,
         CleanupFailureKind.modelUnavailable,
         CleanupFailureKind.noNetwork,
+        CleanupFailureKind.timedOut,
         CleanupFailureKind.server,
         CleanupFailureKind.audioTooLong,
       });
       expect(CleanupFailureKind.values.where((k) => k.retryable).toSet(), {
         CleanupFailureKind.rateLimited,
         CleanupFailureKind.noNetwork,
+        CleanupFailureKind.timedOut,
         CleanupFailureKind.server,
         CleanupFailureKind.outOfMemory,
         CleanupFailureKind.unknown,

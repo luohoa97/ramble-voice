@@ -7,17 +7,16 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/providers.dart';
-import '../../core/audio/audio_source.dart';
-import '../../core/audio/pcm.dart';
-import '../../core/dictation/dictation_controller.dart';
+import '../../platform/android/android_system.dart';
 import '../theme/app_theme.dart';
+import '../util/hotkey_state.dart';
 import '../util/platform_flags.dart';
-import '../widgets/engine_picker.dart';
-import '../widgets/mic_button.dart';
-import '../widgets/style_chips.dart';
-import 'settings/linux_section.dart';
-import 'settings/misc_sections.dart';
+import 'onboarding/setup_status.dart';
+import 'onboarding/setup_steps.dart';
 
+/// The guided setup. Each step has one title, a sentence or two, one primary
+/// action and a live status; a step that the device can check moves on by
+/// itself once it is done. Opened on first run and again from Settings.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key, this.initialStep = 0});
 
@@ -27,42 +26,129 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  static const _steps = 4;
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with WidgetsBindingObserver {
   late int _step = widget.initialStep;
+  Timer? _poll;
+  Timer? _advance;
+  var _micAsked = false;
+
+  List<String> get _steps => setupStepsFor(android: ref.read(isAndroidProvider));
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _poll = Timer.periodic(const Duration(milliseconds: 1500), (_) => ref.invalidate(setupStatusProvider));
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _poll?.cancel();
+    _advance?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) ref.invalidate(setupStatusProvider);
+  }
+
+  Future<void> _complete(String id) {
+    if (ref.read(settingsProvider).completedSetup.contains(id)) return Future.value();
+    return ref.read(settingsProvider.notifier).update((s) => s.copyWith(completedSetup: {...s.completedSetup, id}));
+  }
 
   Future<void> _finish() async {
+    await ref.read(settingsProvider.notifier).update((s) => s.copyWith(
+          onboarded: true,
+          completedSetup: {...s.completedSetup, _steps.last},
+        ));
+    if (mounted) context.go('/');
+  }
+
+  /// Leaving early keeps the unfinished steps for the banner.
+  Future<void> _skipAll() async {
     await ref.read(settingsProvider.notifier).update((s) => s.copyWith(onboarded: true));
     if (mounted) context.go('/');
   }
 
   void _next() {
-    if (_step == _steps - 1) {
-      _finish();
+    _advance?.cancel();
+    final id = _steps[_step];
+    unawaited(_complete(id));
+    if (_step >= _steps.length - 1) {
+      unawaited(_finish());
     } else {
       setState(() => _step++);
     }
   }
 
-  void _back() => setState(() => _step--);
+  void _back() {
+    _advance?.cancel();
+    setState(() => _step--);
+  }
+
+  void _onStatus(SetupStatus? prev, SetupStatus next) {
+    final id = _steps[_step];
+    for (final s in _steps) {
+      if (detected(s, next)) unawaited(_complete(s));
+    }
+    if (detected(id, next) && !detected(id, prev) && prev != null) {
+      _advance?.cancel();
+      _advance = Timer(const Duration(milliseconds: 900), () {
+        if (mounted && _steps[_step] == id) _next();
+      });
+    }
+  }
+
+  Future<void> _requestMic() async {
+    final audio = ref.read(platformServicesProvider).audio;
+    final ok = await audio.requestPermission();
+    _micAsked = true;
+    if (!ok && mounted) await ref.read(androidSystemProvider).openAppDetails();
+    ref.invalidate(setupStatusProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isLinux = ref.watch(isLinuxProvider);
+    ref.listen<AsyncValue<SetupStatus>>(setupStatusProvider, (prev, next) {
+      final v = next.value;
+      if (v != null) _onStatus(prev?.value, v);
+    });
+    final status = ref.watch(setupStatusProvider).value;
+    final steps = _steps;
+    final id = steps[_step];
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
+    final android = ref.watch(isAndroidProvider);
+    final system = ref.read(androidSystemProvider);
+    final done = detected(id, status);
+    final last = _step == steps.length - 1;
 
-    final (title, lead, body) = switch (_step) {
-      0 => ('Let Ramble hear you', 'Speak naturally. Ramble turns the ramble into clean text.', const _MicStep()),
-      1 => (
-          'Pick how it cleans up',
-          'You can switch any time from the record screen.',
-          const EnginePicker(inset: 0),
-        ),
-      2 => ('Pick a tone', 'Casual, Professional, Texting or Notes. Change it with one tap later.', const _ToneStep()),
-      _ => isLinux
-          ? ('Dictate from anywhere', 'Bind a shortcut and Ramble types where your cursor is.', const LinuxSection())
-          : ('Dictate in any app', 'The Ramble keyboard puts the microphone in every text field.', const AndroidSection()),
+    final (String title, String lead, Widget body) = switch (id) {
+      'welcome' => ('Speak messily. Get clean text.', 'Ramble turns what you say into clean text, in any app.', const WelcomeStepBody()),
+      'mic' => ('Let Ramble hear you', 'Ramble needs the microphone. Audio stays on this device unless you choose Gemini.', MicStepBody(status: status, onTapMic: _requestMic)),
+      'engine' => ('Pick how it cleans up', 'On-device is private and free. Gemini is smarter and needs a key.', EngineStepBody(status: status)),
+      'keyboard' => ('Turn on the Ramble keyboard', 'It puts the microphone in every text field.', KeyboardStepBody(status: status)),
+      'bubble' => ('Turn on the floating mic', 'A small mic that floats over other apps, so you can dictate next to Gboard.', BubbleStepBody(status: status)),
+      'try' => ('Try it', 'Dictate into this box and watch it type for you.', TryStepBody(onTyped: () => _complete('try'))),
+      'tips' => ('Three quick tips', 'You can change these any time.', const TipsStepBody()),
+      'hotkey' => ('Set your shortcut', 'Press it anywhere to start dictating.', HotkeyStepBody(status: status)),
+      'typing' => ('Let Ramble type for you', 'Ramble types the cleaned text into the app you are using.', const TypingStepBody()),
+      'tray' => ('Ramble stays in the tray', 'Close the window and it keeps listening for your shortcut.', const TrayStepBody()),
+      _ => ('', '', const SizedBox.shrink()),
+    };
+
+    // One primary action: the thing this step needs, then Next.
+    final (String primaryLabel, VoidCallback primary) = switch (id) {
+      'mic' when !done => (_micAsked ? 'Open app settings' : 'Allow microphone', _micAsked ? () => unawaited(system.openAppDetails()) : () => unawaited(_requestMic())),
+      'keyboard' when !done => ('Open keyboard settings', () => unawaited(system.openKeyboardSettings())),
+      'bubble' when !done => ('Open floating mic settings', () => unawaited(system.openBubbleSettings())),
+      'hotkey' when !done && !android => ('Bind shortcut', () => unawaited(_bindHotkey())),
+      'welcome' => ('Get started', _next),
+      _ when last => ('Finish', _next),
+      _ => ('Next', _next),
     };
 
     return Scaffold(
@@ -81,10 +167,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       children: [
                         Expanded(
                           child: Semantics(
-                            label: 'Step ${_step + 1} of $_steps',
+                            label: 'Step ${_step + 1} of ${steps.length}',
                             child: Row(
                               children: [
-                                for (var i = 0; i < _steps; i++) ...[
+                                for (var i = 0; i < steps.length; i++) ...[
                                   if (i > 0) const SizedBox(width: 6),
                                   Expanded(
                                     child: AnimatedContainer(
@@ -102,7 +188,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                         ),
                         const SizedBox(width: Space.x1),
-                        TextButton(onPressed: _finish, child: const Text('Skip')),
+                        TextButton(onPressed: _skipAll, child: const Text('Skip setup')),
                       ],
                     ),
                   ),
@@ -127,10 +213,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       children: [
                         if (_step > 0) TextButton(onPressed: _back, child: const Text('Back')),
                         const Spacer(),
-                        FilledButton(
-                          onPressed: _next,
-                          child: Text(_step == _steps - 1 ? 'Finish' : 'Next'),
-                        ),
+                        if (!last && id != 'welcome' && (primaryLabel != 'Next'))
+                          TextButton(onPressed: _next, child: const Text('Skip')),
+                        const SizedBox(width: Space.x1),
+                        FilledButton(onPressed: primary, child: Text(primaryLabel)),
                       ],
                     ),
                   ),
@@ -142,178 +228,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ),
     );
   }
-}
 
-class _ToneStep extends ConsumerWidget {
-  const _ToneStep();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final preset = ref.watch(settingsProvider.select((s) => s.style.preset));
-    final t = Theme.of(context).textTheme;
-    final c = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Align(alignment: Alignment.centerLeft, child: StyleChips(centered: false, gutter: 0)),
-        const SizedBox(height: Space.x2),
-        Text('${preset.instruction}.', style: t.bodyLarge?.copyWith(color: c.onSurfaceVariant)),
-      ],
-    );
-  }
-}
-
-class _MicStep extends ConsumerStatefulWidget {
-  const _MicStep();
-
-  @override
-  ConsumerState<_MicStep> createState() => _MicStepState();
-}
-
-class _MicStepState extends ConsumerState<_MicStep> {
-  bool? _granted;
-  bool _testing = false;
-  double _level = 0;
-  String? _error;
-  AudioCapture? _capture;
-  StreamSubscription<dynamic>? _sub;
-
-  @override
-  void initState() {
-    super.initState();
-    ref.read(platformServicesProvider).audio.hasPermission().then((v) {
-      if (mounted) setState(() => _granted = v);
-    });
-  }
-
-  @override
-  void dispose() {
-    _stop();
-    super.dispose();
-  }
-
-  Future<void> _stop() async {
-    await _sub?.cancel();
-    _sub = null;
-    final c = _capture;
-    _capture = null;
-    try {
-      await c?.stop();
-    } catch (_) {}
-  }
-
-  Future<void> _request() async {
-    final ok = await ref.read(platformServicesProvider).audio.requestPermission();
-    if (mounted) setState(() => _granted = ok);
-  }
-
-  Future<void> _test() async {
-    if (_testing) {
-      await _stop();
-      if (mounted) setState(() => _testing = false);
-      return;
-    }
-    setState(() {
-      _testing = true;
-      _error = null;
-    });
-    try {
-      final capture = await ref.read(platformServicesProvider).audio.start();
-      _capture = capture;
-      _sub = capture.pcm.listen((b) {
-        if (mounted) setState(() => _level = Pcm.level(b));
-      });
-      Timer(const Duration(seconds: 8), () async {
-        if (_testing) {
-          await _stop();
-          if (mounted) setState(() => _testing = false);
-        }
-      });
-    } on AudioSourceException catch (e) {
-      setState(() {
-        _testing = false;
-        _error = switch (e.error) {
-          AudioSourceError.permissionDenied => 'Microphone access is off.',
-          AudioSourceError.deviceUnavailable => 'No microphone is available.',
-          AudioSourceError.backendMissing => 'Audio capture is not available on this system.',
-        };
-      });
-    } catch (_) {
-      setState(() {
-        _testing = false;
-        _error = 'The microphone could not start.';
-      });
-    }
-  }
-
-  Future<void> _onTap() async {
-    final isLinux = ref.read(isLinuxProvider);
-    if (!isLinux && _granted != true) {
-      await _request();
-      return;
-    }
-    await _test();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isLinux = ref.watch(isLinuxProvider);
-    final t = Theme.of(context).textTheme;
-    final c = Theme.of(context).colorScheme;
-    final needsPermission = !isLinux && _granted != true;
-    final caption = _testing
-        ? 'Listening. Say something and watch the shape move.'
-        : needsPermission
-            ? 'Tap the microphone to allow access.'
-            : _granted == true || isLinux
-                ? 'Tap to test the microphone.'
-                : 'Checking microphone access.';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Center(
-          child: MicButton(
-            size: 176,
-            onTap: _onTap,
-            state: _testing
-                ? DictationListening(
-                    elapsed: Duration.zero,
-                    level: _level,
-                    limit: const Duration(minutes: 10),
-                    warnBefore: const Duration(seconds: 30),
-                  )
-                : const DictationIdle(),
-          ),
-        ),
-        const SizedBox(height: Space.x2),
-        Semantics(
-          liveRegion: true,
-          child: Text(caption, textAlign: TextAlign.center, style: t.titleMedium?.copyWith(color: c.onSurfaceVariant)),
-        ),
-        if (_granted == true && !isLinux) ...[
-          const SizedBox(height: Space.x1),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle_rounded, size: 18, color: c.primary),
-              const SizedBox(width: 6),
-              Text('Microphone allowed', style: t.labelLarge?.copyWith(color: c.onSurfaceVariant)),
-            ],
-          ),
-        ],
-        if (isLinux) ...[
-          const SizedBox(height: Space.x1),
-          Text(
-            'Ramble Voice records through PipeWire. Your desktop may ask for permission the first time.',
-            textAlign: TextAlign.center,
-            style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-          ),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: Space.x1),
-          Text(_error!, textAlign: TextAlign.center, style: t.bodyMedium?.copyWith(color: c.error)),
-        ],
-      ],
-    );
+  Future<void> _bindHotkey() async {
+    final hotkeys = ref.read(platformServicesProvider).hotkeys;
+    if (hotkeys == null) return;
+    ref.read(hotkeyStatusProvider.notifier).set(await hotkeys.bind());
+    ref.invalidate(setupStatusProvider);
   }
 }

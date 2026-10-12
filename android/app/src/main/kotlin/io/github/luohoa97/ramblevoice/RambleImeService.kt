@@ -82,7 +82,9 @@ class RambleImeService : InputMethodService() {
 
     private fun keyboardHeightPx(): Int {
         val metrics = resources.displayMetrics
-        val wanted = (KEYBOARD_HEIGHT_DP * metrics.density).toInt()
+        // Grow with the user's font size so larger text never crowds the keys.
+        val fontScale = resources.configuration.fontScale.coerceIn(1f, 1.4f)
+        val wanted = (KEYBOARD_HEIGHT_DP * fontScale * metrics.density).toInt()
         // Leave room for the app in landscape.
         val cap = (metrics.heightPixels * 0.6f).toInt()
         return minOf(wanted, cap) + navInset

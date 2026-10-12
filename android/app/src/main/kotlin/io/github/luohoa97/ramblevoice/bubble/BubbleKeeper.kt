@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.luohoa97.ramblevoice.bubble
 
+import io.github.luohoa97.ramblevoice.CrashLog
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -47,9 +48,40 @@ object BubbleKeeper {
         check(app)
     }
 
+    fun canWriteSecureSettings(context: Context): Boolean =
+        context.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Opt-in auto-restore. Only when the user turned on "Auto-restore floating
+     * mic" in Ramble AND granted WRITE_SECURE_SETTINGS over adb: re-adds our
+     * service to the enabled list (other services are kept). Returns true when
+     * the service is enabled afterwards. With the toggle off it never touches
+     * secure settings, so switching the toggle off first lets the user turn
+     * the floating mic off for good.
+     */
+    fun restoreIfAllowed(context: Context): Boolean {
+        val app = context.applicationContext
+        val prefs = BubblePrefs(app)
+        if (!prefs.autoRestore || !prefs.wanted || isEnabled(app) || !canWriteSecureSettings(app)) return isEnabled(app)
+        return try {
+            val resolver = app.contentResolver
+            val own = ComponentName(app, RambleBubbleService::class.java).flattenToString()
+            val current = Settings.Secure.getString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+            val entries = current.split(':').filter { it.isNotBlank() && it != own }
+            Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (entries + own).joinToString(":"))
+            Settings.Secure.putInt(resolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+            CrashLog.note("bubble auto-restored")
+            isEnabled(app)
+        } catch (e: SecurityException) {
+            false
+        }
+    }
+
     /** Posts the "turned off" notice if the bubble is wanted but off; clears it otherwise. */
     fun check(context: Context) {
         val app = context.applicationContext
+        restoreIfAllowed(app)
         val notifications = app.getSystemService(NotificationManager::class.java) ?: return
         if (!BubblePrefs(app).wanted || isEnabled(app)) {
             notifications.cancel(NOTICE_ID)

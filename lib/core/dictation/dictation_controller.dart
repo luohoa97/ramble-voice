@@ -36,7 +36,11 @@ sealed class DictationState {
 }
 
 class DictationIdle extends DictationState {
-  const DictationIdle({this.notice});
+  const DictationIdle({this.notice, this.discardedId});
+
+  /// Set right after [DictationController.discard]; the UI offers Undo until
+  /// the recording is deleted a few seconds later.
+  final String? discardedId;
 
   /// One-off message, e.g. "Nothing was recorded".
   final String? notice;
@@ -52,9 +56,14 @@ class DictationListening extends DictationState {
     required this.level,
     required this.limit,
     required this.warnBefore,
+    this.paused = false,
   });
 
   final Duration elapsed;
+
+  /// The mic is closed until [DictationController.resume]; paused time does
+  /// not count toward [limit].
+  final bool paused;
 
   /// Latest input level, 0..1.
   final double level;
@@ -169,6 +178,8 @@ class DictationController {
   /// Tap-to-toggle: start when idle, stop and process when listening.
   Future<void> toggle() async {
     switch (_state) {
+      case DictationListening(paused: true):
+        await resume();
       case DictationListening():
         await stop();
       case DictationIdle() || DictationDone() || DictationFailed():
@@ -261,6 +272,56 @@ class DictationController {
     }
     await _process(sink.id);
   }
+
+  /// Closes the mic but keeps the recording open; [resume] continues it.
+  Future<void> pause() async {
+    final s = _state;
+    if (s is! DictationListening || s.paused) return;
+    await _stopCapture();
+    _emit(DictationListening(elapsed: s.elapsed, level: 0, limit: maxSession, warnBefore: warnBefore, paused: true));
+  }
+
+  Future<void> resume() async {
+    final s = _state;
+    if (s is! DictationListening || !s.paused || _sink == null) return;
+    try {
+      _captureDone = Completer<void>();
+      _capture = await audio.start();
+    } on Object {
+      _emit(DictationListening(elapsed: s.elapsed, level: 0, limit: maxSession, warnBefore: warnBefore, paused: true));
+      return;
+    }
+    _emit(DictationListening(elapsed: s.elapsed, level: 0, limit: maxSession, warnBefore: warnBefore));
+    _sub = _capture!.pcm.listen(
+      _onPcm,
+      onDone: () => _captureDone?.complete(),
+      onError: (Object _) => _captureDone?.complete(),
+      cancelOnError: true,
+    );
+  }
+
+  /// Ends the recording without cleaning it up. The audio is kept for
+  /// [undoWindow] so [undoDiscard] can still process it, then deleted.
+  Future<void> discard({Duration undoWindow = const Duration(seconds: 5)}) async {
+    final sink = _sink;
+    if (sink == null || !(_state is DictationListening || _state is DictationStarting)) return;
+    await _stopCapture();
+    _sink = null;
+    await sink.close();
+    _discardTimer?.cancel();
+    _discardTimer = Timer(undoWindow, () => unawaited(vault.delete(sink.id)));
+    _emit(DictationIdle(notice: 'Recording discarded.', discardedId: sink.id));
+  }
+
+  /// Brings back a recording from [discard] and cleans it up.
+  Future<void> undoDiscard(String id) async {
+    if (isBusy || _discardTimer?.isActive != true) return;
+    _discardTimer?.cancel();
+    _emit(DictationProcessing(recordingId: id));
+    await _process(id);
+  }
+
+  Timer? _discardTimer;
 
   /// Stops capture and throws the audio away.
   Future<void> cancel() async {

@@ -103,6 +103,13 @@ class SystemHandler(
                 result.success(null)
             }
             "manufacturer" -> result.success(Build.MANUFACTURER)
+            "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+            "hasSecureSettingsPermission" -> result.success(BubbleKeeper.canWriteSecureSettings(context))
+            "setBubbleAutoRestore" -> {
+                BubblePrefs(context).autoRestore = call.arguments as? Boolean ?: false
+                BubbleKeeper.check(context)
+                result.success(null)
+            }
             "openOemAutostart" -> result.success(openOemAutostart())
             "forgetBubble" -> {
                 BubbleKeeper.forget(context)

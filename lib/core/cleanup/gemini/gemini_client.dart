@@ -52,6 +52,7 @@ class GeminiClient {
     String thinkingLevel = 'minimal',
     double temperature = 0.2,
     int maxOutputTokens = 8192,
+    Duration? timeout,
   }) async {
     final body = <String, Object?>{
       'systemInstruction': {
@@ -79,7 +80,7 @@ class GeminiClient {
     };
     final uri = base.resolve('models/$model:generateContent');
     final json = await _send(
-      () => _http.post(uri, headers: _headers(apiKey), body: jsonEncode(body)),
+      () => _http.post(uri, headers: _headers(apiKey), body: jsonEncode(body)), timeout: timeout,
     );
     return extractText(json);
   }
@@ -110,12 +111,12 @@ class GeminiClient {
     return text;
   }
 
-  Future<Map<String, Object?>> _send(Future<http.Response> Function() request) async {
+  Future<Map<String, Object?>> _send(Future<http.Response> Function() request, {Duration? timeout}) async {
     final http.Response res;
     try {
-      res = await request().timeout(timeout);
+      res = await request().timeout(timeout ?? this.timeout);
     } on TimeoutException catch (e) {
-      throw CleanupFailure(CleanupFailureKind.noNetwork, 'Gemini did not respond in time.', cause: e);
+      throw CleanupFailure(CleanupFailureKind.timedOut, 'Gemini did not respond in time.', cause: e);
     } on SocketException catch (e) {
       throw CleanupFailure(CleanupFailureKind.noNetwork, 'No internet connection.', cause: e);
     } on http.ClientException catch (e) {

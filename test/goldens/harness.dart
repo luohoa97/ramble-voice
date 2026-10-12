@@ -29,6 +29,7 @@ import 'package:ramble_voice/ime/keyboard_view.dart';
 import 'package:ramble_voice/platform/android/ime_bridge.dart';
 import 'package:ramble_voice/ui/screens/settings/gemini_section.dart';
 import 'package:ramble_voice/ui/theme/app_theme.dart';
+import 'package:ramble_voice/ui/screens/onboarding/setup_status.dart';
 import 'package:ramble_voice/ui/util/app_label.dart';
 import 'package:ramble_voice/ui/util/platform_flags.dart';
 
@@ -45,6 +46,8 @@ class Device {
 const phone = Device('phone', Size(412, 915), 1.5, android: true);
 const desktop = Device('desktop', Size(1100, 760), 1, android: false);
 const keyboard = Device('keyboard', Size(412, 300), 1.5, android: true);
+const keyboardLarge = Device('keyboardLarge', Size(400, 345), 1.5, android: true);
+const keyboardSmall = Device('keyboardSmall', Size(360, 300), 1.5, android: true);
 
 Future<ByteData> _bytes(String path) async => ByteData.sublistView(await File(path).readAsBytes());
 
@@ -145,7 +148,7 @@ class _Pkg extends CurrentPackageNotifier {
 class Scene {
   const Scene({
     this.state = const DictationIdle(),
-    this.settings = const AppSettings(onboarded: true),
+    this.settings = const AppSettings(onboarded: true, completedSetup: {'dismissed'}),
     this.readiness = const EngineReady(detail: 'GPU'),
     this.downloads = const {},
     this.pausable = true,
@@ -153,6 +156,8 @@ class Scene {
     this.keySource = KeySource.none,
     this.pending = const [],
     this.package,
+    this.setup = const SetupStatus(micGranted: true, engineReady: true, keyboardEnabled: true, bubbleEnabled: true, hotkeyBound: true),
+    this.manufacturer = 'google',
   });
 
   final DictationState state;
@@ -164,6 +169,8 @@ class Scene {
   final KeySource keySource;
   final List<String> pending;
   final String? package;
+  final SetupStatus setup;
+  final String manufacturer;
 }
 
 List<Override> overridesFor(Scene s, Device d) {
@@ -188,6 +195,8 @@ List<Override> overridesFor(Scene s, Device d) {
           GeminiModelInfo(id: 'gemini-3.2-flash-lite-preview', major: 3, minor: 2, preview: true),
         ]),
     verbatimProvider.overrideWith((ref, id) async => 'um can you uh move the design review to thursday afternoon i have a clash in the morning and i would like priya to be there'),
+    setupStatusProvider.overrideWith((ref) async => s.setup),
+    manufacturerProvider.overrideWith((ref) async => s.manufacturer),
     isAndroidProvider.overrideWithValue(d.android),
     isLinuxProvider.overrideWithValue(!d.android),
     currentPackageProvider.overrideWith(() => _Pkg(s.package)),
@@ -215,6 +224,10 @@ void _size(WidgetTester tester, Device d) {
   tester.view.physicalSize = d.size * d.dpr;
   tester.view.devicePixelRatio = d.dpr;
   addTearDown(tester.view.reset);
+  if (d.name == 'keyboardLarge') {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.15;
+    addTearDown(tester.platformDispatcher.clearAllTestValues);
+  }
 }
 
 /// Pumps [home] (no router) as a screen.

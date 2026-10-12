@@ -8,5 +8,5 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 limit="${RAMBLE_FL_TIMEOUT:-900}"
 exec flock /tmp/ramble-flutter.lock toolbox run -c ramble bash --noprofile --norc -c \
-  'export PATH=$HOME/development/flutter/bin:$PATH; cd "$0"; limit="$1"; shift; exec timeout --kill-after=20 "$limit" "$@"' \
+  'export PATH=$HOME/development/flutter/bin:$PATH; export TMPDIR=$HOME/.cache/ramble-tmp; mkdir -p "$TMPDIR"; cd "$0"; limit="$1"; shift; exec timeout --kill-after=20 "$limit" "$@"' \
   "$PWD" "$limit" "$@"

@@ -35,6 +35,7 @@ class GeminiModelCache {
   final _thinking = <String, GeminiThinking>{};
   final _noFreeTier = <String>{};
   final _unavailable = <String, String>{};
+  final _slowUntil = <String, DateTime>{};
 
   List<GeminiModelInfo>? get(String key) {
     if (_models == null || _forKey != key || _fetchedAt == null) return null;
@@ -62,6 +63,15 @@ class GeminiModelCache {
   void markFreeTierUnavailable(String modelId) => _noFreeTier.add(modelId);
 
   void markUnavailable(String modelId, String reason) => _unavailable[modelId] = reason;
+
+  /// A model that just timed out is not tried first again for [period].
+  void markSlow(String modelId, {Duration period = const Duration(minutes: 10)}) =>
+      _slowUntil[modelId] = _clock().add(period);
+
+  bool isSlow(String modelId) {
+    final until = _slowUntil[modelId];
+    return until != null && _clock().isBefore(until);
+  }
 
   /// [models] with [GeminiModelInfo.freeTierUnavailable] and
   /// [GeminiModelInfo.unavailableReason] applied.
@@ -204,6 +214,7 @@ class GeminiEngine implements CleanupEngine {
           minimalThinking: mode != GeminiThinking.none,
           thinkingLevel: mode.level,
           maxOutputTokens: maxOutputTokens,
+          timeout: requestTimeout(wav.length),
         );
       } on CleanupFailure catch (f) {
         final next = _nextThinking(mode, f);
@@ -224,9 +235,14 @@ class GeminiEngine implements CleanupEngine {
     return GeminiThinking.none;
   }
 
+  /// Base wait plus the clip's own length: long clips legitimately take longer.
+  static Duration requestTimeout(int wavBytes) =>
+      const Duration(seconds: 30) + Pcm.durationOf(wavBytes);
+
   /// Failures that mean "this model, not this audio": try the next model.
   static bool _tryNextModel(CleanupFailure f) => switch (f.kind) {
         CleanupFailureKind.server ||
+        CleanupFailureKind.timedOut ||
         CleanupFailureKind.rateLimited ||
         CleanupFailureKind.dailyQuotaExceeded ||
         CleanupFailureKind.modelNotOnFreeTier ||
@@ -281,6 +297,7 @@ class GeminiEngine implements CleanupEngine {
   void _remember(GeminiModelInfo model, CleanupFailure f) {
     if (f.kind == CleanupFailureKind.modelNotOnFreeTier) cache.markFreeTierUnavailable(model.id);
     if (f.kind == CleanupFailureKind.modelUnavailable) cache.markUnavailable(model.id, f.message);
+    if (f.kind == CleanupFailureKind.timedOut || f.kind == CleanupFailureKind.server) cache.markSlow(model.id);
   }
 
   List<GeminiModelInfo> _chain(List<GeminiModelInfo> models) {
@@ -291,7 +308,9 @@ class GeminiEngine implements CleanupEngine {
         'Google did not list any Gemini model that can transcribe audio for this key.',
       );
     }
-    return GeminiModelSelector.chain(models, first);
+    final chain = GeminiModelSelector.chain(models, first);
+    // Models that just stalled go last so the next dictation doesn't wait.
+    return [...chain.where((m) => !cache.isSlow(m.id)), ...chain.where((m) => cache.isSlow(m.id))];
   }
 
   @override

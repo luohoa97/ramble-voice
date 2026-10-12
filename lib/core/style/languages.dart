@@ -109,10 +109,16 @@ abstract final class Languages {
         : names.length == 1
             ? 'The speaker usually speaks ${names.single}. '
             : 'The speaker usually speaks ${names.join(', ')}. ';
-    const script = 'Write each language in its own writing system, never romanized: Japanese in kana and kanji '
-        '(for example ありがとうございます), Chinese in Chinese characters, Korean in Hangul, Russian in '
-        'Cyrillic, Arabic in Arabic script, and so on. A word borrowed into the surrounding sentence\'s language '
-        '(sushi, karaoke, kimchi in an English sentence) stays as that language writes it. ';
+    const script = 'Write each language in its own writing system, never romanized, even a single word or '
+        'short phrase dropped into a sentence in another language: Japanese in kana and kanji (spoken "sayonara" '
+        'is さようなら, "arigatou" is ありがとう, "sugoi" is すごい), Mandarin Chinese in Simplified Chinese '
+        'characters (spoken "māma" is 妈妈, "nǐ hǎo" is 你好), Cantonese in Traditional Chinese characters, Korean '
+        'in Hangul, Russian in Cyrillic, Arabic in Arabic script, and so on. Only names of foods and things that '
+        'English uses as ordinary nouns (sushi, ramen, tofu, kimchi) stay in Latin letters inside an English '
+        'sentence; greetings, exclamations, and phrases are written in their own script. '
+        'Use Simplified Chinese characters, never Traditional, unless the speech is Cantonese. '
+        'When a word could be English or another language the speaker uses (mama, baba, ma), decide by '
+        'pronunciation: Mandarin tones or a Chinese-speaking voice mean Chinese characters (妈妈, 爸爸, 吗). ';
     final rule = allowTranslation
         ? 'Keep every word in the language it is written in; never switch a word into another language '
             'unless the spoken instruction asks for a translation.'

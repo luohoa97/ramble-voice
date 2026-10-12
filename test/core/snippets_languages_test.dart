@@ -31,6 +31,7 @@ void main() {
       expect(Languages.describe(['ja']), startsWith('The speaker usually speaks Japanese. Write each language'));
       expect(Languages.describe(const []), startsWith('Write each language in its own writing system'));
       expect(Languages.describe(['nonsense']), Languages.describe(const []));
+      expect(Languages.describe(const []), allOf(contains('さようなら'), contains('妈妈'), contains('Simplified Chinese')));
       expect(Languages.describe(['en'], allowTranslation: true), contains('asks for a translation'));
     });
 

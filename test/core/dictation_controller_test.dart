@@ -207,8 +207,8 @@ void main() {
     });
   });
 
-  group('speech gate', () {
-    test('a recording without speech is dropped before the engine, with a notice', () async {
+  group('quiet recordings', () {
+    test('are never dropped before the engine: the model decides', () async {
       final rig = await Rig.create();
       await rig.controller.start();
       for (var i = 0; i < 3; i++) {
@@ -216,20 +216,7 @@ void main() {
       }
       await rig.pump();
       await rig.controller.stop();
-      expect(rig.controller.state, isA<DictationIdle>());
-      expect((rig.controller.state as DictationIdle).notice, 'No speech detected.');
-      expect(rig.primary.requests, isEmpty);
-      expect(await rig.vault.pending(), isEmpty);
-      expect(rig.files, isEmpty);
-      expect(rig.outcomes, isEmpty);
-    });
-
-    test('speech goes through as before', () async {
-      final rig = await Rig.create();
-      await rig.controller.start();
-      await rig.speak(1);
-      await rig.controller.stop();
-      expect(rig.controller.state, isA<DictationDone>());
+      expect(rig.primary.requests, hasLength(1));
     });
   });
 

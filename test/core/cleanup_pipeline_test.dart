@@ -56,6 +56,51 @@ void main() {
       expect(r.text, ['one.', 'two.', 'three.', 'four.'].take(engine.requests.length).join(' '));
     });
 
+    test('field context: first chunk gets the field text, later chunks the text written so far', () async {
+      final engine = FakeCleanupEngine(
+        maxAudioPerRequest: const Duration(seconds: 10),
+        script: ['one.', 'two.', 'three.', 'four.'],
+      );
+      await pipeline.run(
+        pcm: _longSpeech(),
+        style: _style,
+        primary: engine,
+        contextBefore: 'Dear Sam,',
+        contextAfter: 'Thanks',
+      );
+      final n = engine.requests.length;
+      expect(n, greaterThanOrEqualTo(3));
+      expect(engine.requests[0].contextBefore, 'Dear Sam,');
+      expect(engine.requests[1].contextBefore, 'Dear Sam, one.');
+      expect(engine.requests[2].contextBefore, 'Dear Sam, one. two.');
+      expect([for (final r in engine.requests) r.contextAfter], [...List.filled(n - 1, null), 'Thanks']);
+    });
+
+    test('without field context later chunks still continue the previous chunk', () async {
+      final engine = FakeCleanupEngine(
+        maxAudioPerRequest: const Duration(seconds: 10),
+        script: ['one.', 'two.', 'three.', 'four.'],
+      );
+      await pipeline.run(pcm: _longSpeech(), style: _style, primary: engine);
+      expect(engine.requests[0].contextBefore, isNull);
+      expect(engine.requests[1].contextBefore, 'one.');
+      expect(engine.requests[0].hasContext, isFalse);
+      expect(engine.requests[1].hasContext, isTrue);
+    });
+
+    test('context is passed to the fallback engine too', () async {
+      final primary = FakeCleanupEngine(script: [_fail(CleanupFailureKind.noNetwork)]);
+      final fallback = FakeCleanupEngine(kind: EngineKind.onDevice);
+      await pipeline.run(
+        pcm: tonePcm(const Duration(seconds: 1)),
+        style: _style,
+        primary: primary,
+        fallback: fallback,
+        contextBefore: 'Hi',
+      );
+      expect(fallback.requests.single.contextBefore, 'Hi');
+    });
+
     test('passes verbatim mode through', () async {
       final engine = FakeCleanupEngine();
       await pipeline.run(pcm: tonePcm(const Duration(seconds: 1)), style: _style, primary: engine, mode: CleanupMode.verbatim);

@@ -433,7 +433,7 @@ class GeminiEngine implements CleanupEngine {
     final picked = preferredModel != null && models.any((m) => m.id == preferredModel && !m.unavailable);
     // Automatic mode with probe results: healthy Flash models first.
     final byHealth = picked ? null : GeminiModelSelector.chainByHealth(models);
-    final chain = byHealth ?? GeminiModelSelector.chain(models, first);
+    final chain = byHealth != null && byHealth.isNotEmpty ? byHealth : GeminiModelSelector.chain(models, first);
     // Models that just stalled go last so the next dictation doesn't wait.
     return [...chain.where((m) => !cache.isSlow(m.id)), ...chain.where((m) => cache.isSlow(m.id))];
   }

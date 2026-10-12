@@ -109,6 +109,19 @@ class DictationFailed extends DictationState {
   bool get canRetry => recordingId != null;
 }
 
+/// The text around the cursor of the field being dictated into.
+class FieldContext {
+  const FieldContext({this.before = '', this.after = ''});
+
+  /// Up to 500 characters before the cursor.
+  final String before;
+
+  /// Up to 100 characters after the cursor.
+  final String after;
+
+  bool get isEmpty => before.isEmpty && after.isEmpty;
+}
+
 class EngineSet {
   const EngineSet(this.primary, [this.fallback]);
   final CleanupEngine primary;
@@ -134,6 +147,7 @@ class DictationController {
     this.warnBefore = const Duration(seconds: 30),
     this.minSpeech = const Duration(milliseconds: 400),
     this.hasSpeech = SpeechDetector.hasSpeech,
+    this.fieldContext,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
@@ -154,6 +168,11 @@ class DictationController {
   /// The speech gate: recordings without speech (steady noise, silence) are
   /// dropped instead of sent to the model.
   final bool Function(Uint8List pcm) hasSpeech;
+
+  /// Reads the text around the cursor when a dictation starts (the Android
+  /// keyboard). It runs while the microphone starts; the result is only
+  /// awaited once the recording is processed. May return null.
+  final Future<FieldContext?> Function()? fieldContext;
   final DateTime Function() _clock;
 
   final _states = StreamController<DictationState>.broadcast(sync: true);
@@ -164,6 +183,8 @@ class DictationController {
   RecordingSink? _sink;
   DateTime? _startedAt;
   Completer<void>? _captureDone;
+  String? _contextId;
+  Future<FieldContext?>? _context;
 
   DictationState get state => _state;
   Stream<DictationState> get states => _states.stream;
@@ -212,6 +233,8 @@ class DictationController {
         throw const AudioSourceException(AudioSourceError.permissionDenied);
       }
       _sink = await vault.begin(now: _clock());
+      _contextId = _sink!.id;
+      _context = _readContext();
       _startedAt = _clock();
       _captureDone = Completer<void>();
       _capture = await audio.start();
@@ -239,6 +262,17 @@ class DictationController {
       onError: (Object _) => _captureDone?.complete(),
       cancelOnError: true,
     );
+  }
+
+  Future<FieldContext?> _readContext() async {
+    try {
+      final read = fieldContext;
+      if (read == null) return null;
+      final c = await read();
+      return c == null || c.isEmpty ? null : c;
+    } catch (_) {
+      return null;
+    }
   }
 
   void _onPcm(Uint8List block) {
@@ -376,11 +410,14 @@ class DictationController {
       _emit(const DictationIdle(notice: 'No speech detected.'));
       return;
     }
+    final context = _contextId == id ? await _context : null;
     try {
       final set = await engines();
       final result = await pipeline.run(
         pcm: pcm,
         style: await style(),
+        contextBefore: context?.before,
+        contextAfter: context?.after,
         primary: set.primary,
         fallback: set.fallback,
         onProgress: (p) {
@@ -397,6 +434,8 @@ class DictationController {
         fallbackReason: result.fallbackReason,
       );
       await vault.markProcessed(id);
+      _context = null;
+      _contextId = null;
       await onOutcome?.call(outcome);
       _emit(DictationDone(outcome));
     } on CleanupFailure catch (f) {

@@ -30,6 +30,8 @@ class _Field {
     switch (call.method) {
       case 'getSelectedText':
         return start == end ? null : text.substring(start, end);
+      case 'getTextAfterCursor':
+        return text.substring(end, (end + (call.arguments as int)).clamp(end, text.length));
       case 'getTextBeforeCursor':
         final n = call.arguments as int;
         return text.substring((end - n).clamp(0, end), end);
@@ -69,7 +71,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
       final r = field.handle(call);
       return switch (call.method) {
-        'getSelectedText' || 'getTextBeforeCursor' => r,
+        'getSelectedText' || 'getTextBeforeCursor' || 'getTextAfterCursor' => r,
         _ => r == 'true',
       };
     });
@@ -208,10 +210,19 @@ void main() {
   });
 
   group('ImeBridge', () {
+    test('getTextAfterCursor reads the text after the cursor', () async {
+      field = _Field('Hello world', selStart: 5);
+      final bridge = container.read(imeBridgeProvider);
+      expect(await bridge.getTextAfterCursor(4), ' wor');
+      expect(await bridge.getTextAfterCursor(100), ' world');
+      expect(await bridge.getTextBeforeCursor(3), 'llo');
+    });
+
     test('getSelectedText and getTextBeforeCursor tolerate a missing handler', () async {
       final bridge = ImeBridge(channel: const MethodChannel('test/none'));
       expect(await bridge.getSelectedText(), isNull);
       expect(await bridge.getTextBeforeCursor(5), isNull);
+      expect(await bridge.getTextAfterCursor(5), isNull);
       expect(await bridge.replaceSelection('x'), isFalse);
       expect(await bridge.replaceBeforeCursor(1, 'x', expected: 'y'), isFalse);
     });

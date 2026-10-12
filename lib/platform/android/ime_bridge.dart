@@ -170,6 +170,10 @@ class ImeBridge {
   /// field does not expose it. Empty string means the cursor is at the start.
   Future<String?> getTextBeforeCursor(int count) => _string('getTextBeforeCursor', count);
 
+  /// Up to [count] UTF-16 units of text after the cursor, or null when the
+  /// field does not expose it.
+  Future<String?> getTextAfterCursor(int count) => _string('getTextAfterCursor', count);
+
   /// Replaces the current selection with [text], leaving the cursor after it.
   /// False when nothing is selected.
   Future<bool> replaceSelection(String text) => _bool('replaceSelection', text);

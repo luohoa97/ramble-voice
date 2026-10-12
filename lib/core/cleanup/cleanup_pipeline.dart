@@ -56,17 +56,21 @@ class CleanupPipeline {
     required CleanupEngine primary,
     CleanupEngine? fallback,
     CleanupMode mode = CleanupMode.clean,
+    String? contextBefore,
+    String? contextAfter,
     void Function(PipelineProgress)? onProgress,
   }) async {
     try {
-      return await _runWith(primary, pcm, style, mode, onProgress, fellBack: false);
+      return await _runWith(primary, pcm, style, mode, onProgress,
+          fellBack: false, contextBefore: contextBefore, contextAfter: contextAfter);
     } on CleanupFailure catch (failure) {
       if (fallback == null || !failure.kind.cloudFallbackEligible || fallback.kind == primary.kind) {
         rethrow;
       }
       final ready = await fallback.readiness();
       if (ready is! EngineReady) rethrow;
-      final result = await _runWith(fallback, pcm, style, mode, onProgress, fellBack: true);
+      final result = await _runWith(fallback, pcm, style, mode, onProgress,
+          fellBack: true, contextBefore: contextBefore, contextAfter: contextAfter);
       return PipelineResult(
         text: result.text,
         engine: fallback.kind,
@@ -124,6 +128,15 @@ class CleanupPipeline {
     return PipelineResult(text: text, engine: engine.kind);
   }
 
+  /// The field text plus the chunks cleaned so far, as the context for the
+  /// next chunk.
+  static String _continuation(String? fieldBefore, List<String> parts) {
+    final written = TextStitcher.join(parts);
+    final base = fieldBefore ?? '';
+    final glue = base.isEmpty || written.isEmpty || RegExp(r'\s$').hasMatch(base) ? '' : ' ';
+    return '$base$glue$written';
+  }
+
   Future<PipelineResult> _runWith(
     CleanupEngine engine,
     Uint8List pcm,
@@ -131,6 +144,8 @@ class CleanupPipeline {
     CleanupMode mode,
     void Function(PipelineProgress)? onProgress, {
     required bool fellBack,
+    String? contextBefore,
+    String? contextAfter,
   }) async {
     final limit = engine.maxAudioPerRequest;
     final window = searchWindow < limit ~/ 2 ? searchWindow : limit ~/ 4;
@@ -147,10 +162,16 @@ class CleanupPipeline {
         fellBack: fellBack,
       ));
       final span = spans[i];
+      // The first chunk continues the field's text; each later chunk continues
+      // what was just written, so the chunks stitch like one dictation.
+      final lastChunk = i == spans.length - 1;
+      final before = i == 0 ? contextBefore : _continuation(contextBefore, parts);
       parts.add(await engine.process(CleanupRequest(
         pcm: Uint8List.sublistView(pcm, span.start, span.end),
         style: style,
         mode: mode,
+        contextBefore: before,
+        contextAfter: lastChunk ? contextAfter : null,
       )));
     }
     final text = TextStitcher.join(parts);

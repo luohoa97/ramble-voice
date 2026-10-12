@@ -192,6 +192,10 @@ final lastInsertProvider = NotifierProvider<LastInsertNotifier, InsertResult?>(L
 /// the text). Overridden by the IME entrypoint.
 final outcomeHookProvider = Provider<Future<void> Function(DictationOutcome)?>((ref) => null);
 
+/// Reads the text around the cursor at the start of a dictation. Null where
+/// there is no cursor to read (overridden by the keyboard entrypoint).
+final fieldContextReaderProvider = Provider<Future<FieldContext?> Function()?>((ref) => null);
+
 final dictationControllerProvider = Provider<DictationController>((ref) {
   final services = ref.watch(platformServicesProvider);
   final controller = DictationController(
@@ -199,6 +203,10 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
     vault: ref.watch(recordingVaultProvider),
     engines: ref.watch(engineSetProvider),
     style: ref.read(styleResolverProvider),
+    fieldContext: () async {
+      if (!ref.read(settingsProvider).useFieldContext) return null;
+      return ref.read(fieldContextReaderProvider)?.call();
+    },
     pipeline: const CleanupPipeline(),
     maxSession: ref.read(settingsProvider).maxSession,
     onOutcome: (outcome) async {

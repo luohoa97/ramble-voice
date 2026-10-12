@@ -51,6 +51,10 @@ class ImeHandler(
                 val count = (call.arguments as? Int ?: call.argument<Int>("count") ?: 0).coerceIn(0, MAX_READ)
                 result.success(service.currentInputConnection?.getTextBeforeCursor(count, 0)?.toString())
             }
+            "getTextAfterCursor" -> {
+                val count = (call.arguments as? Int ?: call.argument<Int>("count") ?: 0).coerceIn(0, MAX_READ)
+                result.success(service.currentInputConnection?.getTextAfterCursor(count, 0)?.toString())
+            }
             "replaceSelection" -> {
                 val text = call.arguments as? String ?: call.argument<String>("text") ?: ""
                 result.success(replaceSelection(text))

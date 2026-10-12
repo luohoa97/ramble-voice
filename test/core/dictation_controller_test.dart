@@ -39,6 +39,7 @@ class Rig {
     Duration warnBefore = const Duration(seconds: 30),
     Duration minSpeech = const Duration(milliseconds: 400),
     Future<void> Function(DictationOutcome)? onOutcome,
+    Future<FieldContext?> Function()? fieldContext,
   }) async {
     final dir = Directory('${(await makeTempDir()).path}/vault');
     final vault = RecordingVault(dir);
@@ -57,6 +58,7 @@ class Rig {
       maxSession: maxSession,
       warnBefore: warnBefore,
       minSpeech: minSpeech,
+      fieldContext: fieldContext,
       clock: () => DateTime.fromMillisecondsSinceEpoch(1700000000000, isUtc: true),
     );
     final states = <DictationState>[];
@@ -155,6 +157,53 @@ void main() {
       await rig.controller.stop();
       rig.controller.reset();
       expect(rig.controller.state, isA<DictationIdle>());
+    });
+  });
+
+  group('field context', () {
+    test('is read at start and reaches the engine request', () async {
+      final calls = <String>[];
+      final rig = await Rig.create(
+        fieldContext: () async {
+          calls.add('read');
+          return const FieldContext(before: 'Dear Sam,', after: ' Bye');
+        },
+      );
+      await rig.controller.start();
+      expect(calls, ['read']);
+      await rig.speak(1);
+      await rig.controller.stop();
+      final req = rig.primary.requests.single;
+      expect(req.contextBefore, 'Dear Sam,');
+      expect(req.contextAfter, ' Bye');
+    });
+
+    test('a failing or empty reader means no context and no failure', () async {
+      for (final reader in <Future<FieldContext?> Function()>[
+        () async => throw StateError('no connection'),
+        () async => null,
+        () async => const FieldContext(),
+      ]) {
+        final rig = await Rig.create(fieldContext: reader);
+        await rig.controller.start();
+        await rig.speak(1);
+        await rig.controller.stop();
+        expect(rig.controller.state, isA<DictationDone>());
+        expect(rig.primary.requests.single.contextBefore, isNull);
+      }
+    });
+
+    test('retry after a failure reuses the context of that recording', () async {
+      final rig = await Rig.create(
+        primary: FakeCleanupEngine(script: [const CleanupFailure(CleanupFailureKind.noNetwork, 'offline')]),
+        fieldContext: () async => const FieldContext(before: 'Hi'),
+      );
+      await rig.controller.start();
+      await rig.speak(1);
+      await rig.controller.stop();
+      expect(rig.controller.state, isA<DictationFailed>());
+      await rig.controller.retry();
+      expect(rig.primary.requests.map((r) => r.contextBefore), ['Hi', 'Hi']);
     });
   });
 

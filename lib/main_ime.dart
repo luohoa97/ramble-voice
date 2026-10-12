@@ -15,6 +15,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app/error_log.dart';
 import 'app/providers.dart';
+import 'core/cleanup/cleanup_engine.dart';
+import 'core/dictation/dictation_controller.dart';
 import 'core/settings/app_settings.dart';
 import 'ime/edit_session.dart';
 import 'ime/ime_app.dart';
@@ -60,6 +62,14 @@ Future<void> imeMain() async {
       platformServicesProvider.overrideWithValue(services),
       initialSettingsProvider.overrideWithValue(settings),
       imeBridgeProvider.overrideWithValue(bridge),
+      // Dictation continues the sentence in the field: read the text around
+      // the cursor (never in password fields).
+      fieldContextReaderProvider.overrideWithValue(() async {
+        if (bridge.current.isPassword) return null;
+        final before = await bridge.getTextBeforeCursor(CleanupRequest.contextBeforeLimit) ?? '';
+        final after = await bridge.getTextAfterCursor(CleanupRequest.contextAfterLimit) ?? '';
+        return FieldContext(before: before, after: after);
+      }),
       dictationOriginProvider.overrideWith(_KeyboardOrigin.new),
       outcomeHookProvider.overrideWith((ref) {
         return (outcome) async {

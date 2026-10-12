@@ -10,6 +10,7 @@ import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_prompt.dart';
 import 'package:ramble_voice/core/cleanup/gemini/gemini_client.dart';
 import 'package:ramble_voice/core/cleanup/gemini/gemini_engine.dart';
+import 'package:ramble_voice/core/cleanup/gemini/gemini_models.dart';
 import 'package:ramble_voice/core/style/style_profile.dart';
 
 import '../fakes/gemini_fakes.dart';
@@ -31,6 +32,7 @@ CleanupRequest _request({CleanupMode mode = CleanupMode.clean, StyleProfile styl
 void main() {
   editModeTests();
   fallbackChainTests();
+  healthProbeTests();
   test('kind and audio limit', () {
     final e = _engine(FakeGeminiServer());
     expect(e.kind, EngineKind.gemini);
@@ -280,6 +282,211 @@ void main() {
         _engine(server).testKey(),
         throwsA(isA<CleanupFailure>().having((f) => f.kind, 'kind', CleanupFailureKind.invalidApiKey)),
       );
+    });
+  });
+}
+
+void healthProbeTests() {
+  group('health probe', () {
+    String modelOf(http.Request r) => RegExp(r'models/([^:]+):').firstMatch(r.url.path)!.group(1)!;
+    bool isProbe(Map<String, Object?> b) => (b['generationConfig'] as Map)['maxOutputTokens'] == 16;
+
+    List<Map<String, Object?>> models() => [
+          modelEntry('gemini-3.8-flash'),
+          modelEntry('gemini-3.7-flash'),
+          modelEntry('gemini-3.6-flash'),
+          modelEntry('gemini-3.5-flash'),
+          modelEntry('gemini-3.1-flash'),
+          modelEntry('gemini-2.5-flash'),
+          modelEntry('gemini-3.5-flash-lite'),
+          modelEntry('gemini-3.5-pro'),
+        ];
+
+    GeminiEngine probing(
+      FakeGeminiServer server, {
+      String? preferred,
+      GeminiModelCache? cache,
+      Duration fast = const Duration(milliseconds: 60),
+      Duration probeTimeout = const Duration(milliseconds: 300),
+      Duration pickedTimeout = const Duration(milliseconds: 100),
+    }) =>
+        GeminiEngine(
+          apiKey: () async => 'KEY',
+          client: GeminiClient(httpClient: server.client),
+          cache: cache,
+          preferredModel: preferred,
+          overloadBackoff: Duration.zero,
+          healthProbe: true,
+          fastLatency: fast,
+          probeTimeout: probeTimeout,
+          pickedModelTimeout: pickedTimeout,
+        );
+
+    Future<http.Response> after(int ms, http.Response r) => Future.delayed(Duration(milliseconds: ms), () => r);
+
+    test('probes the four newest stable flash models in parallel, plus the pick', () async {
+      var inFlight = 0, maxInFlight = 0;
+      final server = FakeGeminiServer(models: models());
+      server.onGenerate = (r, b) async {
+        inFlight++;
+        if (inFlight > maxInFlight) maxInFlight = inFlight;
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        inFlight--;
+        return textResponse('OK');
+      };
+      final cache = GeminiModelCache();
+      final e = probing(server, preferred: 'gemini-3.5-pro', cache: cache);
+      await e.availableModels();
+      await cache.probing;
+      expect(server.generateCalls.map(modelOf).toSet(),
+          {'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-pro'});
+      expect(maxInFlight, 5, reason: 'all probes run at once');
+      final body = FakeGeminiServer.bodyOf(server.generateCalls.first);
+      expect((body['generationConfig'] as Map)['maxOutputTokens'], 16);
+    });
+
+    test('records fast, slow and failed with latency, exposed on the model list', () async {
+      final server = FakeGeminiServer(models: models());
+      server.onGenerate = (r, b) => switch (modelOf(r)) {
+            'gemini-3.8-flash' => after(150, textResponse('OK')),
+            'gemini-3.6-flash' => errorResponse(503, 'high demand', statusText: 'UNAVAILABLE'),
+            'gemini-3.5-flash' => after(900, textResponse('OK')),
+            _ => textResponse('OK'),
+          };
+      final cache = GeminiModelCache();
+      final e = probing(server, cache: cache);
+      await e.availableModels();
+      await cache.probing;
+
+      final byId = {for (final m in await e.availableModels()) m.id: m};
+      expect(byId['gemini-3.7-flash']!.health, GeminiHealth.fast);
+      expect(byId['gemini-3.7-flash']!.healthLabel, startsWith('Fast · '));
+      expect(byId['gemini-3.8-flash']!.health, GeminiHealth.slow);
+      expect(byId['gemini-3.8-flash']!.healthLabel, startsWith('Slow · '));
+      expect(byId['gemini-3.6-flash']!.health, GeminiHealth.failed);
+      expect(byId['gemini-3.5-flash']!.health, GeminiHealth.failed, reason: 'timed out');
+      expect(byId['gemini-3.5-flash']!.healthLabel, 'Not responding');
+      expect(byId['gemini-3.1-flash']!.health, GeminiHealth.unknown);
+      expect(byId['gemini-3.1-flash']!.healthLabel, isNull);
+    });
+
+    test('automatic order: fast flash, then slow flash, then flash-lite; failed ones are skipped', () async {
+      final server = FakeGeminiServer(models: models());
+      var probesDone = false;
+      server.onGenerate = (r, b) {
+        if (isProbe(b)) {
+          return switch (modelOf(r)) {
+            'gemini-3.8-flash' => after(150, textResponse('OK')),
+            'gemini-3.6-flash' => errorResponse(503, 'down', statusText: 'UNAVAILABLE'),
+            _ => textResponse('OK'),
+          };
+        }
+        return errorResponse(429, 'Resource exhausted', statusText: 'RESOURCE_EXHAUSTED');
+      };
+      final cache = GeminiModelCache();
+      final e = probing(server, cache: cache);
+      await e.availableModels();
+      await cache.probing;
+      probesDone = true;
+      expect(probesDone, isTrue);
+      server.requests.clear();
+
+      await expectLater(e.process(_request()), throwsA(isA<CleanupFailure>()));
+      expect(server.generateCalls.map(modelOf), [
+        'gemini-3.7-flash',
+        'gemini-3.5-flash',
+        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
+      ]);
+    });
+
+    test('a probe never blocks a dictation', () async {
+      final server = FakeGeminiServer(models: models());
+      server.onGenerate = (r, b) => isProbe(b) ? after(200, textResponse('OK')) : textResponse('dictated');
+      final cache = GeminiModelCache();
+      final e = probing(server, cache: cache, probeTimeout: const Duration(seconds: 2));
+      final watch = Stopwatch()..start();
+      expect(await e.process(_request()), 'dictated');
+      expect(watch.elapsedMilliseconds, lessThan(180));
+      expect(cache.probing, isNotNull, reason: 'the probe is still running');
+      // Without results yet the normal chain is used, newest flash first.
+      expect(modelOf(server.generateCalls.firstWhere((r) => !isProbe(FakeGeminiServer.bodyOf(r)))), 'gemini-3.8-flash');
+      await cache.probing;
+    });
+
+    test('probes at most every six hours', () async {
+      var now = DateTime(2026, 1, 1);
+      final cache = GeminiModelCache(clock: () => now, ttl: const Duration(days: 2));
+      final server = FakeGeminiServer(models: models());
+      final e = probing(server, cache: cache);
+      await e.availableModels();
+      await cache.probing;
+      final first = server.generateCalls.length;
+      now = now.add(const Duration(hours: 5));
+      await e.availableModels();
+      await cache.probing;
+      expect(server.generateCalls, hasLength(first));
+      now = now.add(const Duration(hours: 2));
+      await e.availableModels();
+      await cache.probing;
+      expect(server.generateCalls.length, first * 2);
+    });
+
+    test('a different key is probed again', () async {
+      final cache = GeminiModelCache();
+      final server = FakeGeminiServer(models: models());
+      var key = 'A';
+      GeminiEngine make() => GeminiEngine(
+            apiKey: () async => key,
+            client: GeminiClient(httpClient: server.client),
+            cache: cache,
+            healthProbe: true,
+          );
+      await make().availableModels();
+      await cache.probing;
+      final first = server.generateCalls.length;
+      key = 'B';
+      await make().availableModels();
+      await cache.probing;
+      expect(server.generateCalls.length, first * 2);
+    });
+
+    test('the user pick stays first, but gets a short timeout when the probe found it slow', () async {
+      final server = FakeGeminiServer(models: models());
+      server.onGenerate = (r, b) {
+        if (modelOf(r) == 'gemini-3.6-flash') return after(400, textResponse('late'));
+        return textResponse('ok');
+      };
+      final cache = GeminiModelCache();
+      final e = probing(server, preferred: 'gemini-3.6-flash', cache: cache, probeTimeout: const Duration(seconds: 2));
+      await e.availableModels();
+      await cache.probing;
+      expect(cache.healthOf('gemini-3.6-flash'), GeminiHealth.slow);
+      server.requests.clear();
+
+      expect(await e.process(_request()), 'ok');
+      final models_ = server.generateCalls.map(modelOf).toList();
+      expect(models_.first, 'gemini-3.6-flash', reason: 'the pick is still tried first');
+      expect(models_, hasLength(greaterThan(1)), reason: 'it timed out after the short timeout and fell back');
+    });
+
+    test('the user pick keeps first place and the normal timeout when it is healthy', () async {
+      final server = FakeGeminiServer(models: models());
+      server.onGenerate = (r, b) => modelOf(r) == 'gemini-3.6-flash' && !isProbe(b) ? after(250, textResponse('picked')) : textResponse('OK');
+      final cache = GeminiModelCache();
+      final e = probing(server, preferred: 'gemini-3.6-flash', cache: cache);
+      await e.availableModels();
+      await cache.probing;
+      expect(cache.healthOf('gemini-3.6-flash'), GeminiHealth.fast);
+      server.requests.clear();
+      expect(await e.process(_request()), 'picked');
+    });
+
+    test('probing is off unless asked for', () async {
+      final server = FakeGeminiServer(models: models());
+      final e = _engine(server);
+      await e.availableModels();
+      expect(server.generateCalls, isEmpty);
     });
   });
 }

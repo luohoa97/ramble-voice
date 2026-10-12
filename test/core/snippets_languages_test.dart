@@ -71,14 +71,16 @@ void main() {
       const s = AppSettings();
       expect(s.languages, isEmpty);
       expect(s.useContactNames, isFalse);
+      expect(s.useFieldContext, isTrue);
       expect(s.snippets, isEmpty);
     });
 
     test('json round trip keeps language and snippets', () {
-      const s = AppSettings(languages: ['de', 'en'], useContactNames: true, snippets: [Snippet(trigger: 'sig', expansion: 'Best, Neil')]);
+      const s = AppSettings(languages: ['de', 'en'], useContactNames: true, useFieldContext: false, snippets: [Snippet(trigger: 'sig', expansion: 'Best, Neil')]);
       final back = AppSettings.fromJson(s.toJson());
       expect(back.languages, ['de', 'en']);
       expect(back.useContactNames, isTrue);
+      expect(back.useFieldContext, isFalse);
       expect(back.snippets, s.snippets);
     });
 

@@ -32,6 +32,8 @@ class CleanupRequest {
     required this.style,
     this.mode = CleanupMode.clean,
     this.sourceText,
+    this.contextBefore,
+    this.contextAfter,
   }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
 
   /// [Pcm]-format audio (16 kHz mono s16le), at most the engine's
@@ -42,6 +44,21 @@ class CleanupRequest {
 
   /// The text to revise; required for (and only used by) [CleanupMode.edit].
   final String? sourceText;
+
+  /// Text already in the field before the cursor (at most
+  /// [contextBeforeLimit] characters, the end of it). Context only.
+  final String? contextBefore;
+
+  /// Text after the cursor (at most [contextAfterLimit] characters).
+  final String? contextAfter;
+
+  static const contextBeforeLimit = 500;
+  static const contextAfterLimit = 100;
+
+  /// Whether there is field context to continue from.
+  bool get hasContext =>
+      mode == CleanupMode.clean &&
+      ((contextBefore?.isNotEmpty ?? false) || (contextAfter?.isNotEmpty ?? false));
 }
 
 /// Readiness of an engine before a request is attempted.

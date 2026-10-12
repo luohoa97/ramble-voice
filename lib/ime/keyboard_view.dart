@@ -385,7 +385,8 @@ class _Center extends StatelessWidget {
     }
     return LayoutBuilder(
       builder: (context, c) {
-        final size = math.max(88.0, math.min(c.maxWidth, c.maxHeight));
+        // Same sizing as the original keyboard (the user's preferred balance).
+        final size = math.max(88.0, math.min(150.0, math.min(c.maxHeight, c.maxWidth) - 8));
         return Center(
           child: MicButton(
             state: s is DictationListening && s.paused ? const DictationIdle() : s,

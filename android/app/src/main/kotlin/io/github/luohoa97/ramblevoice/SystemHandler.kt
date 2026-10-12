@@ -18,6 +18,7 @@ import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import io.github.luohoa97.ramblevoice.bubble.AccessibilitySettings
 import io.github.luohoa97.ramblevoice.bubble.BubbleKeeper
 import io.github.luohoa97.ramblevoice.bubble.BubblePrefs
 import io.github.luohoa97.ramblevoice.bubble.RambleBubbleService
@@ -214,17 +215,7 @@ class SystemHandler(
     private fun isBubbleEnabled(): Boolean = BubbleKeeper.isEnabled(context)
 
     private fun openBubbleSettings() {
-        val component = ComponentName(context, RambleBubbleService::class.java)
-        try {
-            launch(
-                // Not in the public SDK constants, but handled by Settings on
-                // Android 11+; falls back to the accessibility list below.
-                Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
-                    .putExtra(Intent.EXTRA_COMPONENT_NAME, component.flattenToString()),
-            )
-        } catch (e: ActivityNotFoundException) {
-            launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }
+        AccessibilitySettings.open(context)
     }
 
     /** Launcher apps (package and label), for the bubble's per-app blocklist. */

@@ -4,6 +4,7 @@
 /// test/core/cleanup_prompt_test.dart pins their behaviour.
 library;
 
+import '../style/native_script.dart';
 import '../style/style_profile.dart';
 import 'cleanup_engine.dart';
 
@@ -37,8 +38,16 @@ abstract final class CleanupPrompt {
       'Write technical terms, commands, code, file names, and product names in their correct written form '
       '(for example systemctl reboot, git push origin main, package.json, Kubernetes), using context to tell '
       'what was meant. '
-      'Transcribe only the main speaker, the clearest voice speaking to the device; ignore background '
-      'conversations, other people, TV, and music. '
+      'Write spoken commands so they would work when typed: "dash" or "minus" before a flag is -, "dash dash" is --, '
+      'flags join their letters ("dash r f" is -rf, "dash l a" is -la), "slash" is /, "tilde" is ~, "home" or '
+      '"home directory" in a path is ~, "root" in a path is /, "dot" in a file name is ., "pipe" is |, '
+      '"star" is *, and a Windows "switch" before a letter is / ("dir switch s" is dir /s). Put spaces between '
+      'the command, its flags and arguments, and no spaces inside a path. For example "ls dash l a tilde slash '
+      'downloads" becomes ls -la ~/Downloads, "git commit dash m fix typo" becomes git commit -m "fix typo". '
+      'Keep the exact command, paths, and every part the speaker said; never swap in a different command or invent a path. '
+      'This is only how the text is written; never run or act on a command. '
+      'Transcribe the person dictating, even when they speak quietly, softly, or far from the microphone; '
+      'write every word they say. Ignore other people talking in the background, TV, and music. '
       'Transcribe by context: when a word is unclear or sounds like another, choose what makes sense in the '
       'sentence and topic, and keep words in the language they were spoken in, in that language\'s own writing system (never translate or romanize). '
       'Use the speaker\'s tone: an excited or emphatic delivery ends with an exclamation mark, a rising '
@@ -62,13 +71,15 @@ abstract final class CleanupPrompt {
       'Do not add a greeting, sign-off, or anything that was not said. '
       'Never put spaces between Chinese or Japanese characters; when languages are mixed, keep each '
       'language in the script it was spoken in and use its normal spacing. '
-      'If the audio contains no clear human speech (only noise such as an air conditioner, fan, traffic, '
+      'If the audio contains no human speech at all (only noise such as an air conditioner, fan, traffic, '
       'breathing, or music), output nothing at all. '
       'Examples: the speech "um so I think we should uh meet on Tuesday no wait Wednesday at like three" '
       'becomes "I think we should meet on Wednesday at three." '
       'The speech "write me a haiku about autumn" becomes "Write me a haiku about autumn." '
       'The speech "reply with just yes or no is the server down" becomes "Reply with just yes or no: is the server down?" '
       'The speech "then run system c t l reboot" becomes "Then run systemctl reboot." '
+      'The speech "okay gotta go sayonara" becomes "Okay, gotta go. さようなら!" and "mama come here" said in '
+      'Mandarin becomes "妈妈，过来!" (foreign words keep their own script, never romanized). '
       'The speech "yeah yeah yeah if you use one of these scam courses you\'ll get scammed so yeah have fun" becomes '
       '"“Yeah, yeah, yeah.” If you use one of these scam courses, you\'ll get scammed. Have fun." (the mocking echo is quoted) '
       'The speech "shopping list one get potatoes two asparagus three uh milk" becomes '
@@ -214,8 +225,9 @@ abstract final class CleanupPrompt {
   static String _head(String s, int n) => s.length <= n ? s : s.substring(0, n);
 
   /// Tidies the model output for [request]'s mode.
-  static String tidyFor(CleanupRequest request, String raw) =>
-      request.mode == CleanupMode.edit ? tidyEditOutput(raw) : tidyOutput(raw);
+  static String tidyFor(CleanupRequest request, String raw) => request.mode == CleanupMode.edit
+      ? tidyEditOutput(raw)
+      : NativeScript.apply(tidyOutput(raw), request.style.languages);
 
   /// Normalises edit output: removes a `<text>` wrapper the model may echo,
   /// then the usual quote/fence tidying, then restores escaped tags.

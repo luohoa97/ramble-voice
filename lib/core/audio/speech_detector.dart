@@ -59,8 +59,9 @@ abstract final class SpeechDetector {
   /// A frame must exceed the floor power by this factor (about +8 dB).
   static const double floorRatio = 6.0;
 
-  /// Frames below -50 dBFS RMS (power 1e-5) are never speech.
-  static const double minPower = 1e-5;
+  /// Frames below -60 dBFS RMS (power 1e-6) are never speech. Soft speech on
+  /// a phone held at arm's length sits around -50 dBFS.
+  static const double minPower = 1e-6;
 
   /// Frames at or above -30 dBFS RMS (power 1e-3) count without needing to
   /// stand out from the floor.

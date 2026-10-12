@@ -107,7 +107,7 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> when {
                 event.repeatCount > 0 -> hotkeyHeld
-                focusedEditable() == null -> false
+                focusedEditable(requireKeyboard = false) == null -> false
                 else -> {
                     hotkeyHeld = true
                     onHoldStart()
@@ -150,7 +150,16 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         showOrMove()
     }
 
-    private fun keyboardVisible() = windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+    private fun keyboardVisible() = imeHeight(windows) >= MIN_IME_HEIGHT_DP * density
+
+    /**
+     * Height of the on-screen keyboard, 0 when none. Some systems keep an
+     * empty or tiny input-method window listed after the keyboard closes
+     * (or for a gesture-bar switcher), so only real height counts.
+     */
+    private fun imeHeight(all: List<AccessibilityWindowInfo>): Int = all
+        .filter { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        .maxOfOrNull { w -> Rect().also { w.getBoundsInScreen(it) }.height() } ?: 0
 
     /** The focused text field of the active app window, or null if the bubble must not show. */
     /**
@@ -160,18 +169,24 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
      * Null when the bubble must not show: no keyboard and no editable focus,
      * a password field, our own app, a blocked app, or the keyboard's own UI.
      */
-    private fun focusedEditable(): AccessibilityNodeInfo? {
+    private fun focusedEditable(requireKeyboard: Boolean = true): AccessibilityNodeInfo? {
         val all = windows
-        val imeVisible = all.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        val imeVisible = imeHeight(all) >= MIN_IME_HEIGHT_DP * density
         val appRoots = all.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
             .sortedByDescending { it.isActive || it.isFocused }
             .mapNotNull { it.root }
             .ifEmpty { listOfNotNull(rootInActiveWindow) }
         val focus = appRoots.firstNotNullOfOrNull { it.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }
         if (focus?.isPassword == true) return null
+        // A keyboard is a precondition: a field that keeps focus after the
+        // keyboard is dismissed (chat apps do) must not keep the bubble.
+        // A hardware keyboard hotkey needs only an editable field.
+        if (!imeVisible && (requireKeyboard || focus?.isEditable != true)) return null
         val target = when {
             focus != null && focus.isEditable -> focus
-            imeVisible -> focus ?: appRoots.firstOrNull()
+            // Apps that hide their editor from accessibility (some React
+            // Native, Compose and web views) report no focus at all.
+            focus == null -> appRoots.firstOrNull()
             else -> null
         } ?: return null
         val pkg = target.packageName?.toString() ?: return null
@@ -184,8 +199,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     /** One line per change in the bubble's decision, to the local crash log. */
     private fun noteDecision(candidate: AccessibilityNodeInfo?) {
+        val ime = (imeHeight(windows) / density).toInt()
         val note = if (candidate != null) {
-            "show for ${candidate.packageName}"
+            "show for ${candidate.packageName} (keyboard ${ime}dp)"
+        } else if (ime < MIN_IME_HEIGHT_DP) {
+            "hide: no keyboard (${ime}dp)"
         } else {
             val root = rootInActiveWindow
             val focus = root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
@@ -545,6 +563,8 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     companion object {
         private const val EVALUATE_DELAY_MS = 60L
         private const val HIDE_DELAY_MS = 1000L
+        /** Smaller input-method windows are not a keyboard. */
+        private const val MIN_IME_HEIGHT_DP = 120
         private const val DONE_HOLD_MS = 900L
         private const val ERROR_HOLD_MS = 2500L
         private const val IDLE_RELEASE_MS = 3 * 60 * 1000L

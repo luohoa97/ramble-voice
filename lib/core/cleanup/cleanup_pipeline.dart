@@ -3,6 +3,7 @@
 import 'dart:typed_data';
 
 import '../audio/chunker.dart';
+import '../audio/auto_gain.dart';
 import '../audio/pcm.dart';
 import '../style/style_profile.dart';
 import 'cleanup_engine.dart';
@@ -60,6 +61,7 @@ class CleanupPipeline {
     String? contextAfter,
     void Function(PipelineProgress)? onProgress,
   }) async {
+    pcm = AutoGain.normalize(pcm);
     try {
       return await _runWith(primary, pcm, style, mode, onProgress,
           fellBack: false, contextBefore: contextBefore, contextAfter: contextAfter);
@@ -90,6 +92,7 @@ class CleanupPipeline {
     required CleanupEngine primary,
     CleanupEngine? fallback,
   }) async {
+    pcm = AutoGain.normalize(pcm);
     try {
       return await _editWith(primary, pcm, sourceText, style);
     } on CleanupFailure catch (failure) {

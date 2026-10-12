@@ -5,6 +5,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ramble_voice/core/audio/auto_gain.dart';
 import 'package:ramble_voice/core/audio/pcm.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
 import 'package:ramble_voice/core/cleanup/gemini/gemini_client.dart';
@@ -13,7 +14,7 @@ import 'package:ramble_voice/core/style/style_profile.dart';
 
 /// Words from other languages come out in their own script, e.g. a spoken
 /// "sayonara" in English speech becomes さようなら.
-/// GEMINI_API_KEY=... RAMBLE_WAV=path RAMBLE_EXPECT=regex [RAMBLE_MODELS=a,b]
+/// GEMINI_API_KEY=... RAMBLE_WAV=path RAMBLE_EXPECT=regex [RAMBLE_MODELS=a,b] [RAMBLE_GAIN=0]
 /// tool/fl flutter test --run-skipped -t live test/live/script_probe_test.dart
 void main() {
   final env = Platform.environment;
@@ -25,7 +26,9 @@ void main() {
     test('native script $model', () async {
       final engine = GeminiEngine(apiKey: () async => key, client: GeminiClient(), preferredModel: model);
       final out = await engine.process(CleanupRequest(
-        pcm: WavEncoder.decode(File(wavPath!).readAsBytesSync()),
+        pcm: env['RAMBLE_GAIN'] == '0'
+            ? WavEncoder.decode(File(wavPath!).readAsBytesSync())
+            : AutoGain.normalize(WavEncoder.decode(File(wavPath!).readAsBytesSync())),
         style: const StyleProfile(languages: ['en', 'zh', 'ja']),
       ));
       // ignore: avoid_print

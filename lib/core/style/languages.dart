@@ -118,7 +118,10 @@ abstract final class Languages {
         'sentence; greetings, exclamations, and phrases are written in their own script. '
         'Use Simplified Chinese characters, never Traditional, unless the speech is Cantonese. '
         'When a word could be English or another language the speaker uses (mama, baba, ma), decide by '
-        'pronunciation: Mandarin tones or a Chinese-speaking voice mean Chinese characters (妈妈, 爸爸, 吗). ';
+        'pronunciation: Mandarin tones or a Chinese-speaking voice mean Chinese characters (妈妈, 爸爸, 吗). '
+        'Final check before answering: any Japanese or Chinese word or phrase you wrote in Latin letters '
+        '(sayonara, arigatou, kawaii, sugoi, ni hao, xie xie) must be rewritten in its own script '
+        '(さようなら, ありがとう, かわいい, すごい, 你好, 谢谢). ';
     final rule = allowTranslation
         ? 'Keep every word in the language it is written in; never switch a word into another language '
             'unless the spoken instruction asks for a translation.'

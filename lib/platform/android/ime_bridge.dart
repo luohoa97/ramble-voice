@@ -185,6 +185,12 @@ class ImeBridge {
   Future<bool> replaceBeforeCursor(int oldLength, String text, {String? expected}) =>
       _bool('replaceBeforeCursor', {'length': oldLength, 'text': text, 'expected': ?expected});
 
+  /// Replaces [before] (right before the cursor) and [after] (right after it)
+  /// with [text], leaving the cursor at the end of [text]. Nothing changes
+  /// unless the field still holds exactly that text around the cursor.
+  Future<bool> replaceAroundCursor(String before, String after, String text) =>
+      _bool('replaceAroundCursor', {'before': before, 'after': after, 'text': text});
+
   /// Performs the field's IME action, or inserts a newline.
   Future<bool> sendEnter() => _bool('sendEnter');
 

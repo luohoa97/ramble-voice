@@ -68,6 +68,15 @@ class ImeHandler(
                     ),
                 )
             }
+            "replaceAroundCursor" -> {
+                result.success(
+                    replaceAroundCursor(
+                        call.argument<String>("before") ?: "",
+                        call.argument<String>("after") ?: "",
+                        call.argument<String>("text") ?: "",
+                    ),
+                )
+            }
             "sendEnter" -> result.success(sendEnter())
             "switchToPreviousInputMethod" -> result.success(switchKeyboard(userInitiated = call.arguments as? Boolean ?: true))
             "shouldOfferSwitch" -> result.success(shouldOfferSwitch())
@@ -119,6 +128,22 @@ class ImeHandler(
         ic.beginBatchEdit()
         try {
             if (!ic.deleteSurroundingText(length, 0)) return false
+            return ic.commitText(text, 1)
+        } finally {
+            ic.endBatchEdit()
+        }
+    }
+
+    private fun replaceAroundCursor(before: String, after: String, text: String): Boolean {
+        val ic = service.currentInputConnection ?: return false
+        if (before.length > MAX_READ || after.length > MAX_READ) return false
+        if (!ic.getSelectedText(0).isNullOrEmpty()) return false
+        // The field must still hold exactly the edited text around the cursor.
+        if ((ic.getTextBeforeCursor(before.length, 0)?.toString() ?: "") != before) return false
+        if ((ic.getTextAfterCursor(after.length, 0)?.toString() ?: "") != after) return false
+        ic.beginBatchEdit()
+        try {
+            if (!ic.deleteSurroundingText(before.length, after.length)) return false
             return ic.commitText(text, 1)
         } finally {
             ic.endBatchEdit()

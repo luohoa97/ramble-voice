@@ -17,15 +17,15 @@ import '../core/dictation/edit_controller.dart';
 import '../platform/android/ime_bridge.dart';
 import 'ime_app.dart';
 
-/// How much text before the cursor is edited when nothing is selected and no
-/// recent dictation is available.
+/// How much text on each side of the cursor is edited when nothing is
+/// selected and no recent dictation is available.
 const editContextLimit = 2000;
 
 /// Where the text being edited came from.
 enum EditSource {
   selection('Editing selection'),
   lastDictation('Editing last dictation'),
-  beforeCursor('Editing text before the cursor');
+  field('Editing the text in this field');
 
   const EditSource(this.label);
   final String label;
@@ -172,9 +172,14 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     if (state.phase != EditPhase.idle) state = const ImeEditState();
   }
 
+  /// Characters of the field text after the cursor, for [EditSource.field].
+  int _afterLength = 0;
+
   /// Chooses what to edit: the selection, else the text Ramble last typed here
-  /// (if it is still right before the cursor), else the text before the cursor.
+  /// (if it is still right before the cursor), else the field's text on both
+  /// sides of the cursor.
   Future<({EditSource source, String text})?> resolveSource() async {
+    _afterLength = 0;
     final selected = await _bridge.getSelectedText();
     if (selected != null && selected.trim().isNotEmpty) {
       return (source: EditSource.selection, text: selected);
@@ -184,11 +189,12 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
       final before = await _bridge.getTextBeforeCursor(last.text.length);
       if (before == last.text) return (source: EditSource.lastDictation, text: last.text);
     }
-    final before = await _bridge.getTextBeforeCursor(editContextLimit);
-    if (before != null && before.trim().isNotEmpty) {
-      return (source: EditSource.beforeCursor, text: before);
-    }
-    return null;
+    final before = await _bridge.getTextBeforeCursor(editContextLimit) ?? '';
+    final after = await _bridge.getTextAfterCursor(editContextLimit) ?? '';
+    final text = before + after;
+    if (text.trim().isEmpty) return null;
+    _afterLength = after.length;
+    return (source: EditSource.field, text: text);
   }
 
   void _onEditState(EditState s) {
@@ -229,6 +235,13 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
       // The selection may have moved while the user was talking.
       final now = await _bridge.getSelectedText();
       ok = now == outcome.original && await _bridge.replaceSelection(outcome.revised);
+    } else if (source == EditSource.field && _afterLength > 0) {
+      final splitAt = outcome.original.length - _afterLength;
+      ok = await _bridge.replaceAroundCursor(
+        outcome.original.substring(0, splitAt),
+        outcome.original.substring(splitAt),
+        outcome.revised,
+      );
     } else {
       ok = await _bridge.replaceBeforeCursor(
         outcome.original.length,

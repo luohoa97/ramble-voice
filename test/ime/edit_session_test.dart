@@ -40,6 +40,16 @@ class _Field {
         text = text.replaceRange(start, end, call.arguments as String);
         start = end = start + (call.arguments as String).length;
         return 'true';
+      case 'replaceAroundCursor':
+        final a = (call.arguments as Map).cast<String, Object?>();
+        final before = a['before'] as String;
+        final after = a['after'] as String;
+        if (start != end) return 'false';
+        if (before.length > end || text.substring(end - before.length, end) != before) return 'false';
+        if (end + after.length > text.length || text.substring(end, end + after.length) != after) return 'false';
+        text = text.replaceRange(end - before.length, end + after.length, a['text'] as String);
+        start = end = end - before.length + (a['text'] as String).length;
+        return 'true';
       case 'replaceBeforeCursor':
         final a = (call.arguments as Map).cast<String, Object?>();
         final len = a['length'] as int;
@@ -149,10 +159,21 @@ void main() {
   test('falls back to the text before the cursor when the last dictation is gone', () async {
     container.read(lastDictationProvider.notifier).set(const LastDictation(text: 'something else'));
     await notifier().begin();
-    expect(state().source, EditSource.beforeCursor);
+    expect(state().source, EditSource.field);
     await speakAndFinish();
     expect(engine.requests.single.sourceText, 'Hello wrold. Second line.');
     expect(field.text, 'REVISED');
+  });
+
+  test('edits the text after the cursor too', () async {
+    field = _Field('Hello wrold. Second line.', selStart: 6);
+    await notifier().begin();
+    expect(state().source, EditSource.field);
+    await speakAndFinish();
+    expect(engine.requests.single.sourceText, 'Hello wrold. Second line.');
+    expect(field.text, 'REVISED');
+    await notifier().undo();
+    expect(field.text, 'Hello wrold. Second line.');
   });
 
   test('only edits up to 2000 characters before the cursor', () async {

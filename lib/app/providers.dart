@@ -23,6 +23,7 @@ import '../core/dictation/recording_vault.dart';
 import '../core/history/history_db.dart';
 import '../core/models/model_catalog.dart';
 import '../core/models/model_downloader.dart';
+import '../core/models/model_downloads.dart';
 import '../core/settings/app_settings.dart';
 import '../platform/platform_services.dart';
 
@@ -66,7 +67,7 @@ final historyDbProvider = Provider<HistoryDb>((ref) {
 
 final recordingVaultProvider = Provider<RecordingVault>((ref) => RecordingVault(ref.watch(appPathsProvider).recordings));
 
-final modelDownloaderProvider = Provider<ModelDownloader>((ref) => ModelDownloader(directory: ref.watch(appPathsProvider).models));
+final modelDownloaderProvider = Provider<ModelDownloads>((ref) => ModelDownloader(directory: ref.watch(appPathsProvider).models));
 
 final geminiClientProvider = Provider<GeminiClient>((ref) {
   final c = GeminiClient();

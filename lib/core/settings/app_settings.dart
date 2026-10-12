@@ -20,6 +20,7 @@ class AppSettings {
     this.haptics = true,
     this.typeIntoFocusedApp = true,
     this.modelLicenseAccepted = false,
+    this.autoSwitchBack = true,
   });
 
   final EngineKind engine;
@@ -40,6 +41,10 @@ class AppSettings {
   final bool typeIntoFocusedApp;
   final bool modelLicenseAccepted;
 
+  /// Android keyboard: return to the previous keyboard (e.g. Gboard) after
+  /// inserting dictated text.
+  final bool autoSwitchBack;
+
   GemmaVariant get gemmaVariant => ModelCatalog.byId(gemmaVariantId) ?? ModelCatalog.defaultVariant;
   Duration get maxSession => Duration(minutes: maxSessionMinutes);
 
@@ -54,6 +59,7 @@ class AppSettings {
     bool? haptics,
     bool? typeIntoFocusedApp,
     bool? modelLicenseAccepted,
+    bool? autoSwitchBack,
   }) =>
       AppSettings(
         engine: engine ?? this.engine,
@@ -66,6 +72,7 @@ class AppSettings {
         haptics: haptics ?? this.haptics,
         typeIntoFocusedApp: typeIntoFocusedApp ?? this.typeIntoFocusedApp,
         modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
+        autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
       );
 
   Map<String, Object?> toJson() => {
@@ -79,6 +86,7 @@ class AppSettings {
         'haptics': haptics,
         'typeIntoFocusedApp': typeIntoFocusedApp,
         'modelLicenseAccepted': modelLicenseAccepted,
+        'autoSwitchBack': autoSwitchBack,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -94,6 +102,7 @@ class AppSettings {
         haptics: j['haptics'] as bool? ?? true,
         typeIntoFocusedApp: j['typeIntoFocusedApp'] as bool? ?? true,
         modelLicenseAccepted: j['modelLicenseAccepted'] as bool? ?? false,
+        autoSwitchBack: j['autoSwitchBack'] as bool? ?? true,
       );
 }
 

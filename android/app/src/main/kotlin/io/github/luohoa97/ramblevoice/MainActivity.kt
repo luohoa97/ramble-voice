@@ -12,6 +12,7 @@ import io.flutter.embedding.engine.FlutterEngine
 class MainActivity : FlutterActivity() {
     private var audio: AudioCaptureHandler? = null
     private var system: SystemHandler? = null
+    private var download: DownloadHandler? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Android 16 enforces edge-to-edge; draw behind the bars on purpose so
@@ -32,13 +33,16 @@ class MainActivity : FlutterActivity() {
         val messenger = flutterEngine.dartExecutor.binaryMessenger
         audio = AudioCaptureHandler(applicationContext, messenger)
         system = SystemHandler(this, messenger) { window?.decorView }
+        download = DownloadHandler(applicationContext, messenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         audio?.dispose()
         system?.dispose()
+        download?.dispose()
         audio = null
         system = null
+        download = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

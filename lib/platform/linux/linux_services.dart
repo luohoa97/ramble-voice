@@ -18,6 +18,7 @@ import 'package:dbus/dbus.dart';
 import 'package:path/path.dart' as p;
 
 import '../platform_services.dart';
+import 'desktop_entry.dart';
 import 'linux_audio_source.dart';
 import 'linux_environment.dart';
 import 'portal/global_shortcuts.dart';
@@ -52,7 +53,17 @@ Future<PlatformServices> createLinuxServices({Directory? supportDir}) async {
   final support = supportDir ?? defaultSupportDirectory();
   final bus = DBusClient.session();
   final portal = PortalClient(bus);
-  if (!(Platform.environment['FLATPAK_ID'] ?? '').isNotEmpty) await portal.registerHostApp(rambleAppId);
+  if (!(Platform.environment['FLATPAK_ID'] ?? '').isNotEmpty) {
+    // GNOME only grants GlobalShortcuts to apps with a desktop entry; write
+    // one for source builds, give GIO a moment to index it, then register
+    // (registration must precede every other portal request).
+    try {
+      if (await DesktopEntry.ensure(rambleAppId)) {
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+      }
+    } catch (_) {}
+    await portal.registerHostApp(rambleAppId);
+  }
 
   LinuxEnvironment env;
   try {

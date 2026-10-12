@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:dbus/dbus.dart';
@@ -90,7 +91,10 @@ class PortalClient {
     try {
       await desktop.callMethod('org.freedesktop.host.portal.Registry', 'Register',
           [DBusString(appId), DBusDict.stringVariant({})]);
-    } catch (_) {}
+    } catch (e) {
+      // Older portals lack the Registry; GNOME then refuses GlobalShortcuts.
+      stderr.writeln('ramble: host portal registration failed: $e');
+    }
   }
 
   /// Reads a portal interface version (`version` property), or null when the

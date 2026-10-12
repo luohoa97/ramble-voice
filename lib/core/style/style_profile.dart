@@ -5,19 +5,19 @@ import 'dart:convert';
 enum StylePreset {
   casual(
     'Casual',
-    'Relaxed and conversational. Contractions are fine. Light punctuation, no formality.',
+    'Relaxed and conversational, with normal capitalization and punctuation. Contractions are fine',
   ),
   professional(
     'Professional',
-    'Clear, polite and complete sentences with correct punctuation and capitalisation. No slang.',
+    'Clear, polite and complete sentences. No slang',
   ),
   texting(
     'Texting',
-    'Short and quick like a chat message. Lowercase is fine, minimal punctuation, no sign-offs.',
+    'Short and quick like a chat message. Casual capitalization and minimal punctuation are fine',
   ),
   notes(
     'Notes',
-    'Concise notes. Use short lines or bullet points ("- ") when the speaker lists things. Drop pleasantries.',
+    'Concise notes. Use short lines or bullet points ("- ") when the speaker lists things',
   );
 
   const StylePreset(this.label, this.instruction);
@@ -42,7 +42,7 @@ class StyleProfile {
   /// The `{style}` text for the cleanup prompt.
   String describe() {
     final custom = customInstructions.trim();
-    return custom.isEmpty ? preset.instruction : '${preset.instruction} $custom';
+    return custom.isEmpty ? preset.instruction : '${preset.instruction}. $custom';
   }
 
   /// The `{vocab}` text for the cleanup prompt.

@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../app/providers.dart';
 import '../../../core/models/model_catalog.dart';
 import '../../../core/models/model_downloader.dart';
+import '../../../core/models/model_downloads.dart';
 import '../../theme/app_theme.dart';
 import '../../util/format.dart';
 import '../../util/open_url.dart';
@@ -100,7 +101,7 @@ class ModelTile extends ConsumerStatefulWidget {
 }
 
 class _ModelTileState extends ConsumerState<ModelTile> {
-  late final ModelDownloader _downloader = ref.read(modelDownloaderProvider);
+  late final ModelDownloads _downloader = ref.read(modelDownloaderProvider);
   StreamSubscription<DownloadStatus>? _sub;
   late DownloadStatus _status = _downloader.statusOf(widget.variant);
 
@@ -173,12 +174,20 @@ class _ModelTileState extends ConsumerState<ModelTile> {
         progress = LinearProgressIndicator(value: fraction, semanticsLabel: 'Download progress');
         statusText = '${formatBytes(received)} of ${formatBytes(total)} (${(fraction * 100).floor()}%)';
         actions.addAll([
-          FilledButton.tonalIcon(
-            onPressed: () => _downloader.pause(v),
-            icon: const Icon(Icons.pause_rounded),
-            label: const Text('Pause'),
-          ),
-          TextButton(onPressed: () => _downloader.delete(v), child: const Text('Cancel')),
+          if (_downloader.supportsPause)
+            FilledButton.tonalIcon(
+              onPressed: () => _downloader.pause(v),
+              icon: const Icon(Icons.pause_rounded),
+              label: const Text('Pause'),
+            ),
+          if (_downloader.supportsPause)
+            TextButton(onPressed: () => _downloader.delete(v), child: const Text('Cancel'))
+          else
+            FilledButton.tonalIcon(
+              onPressed: () => _downloader.delete(v),
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Cancel'),
+            ),
         ]);
       case Paused(:final received, :final total, :final fraction):
         progress = LinearProgressIndicator(value: fraction, semanticsLabel: 'Download paused');

@@ -65,7 +65,7 @@ secrets/
 *.gguf
 *.safetensors
 *.tflite
-models/
+/models/
 # Linux GTK4 runner engine downloads and build output
 build/
 *.flatpak

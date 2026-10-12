@@ -38,7 +38,7 @@ void main() {
     expect(const StyleProfile().describe(), StylePreset.casual.instruction);
     expect(
       const StyleProfile(preset: StylePreset.texting, customInstructions: ' Be brief. ').describe(),
-      '${StylePreset.texting.instruction} Be brief.',
+      '${StylePreset.texting.instruction}. Be brief.',
     );
   });
 

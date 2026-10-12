@@ -144,10 +144,10 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       - name: Build APK
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        run: flutter build apk --release --target-platform android-arm64
       - name: Verify 16 KB alignment
         run: |
-          apk=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          apk=build/app/outputs/flutter-apk/app-release.apk
           bt=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -V | tail -n 1)
           echo "Using build-tools $bt"
           "$ANDROID_HOME/build-tools/$bt/zipalign" -c -P 16 -v 4 "$apk"
@@ -156,7 +156,7 @@ jobs:
           suffix=""
           if [ "$HAS_KEYSTORE" != "true" ]; then suffix="-debug-signed"; fi
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+          cp build/app/outputs/flutter-apk/app-release.apk \
             "dist/ramble-voice-arm64-v8a${suffix}.apk"
       - uses: actions/upload-artifact@v4
         with:

@@ -5,13 +5,18 @@
 /// window. This file is never the app's `main`.
 library;
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'app/providers.dart';
 import 'core/settings/app_settings.dart';
 import 'ime/ime_app.dart';
+import 'platform/android/android_model_downloads.dart';
 import 'platform/android/android_services.dart';
 
 /// Dictation started from the keyboard types its result into the focused field.
@@ -33,10 +38,16 @@ Future<void> imeMain() async {
   final settings = await SettingsStore(paths.settingsFile).load();
   final services = await createAndroidServices(keyboard: true, bridge: bridge);
 
+  // Models are downloaded by the app into <externalFilesDir>/models; the
+  // keyboard only reads them, so it needs the path but not the service.
+  final external = await getExternalStorageDirectory();
+  final downloads = external == null ? null : AndroidModelDownloads(directory: Directory(p.join(external.path, 'models')));
+
   runApp(
     ProviderScope(
       overrides: [
         appPathsProvider.overrideWithValue(paths),
+        if (downloads != null) modelDownloaderProvider.overrideWithValue(downloads),
         platformServicesProvider.overrideWithValue(services),
         initialSettingsProvider.overrideWithValue(settings),
         imeBridgeProvider.overrideWithValue(bridge),
@@ -45,6 +56,13 @@ Future<void> imeMain() async {
           return (outcome) async {
             final result = await services.inserter.insert(outcome.text);
             ref.read(lastInsertProvider.notifier).set(result);
+            // Ramble is for dictation; typing stays in Gboard. Hop back after
+            // a short pause that leaves time for Undo.
+            if (result.delivered && ref.read(settingsProvider).autoSwitchBack) {
+              unawaited(Future<void>.delayed(const Duration(milliseconds: 1500), () async {
+                if (ref.read(lastInsertProvider) == result) await bridge.switchToPreviousInputMethod();
+              }));
+            }
           };
         }),
       ],

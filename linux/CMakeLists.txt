@@ -94,6 +94,25 @@ if(TARGET ramble_capture)
     COMPONENT Runtime)
 endif()
 
+# Bundle gtk4-layer-shell (not installed on most desktops, e.g. Fedora
+# Silverblue) so the bundle runs outside the build environment. RPATH is
+# $ORIGIN/lib, so the bundled copy is found first.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(BUNDLE_LAYER_SHELL QUIET gtk4-layer-shell-0)
+if(BUNDLE_LAYER_SHELL_FOUND)
+  find_library(BUNDLE_LAYER_SHELL_LIB NAMES gtk4-layer-shell
+    HINTS ${BUNDLE_LAYER_SHELL_LIBRARY_DIRS})
+  if(BUNDLE_LAYER_SHELL_LIB)
+    get_filename_component(BUNDLE_LAYER_SHELL_REAL "${BUNDLE_LAYER_SHELL_LIB}" REALPATH)
+    install(FILES "${BUNDLE_LAYER_SHELL_REAL}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+      RENAME "libgtk4-layer-shell.so.0" COMPONENT Runtime)
+  endif()
+endif()
+
+# App icon, referenced by the desktop entry written for source builds.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/icons/io.github.luohoa97.RambleVoice-256.png"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" RENAME "icon.png" COMPONENT Runtime)
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

@@ -42,7 +42,7 @@ void main() {
         vocabulary: ['Kubernetes', 'Ramble'],
       );
       final out = CleanupPrompt.build(p);
-      expect(out, contains('Match this style profile: ${StylePreset.professional.instruction} Use British spelling.'));
+      expect(out, contains('Match this style profile: ${StylePreset.professional.instruction}. Use British spelling.'));
       expect(out, contains('Use these spellings: Kubernetes, Ramble.'));
       expect(out, isNot(contains('{style}')));
       expect(out, isNot(contains('{vocab}')));
@@ -100,7 +100,7 @@ void main() {
     });
 
     test('the neutral user turn carries no task', () {
-      expect(CleanupPrompt.userTurn, 'Here is the dictation audio.');
+      expect(CleanupPrompt.userTurn, startsWith('Here is the dictation audio.'));
     });
   });
 

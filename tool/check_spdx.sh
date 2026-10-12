@@ -23,7 +23,7 @@ fail=0
 checked=0
 while IFS= read -r -d '' f; do
   case "$f" in
-    *.g.dart | *GeneratedPluginRegistrant* | *generated_plugin* | linux/flutter/ephemeral/* | */build/* | */.dart_tool/*) continue ;;
+    *.g.dart | *GeneratedPluginRegistrant* | *generated_plugin* | linux/flutter/ephemeral/* | linux/engine/flutter_embedder.h | */build/* | */.dart_tool/*) continue ;;
   esac
   case "$f" in
     *.dart | *.kt | *.kts | *.c | *.h | *.cc | *.cmake | */CMakeLists.txt | CMakeLists.txt | *.sh | *.yml | *.yaml) ;;

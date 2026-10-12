@@ -73,20 +73,14 @@ class ToneMenu extends ConsumerWidget {
       ],
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48),
-        child: Center(
-          widthFactor: 1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: c.secondaryContainer, borderRadius: BorderRadius.circular(20)),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(effective.label, style: t.labelLarge?.copyWith(color: c.onSecondaryContainer)),
-                  Icon(Icons.arrow_drop_down_rounded, size: 20, color: c.onSecondaryContainer),
-                ],
-              ),
-            ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(effective.label, style: t.labelLarge?.copyWith(color: c.onSurface)),
+              Icon(Icons.arrow_drop_down_rounded, size: 20, color: c.onSurface),
+            ],
           ),
         ),
       ),

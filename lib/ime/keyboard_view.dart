@@ -194,149 +194,129 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
     final edit = ref.watch(imeEditProvider);
 
+    final dc = ref.read(dictationControllerProvider);
+    final listening = state is DictationListening ? state : null;
+
+    void act(VoidCallback f) {
+      _tick();
+      f();
+    }
+
+    Widget column(List<Widget> keys) => Column(
+          spacing: 8,
+          children: [for (final k in keys) Expanded(child: k)],
+        );
+
+    final left = listening != null
+        ? [
+            _BigKey(
+              icon: listening.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+              label: listening.paused ? 'Resume' : 'Pause',
+              onPressed: () => act(() => unawaited(listening.paused ? dc.resume() : dc.pause())),
+            ),
+            _BigKey(
+              icon: Icons.delete_outline_rounded,
+              label: 'Discard',
+              onPressed: () => act(() => unawaited(dc.discard())),
+            ),
+          ]
+        : [
+            _BigKey(
+              text: 'ABC',
+              label: 'Switch to typing keyboard',
+              onPressed: () => act(() => unawaited(_bridge.switchToPreviousInputMethod())),
+            ),
+            _BigKey(
+              icon: Icons.edit_note_rounded,
+              label: 'Edit by voice',
+              onPressed: _info.isPassword ? null : () => act(() => unawaited(ref.read(imeEditProvider.notifier).begin())),
+            ),
+          ];
+
     return Material(
       color: scheme.surfaceContainer,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(12, 8, 12, bottom + 8),
+        padding: EdgeInsets.fromLTRB(8, 8, 8, bottom + 8),
         child: Column(
           children: [
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final side = box.maxWidth * 0.22;
+                  return Row(
+                    spacing: 8,
+                    children: [
+                      SizedBox(width: side, child: column(left)),
+                      Expanded(
+                        child: edit.active
+                            ? const EditPanel()
+                            : _Center(
+                                state: state,
+                                info: _info,
+                                onToggle: () => act(_toggle),
+                                onHoldStart: _holdStart,
+                                onHoldEnd: _holdEnd,
+                                onFix: (r) => act(() => _openApp(r)),
+                                onDismiss: () => act(dc.reset),
+                                onRetry: () => act(() => unawaited(dc.retry())),
+                              ),
+                      ),
+                      SizedBox(
+                        width: side,
+                        child: column([
+                          _BigRepeatKey(
+                            icon: Icons.backspace_outlined,
+                            label: 'Backspace',
+                            onTrigger: () {
+                              _tick();
+                              _clearUndo();
+                              unawaited(_bridge.deleteBackward());
+                            },
+                          ),
+                          _BigKey(
+                            icon: _enterIcon(_info.action),
+                            label: _enterLabel(_info),
+                            filled: true,
+                            onPressed: () => act(() {
+                              _clearUndo();
+                              unawaited(_bridge.sendEnter());
+                            }),
+                          ),
+                        ]),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
             SizedBox(
-              height: 56,
+              height: 40,
               child: Row(
                 children: [
                   ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
-                  const Spacer(),
-                  Flexible(child: _EngineLabel(onTap: () => _openApp(ImeRoutes.settings), onTick: _tick)),
-                  const SizedBox(width: 4),
-                  _KeyButton(
-                    icon: Icons.settings_outlined,
-                    label: 'Ramble settings',
-                    onPressed: () {
-                      _tick();
-                      _openApp(ImeRoutes.settings);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 36),
-                    child: SizedBox(
-                    width: 64,
-                    child: Column(
-                      spacing: 8,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (state is DictationListening) ...[
-                          _KeyButton(
-                            icon: state.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                            label: state.paused ? 'Resume recording' : 'Pause recording',
-                            onPressed: () {
-                              _tick();
-                              final c = ref.read(dictationControllerProvider);
-                              unawaited(state.paused ? c.resume() : c.pause());
-                            },
-                          ),
-                          _KeyButton(
-                            icon: Icons.delete_outline_rounded,
-                            label: 'Discard recording',
-                            onPressed: () {
-                              _tick();
-                              unawaited(ref.read(dictationControllerProvider).discard());
-                            },
-                          ),
-                        ] else ...[
-                          _TextKey(
-                            label: 'ABC',
-                            semantics: 'Switch to typing keyboard',
-                            onPressed: () {
-                              _tick();
-                              unawaited(_bridge.switchToPreviousInputMethod());
-                            },
-                          ),
-                          _KeyButton(
-                            icon: Icons.edit_note_rounded,
-                            label: 'Edit by voice',
-                            onPressed: _info.isPassword
-                                ? null
-                                : () {
-                                    _tick();
-                                    unawaited(ref.read(imeEditProvider.notifier).begin());
-                                  },
-                          ),
-                        ],
-                      ],
-                    ),
-                  )),
                   Expanded(
-                    child: edit.active
-                      ? const EditPanel()
-                      : _Center(
-                          state: state,
-                          info: _info,
-                          undoText: _undoText,
-                          onToggle: () {
-                            _tick();
-                            _toggle();
-                          },
-                          onHoldStart: _holdStart,
-                          onHoldEnd: _holdEnd,
-                          onUndo: () {
-                            _tick();
-                            final id = state is DictationIdle ? state.discardedId : null;
-                            if (id != null) {
-                              unawaited(ref.read(dictationControllerProvider).undoDiscard(id));
-                            } else {
-                              _undo();
-                            }
-                          },
-                          onFix: (r) {
-                            _tick();
-                            _openApp(r);
-                          },
-                          onDismiss: () {
-                            _tick();
-                            ref.read(dictationControllerProvider).reset();
-                          },
-                          onRetry: () {
-                            _tick();
-                            unawaited(ref.read(dictationControllerProvider).retry());
-                          },
-                        ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 36),
-                    child: SizedBox(
-                    width: 64,
-                    child: Column(
-                      spacing: 8,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _RepeatKey(
-                          icon: Icons.backspace_outlined,
-                          label: 'Backspace',
-                          onTrigger: () {
-                            _tick();
-                            _clearUndo();
-                            unawaited(_bridge.deleteBackward());
-                          },
-                        ),
-                        _KeyButton(
-                          icon: _enterIcon(_info.action),
-                          label: _enterLabel(_info),
-                          filled: true,
-                          onPressed: () {
-                            _tick();
-                            _clearUndo();
-                            unawaited(_bridge.sendEnter());
-                          },
-                        ),
-                      ],
+                    child: Center(
+                      child: _Status(
+                        state: state,
+                        info: _info,
+                        undoText: _undoText,
+                        onUndo: () => act(() {
+                          final id = state is DictationIdle ? state.discardedId : null;
+                          if (id != null) {
+                            unawaited(dc.undoDiscard(id));
+                          } else {
+                            _undo();
+                          }
+                        }),
+                      ),
                     ),
-                  )),
+                  ),
+                  IconButton(
+                    tooltip: 'Ramble settings',
+                    iconSize: 24,
+                    onPressed: () => act(() => _openApp(ImeRoutes.settings)),
+                    icon: Icon(Icons.settings_outlined, color: scheme.onSurfaceVariant),
+                  ),
                 ],
               ),
             ),
@@ -370,69 +350,13 @@ String _enterLabel(ImeInputInfo info) {
   };
 }
 
-/// "Gemma 4 E4B · GPU" or "Gemini 3.8 Flash": small, muted, no chrome.
-class _EngineLabel extends ConsumerWidget {
-  const _EngineLabel({required this.onTap, required this.onTick});
-
-  final VoidCallback onTap;
-  final VoidCallback onTick;
-
-  static String text(EngineKind engine, String gemmaLabel, AsyncValue<EngineReadiness> r) {
-    final detail = r.value is EngineReady ? (r.value! as EngineReady).detail : null;
-    if (engine == EngineKind.onDevice) {
-      final short = gemmaLabel.replaceFirst('Gemma 4 ', 'Gemma ');
-      return short;
-    }
-    if (detail == null) return 'Gemini';
-    final m = RegExp(r'^gemini-(\d+(?:\.\d+)?)-(pro|flash-lite|flash)').firstMatch(detail);
-    if (m == null) return detail;
-    final tier = switch (m.group(2)) {
-      'pro' => 'Pro',
-      'flash-lite' => 'Flash-Lite',
-      _ => 'Flash',
-    };
-    return 'Gemini ${m.group(1)} $tier';
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mq = MediaQuery.of(context);
-    if (mq.size.width < 380 || mq.textScaler.scale(14) > 14 * 1.3) return const SizedBox.shrink();
-    final settings = ref.watch(settingsProvider);
-    final readiness = ref.watch(activeEngineReadinessProvider);
-    final warn = readiness.value is EngineNotReady;
-    final label = warn ? 'Not ready' : text(settings.engine, settings.gemmaVariant.label, readiness);
-    final c = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: () {
-        onTick();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Center(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: warn ? c.error : c.onSurfaceVariant),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _Center extends StatelessWidget {
   const _Center({
     required this.state,
     required this.info,
-    required this.undoText,
     required this.onToggle,
     required this.onHoldStart,
     required this.onHoldEnd,
-    required this.onUndo,
     required this.onFix,
     required this.onDismiss,
     required this.onRetry,
@@ -440,11 +364,9 @@ class _Center extends StatelessWidget {
 
   final DictationState state;
   final ImeInputInfo info;
-  final String? undoText;
   final VoidCallback onToggle;
   final VoidCallback onHoldStart;
   final VoidCallback onHoldEnd;
-  final VoidCallback onUndo;
   final void Function(String route) onFix;
   final VoidCallback onDismiss;
   final VoidCallback onRetry;
@@ -455,30 +377,20 @@ class _Center extends StatelessWidget {
     if (s is DictationFailed) {
       return _ErrorPanel(failure: s, onFix: onFix, onDismiss: onDismiss, onRetry: onRetry);
     }
-    return Column(
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, c) {
-              final size = math.max(88.0, math.min(104.0, c.maxHeight - 4));
-              return Center(
-                child: MicButton(
-                  state: s is DictationListening && s.paused ? const DictationIdle() : s,
-                  size: size,
-                  enabled: !info.isPassword,
-                  onTap: onToggle,
-                  onHoldStart: onHoldStart,
-                  onHoldEnd: onHoldEnd,
-                ),
-              );
-            },
+    return LayoutBuilder(
+      builder: (context, c) {
+        final size = math.max(88.0, math.min(c.maxWidth, c.maxHeight));
+        return Center(
+          child: MicButton(
+            state: s is DictationListening && s.paused ? const DictationIdle() : s,
+            size: size,
+            enabled: !info.isPassword,
+            onTap: onToggle,
+            onHoldStart: onHoldStart,
+            onHoldEnd: onHoldEnd,
           ),
-        ),
-        SizedBox(
-          height: 36,
-          child: Center(child: _Status(state: s, info: info, undoText: undoText, onUndo: onUndo)),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -598,96 +510,86 @@ class _ErrorPanel extends StatelessWidget {
   }
 }
 
-/// A 56 dp key. The tooltip doubles as the accessibility label.
-class _KeyButton extends StatelessWidget {
-  const _KeyButton({required this.icon, required this.label, required this.onPressed, this.filled = false});
+/// A tall rounded-rectangle key that fills its column.
+class _BigKey extends StatelessWidget {
+  const _BigKey({this.icon, this.text, required this.label, required this.onPressed, this.filled = false});
 
-  final IconData icon;
+  final IconData? icon;
+  final String? text;
   final String label;
   final VoidCallback? onPressed;
   final bool filled;
 
   @override
   Widget build(BuildContext context) {
-    return filled
-        ? IconButton.filled(
-            onPressed: onPressed,
-            icon: Icon(icon),
-            tooltip: label,
-            style: const ButtonStyle(
-              fixedSize: WidgetStatePropertyAll(Size(56, 56)),
-              minimumSize: WidgetStatePropertyAll(Size(56, 56)),
-            ),
-          )
-        : IconButton.filledTonal(onPressed: onPressed, icon: Icon(icon), tooltip: label, style: keyStyle(context));
-  }
-}
-
-/// A key that shows text, like Gboard's "ABC".
-class _TextKey extends StatelessWidget {
-  const _TextKey({required this.label, required this.semantics, required this.onPressed});
-
-  final String label;
-  final String semantics;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final bg = filled ? c.primary : keyFill(context);
+    final fg = filled ? c.onPrimary : keyForeground(context);
     return Semantics(
       button: true,
-      label: semantics,
+      enabled: onPressed != null,
+      label: label,
       excludeSemantics: true,
       onTap: onPressed,
-      child: FilledButton.tonal(
-        onPressed: onPressed,
-        style: keyStyle(context).copyWith(
-          padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-          textStyle: WidgetStatePropertyAll(Theme.of(context).textTheme.labelLarge),
+      child: Material(
+        color: onPressed == null ? bg.withValues(alpha: 0.5) : bg,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: Center(
+            child: icon != null
+                ? Icon(icon, size: 28, color: fg)
+                : Text(text!, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: fg)),
+          ),
         ),
-        child: Text(label),
       ),
     );
   }
 }
 
-/// A key that fires once on press and then repeats while held.
-class _RepeatKey extends StatefulWidget {
-  const _RepeatKey({required this.icon, required this.label, required this.onTrigger});
+/// Backspace: fires once on press, then repeats while held.
+class _BigRepeatKey extends StatefulWidget {
+  const _BigRepeatKey({required this.icon, required this.label, required this.onTrigger});
 
   final IconData icon;
   final String label;
   final VoidCallback onTrigger;
 
   @override
-  State<_RepeatKey> createState() => _RepeatKeyState();
+  State<_BigRepeatKey> createState() => _BigRepeatKeyState();
 }
 
-class _RepeatKeyState extends State<_RepeatKey> {
+class _BigRepeatKeyState extends State<_BigRepeatKey> {
   Timer? _delay;
   Timer? _repeat;
+  var _down = false;
 
-  void _down() {
+  void _press() {
+    setState(() => _down = true);
     widget.onTrigger();
     _delay = Timer(const Duration(milliseconds: 400), () {
       _repeat = Timer.periodic(const Duration(milliseconds: 55), (_) => widget.onTrigger());
     });
   }
 
-  void _up() {
+  void _release() {
     _delay?.cancel();
     _repeat?.cancel();
     _delay = null;
     _repeat = null;
+    if (mounted && _down) setState(() => _down = false);
   }
 
   @override
   void dispose() {
-    _up();
+    _release();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
       label: widget.label,
@@ -695,16 +597,15 @@ class _RepeatKeyState extends State<_RepeatKey> {
       excludeSemantics: true,
       child: Listener(
         behavior: HitTestBehavior.opaque,
-        onPointerDown: (_) => _down(),
-        onPointerUp: (_) => _up(),
-        onPointerCancel: (_) => _up(),
-        child: SizedBox(
-          width: 56,
-          height: 56,
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: keyFill(context), shape: BoxShape.circle),
-            child: Icon(widget.icon, color: keyForeground(context)),
+        onPointerDown: (_) => _press(),
+        onPointerUp: (_) => _release(),
+        onPointerCancel: (_) => _release(),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _down ? c.surfaceContainerHigh : keyFill(context),
+            borderRadius: BorderRadius.circular(20),
           ),
+          child: Center(child: Icon(widget.icon, size: 28, color: keyForeground(context))),
         ),
       ),
     );

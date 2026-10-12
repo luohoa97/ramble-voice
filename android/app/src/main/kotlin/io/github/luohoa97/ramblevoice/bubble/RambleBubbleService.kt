@@ -153,15 +153,30 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private fun keyboardVisible() = windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
 
     /** The focused text field of the active app window, or null if the bubble must not show. */
+    /**
+     * What the bubble attaches to: the focused editable node when the app
+     * exposes one, otherwise (many React Native, Compose and web apps don't)
+     * the app window's root whenever a keyboard is on screen, like Wispr Flow.
+     * Null when the bubble must not show: no keyboard and no editable focus,
+     * a password field, our own app, a blocked app, or the keyboard's own UI.
+     */
     private fun focusedEditable(): AccessibilityNodeInfo? {
-        val appWindow = windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isActive }
-        val root = appWindow?.root ?: rootInActiveWindow ?: return null
-        val node = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return null
-        val pkg = node.packageName?.toString() ?: return null
-        return node.takeIf {
-            it.isEditable && !it.isPassword && it.isVisibleToUser &&
-                pkg != packageName && pkg !in prefs.blockedApps &&
-                pkg != defaultKeyboardPackage()
+        val all = windows
+        val imeVisible = all.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        val appRoots = all.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .sortedByDescending { it.isActive || it.isFocused }
+            .mapNotNull { it.root }
+            .ifEmpty { listOfNotNull(rootInActiveWindow) }
+        val focus = appRoots.firstNotNullOfOrNull { it.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }
+        if (focus?.isPassword == true) return null
+        val target = when {
+            focus != null && focus.isEditable -> focus
+            imeVisible -> focus ?: appRoots.firstOrNull()
+            else -> null
+        } ?: return null
+        val pkg = target.packageName?.toString() ?: return null
+        return target.takeIf {
+            pkg != packageName && pkg !in prefs.blockedApps && pkg != defaultKeyboardPackage()
         }
     }
 

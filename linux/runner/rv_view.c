@@ -405,10 +405,9 @@ static void rv_view_snapshot(GtkWidget* widget, GtkSnapshot* snapshot) {
   graphene_rect_t rect = GRAPHENE_RECT_INIT(0, 0, w, h);
   if (v->frame) {
     gtk_snapshot_save(snapshot);
-#ifdef RV_FLIP_Y
+    // GL framebuffers have a bottom-left origin; GdkGLTexture is top-left.
     gtk_snapshot_translate(snapshot, &GRAPHENE_POINT_INIT(0, h));
     gtk_snapshot_scale(snapshot, 1, -1);
-#endif
     gtk_snapshot_append_texture(snapshot, v->frame, &rect);
     gtk_snapshot_restore(snapshot);
   } else {

@@ -31,6 +31,13 @@ struct _RvRenderer {
 static GdkGLContext* make_context(GdkDisplay* display, GError** error) {
   GdkGLContext* ctx = gdk_display_create_gl_context(display, error);
   if (!ctx) return NULL;
+  // The engine's GL backend targets OpenGL ES. On a desktop GL core profile
+  // its single-channel glyph atlas formats differ, which garbles all text, so
+  // ask GDK for GLES (falls back to desktop GL only if GLES is unavailable).
+  const char* api = g_getenv("RAMBLE_GL_API");
+  if (!api || g_strcmp0(api, "gl") != 0) {
+    gdk_gl_context_set_allowed_apis(ctx, GDK_GL_API_GLES);
+  }
   if (!gdk_gl_context_realize(ctx, error)) {
     g_object_unref(ctx);
     return NULL;

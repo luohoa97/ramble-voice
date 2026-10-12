@@ -283,6 +283,10 @@ static char* exe_dir(void) {
 static char** collect_switches(int* argc) {
   GPtrArray* a = g_ptr_array_new();
   g_ptr_array_add(a, g_strdup("ramble_voice"));
+  // Impeller (OpenGL ES backend) renders correctly into our GLES contexts;
+  // the embedder's default Skia GL path garbles glyph atlases here.
+  // RAMBLE_SKIA=1 restores Skia for debugging.
+  if (!g_getenv("RAMBLE_SKIA")) g_ptr_array_add(a, g_strdup("--enable-impeller"));
   const char* count = g_getenv("FLUTTER_ENGINE_SWITCHES");
   int n = count ? atoi(count) : 0;
   for (int i = 1; i <= n; i++) {

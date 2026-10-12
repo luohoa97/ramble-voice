@@ -41,7 +41,13 @@ class RambleImeService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        val e = (application as RambleApplication).createImeEngine(this)
+        CrashLog.note("ime onCreate")
+        val e = try {
+            (application as RambleApplication).createImeEngine(this)
+        } catch (t: Throwable) {
+            CrashLog.write("ime createImeEngine", t)
+            throw t
+        }
         val messenger = e.dartExecutor.binaryMessenger
         audio = AudioCaptureHandler(applicationContext, messenger)
         system = SystemHandler(this, messenger) { window?.window?.decorView }
@@ -53,7 +59,15 @@ class RambleImeService : InputMethodService() {
     /** No extract (fullscreen) editor in landscape; the keyboard stays a panel. */
     override fun onEvaluateFullscreenMode(): Boolean = false
 
-    override fun onCreateInputView(): View {
+    override fun onCreateInputView(): View = try {
+        createInputViewInner()
+    } catch (t: Throwable) {
+        CrashLog.write("ime onCreateInputView", t)
+        throw t
+    }
+
+    private fun createInputViewInner(): View {
+        CrashLog.note("ime onCreateInputView")
         val e = engine ?: (application as RambleApplication).createImeEngine(this).also { engine = it }
         val view = FlutterView(this, FlutterTextureView(this))
         view.attachToFlutterEngine(e)
@@ -86,6 +100,7 @@ class RambleImeService : InputMethodService() {
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        CrashLog.note("ime onStartInputView pkg=${info?.packageName} restarting=$restarting")
         super.onStartInputView(info, restarting)
         engine?.lifecycleChannel?.appIsResumed()
         ime?.notifyInputStarted(info, restarting)
@@ -108,6 +123,7 @@ class RambleImeService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        CrashLog.note("ime onDestroy")
         val e = engine
         val view = flutterView
         val handler = ime

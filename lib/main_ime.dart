@@ -7,7 +7,9 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show PlatformDispatcher;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -25,9 +27,35 @@ class _KeyboardOrigin extends DictationOriginNotifier {
   DictationOrigin build() => DictationOrigin.keyboard;
 }
 
+/// Appends Flutter/Dart errors from the keyboard engine to
+/// Android/data/<package>/files/logs/dart.log (local only, never uploaded).
+Future<void> _installDartCrashLog() async {
+  final ext = await getExternalStorageDirectory();
+  if (ext == null) return;
+  final log = File(p.join(ext.path, 'logs', 'dart.log'));
+  await log.parent.create(recursive: true);
+  void write(String what, Object error, StackTrace? stack) {
+    try {
+      log.writeAsStringSync('${DateTime.now().toIso8601String()} $what: $error\n$stack\n\n', mode: FileMode.append);
+    } catch (_) {}
+  }
+
+  write('ime start', 'imeMain', null);
+  final previous = FlutterError.onError;
+  FlutterError.onError = (details) {
+    write('FlutterError', details.exception, details.stack);
+    previous?.call(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    write('uncaught', error, stack);
+    return false;
+  };
+}
+
 @pragma('vm:entry-point')
 Future<void> imeMain() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _installDartCrashLog();
 
   // Register the channel handler before anything awaits so the first
   // `inputStarted` from the service is not dropped.

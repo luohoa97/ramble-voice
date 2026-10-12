@@ -14,6 +14,11 @@ import io.flutter.embedding.engine.dart.DartExecutor
  * font/asset resources instead of paying for them twice.
  */
 class RambleApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        CrashLog.install(this)
+    }
+
     private val group: FlutterEngineGroup by lazy { FlutterEngineGroup(this) }
 
     /**

@@ -55,6 +55,16 @@ void main() {
       expect(args, {'blockedApps': ['a'], 'size': 'small', 'hotkeyEnabled': false, 'hotkeyCode': 114});
     });
 
+    test('clearBubbleHiddenApps reaches the channel', () async {
+      String? method;
+      messenger.setMockMethodCallHandler(channel, (c) async {
+        method = c.method;
+        return null;
+      });
+      await AndroidSystem().clearBubbleHiddenApps();
+      expect(method, 'clearBubbleHiddenApps');
+    });
+
     test('recordHotkey returns the key code, null when unavailable', () async {
       messenger.setMockMethodCallHandler(channel, (c) async => c.method == 'recordHotkey' ? 131 : null);
       expect(await AndroidSystem().recordHotkey(), 131);

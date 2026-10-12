@@ -29,10 +29,31 @@ class BubblePrefs(context: Context) {
     val sizeDp: Int
         get() = if (prefs.getString(KEY_SIZE, "medium") == "small") SIZE_SMALL_DP else SIZE_MEDIUM_DP
 
-    /** Vertical drag offset from the default position, in dp. */
-    var offsetYDp: Float
-        get() = prefs.getFloat(KEY_OFFSET_Y, 0f)
-        set(value) = prefs.edit().putFloat(KEY_OFFSET_Y, value).apply()
+    /** Docked to the right screen edge (else the left). */
+    var dockRight: Boolean
+        get() = prefs.getBoolean(KEY_DOCK_RIGHT, true)
+        set(value) = prefs.edit().putBoolean(KEY_DOCK_RIGHT, value).apply()
+
+    /** Vertical centre as a fraction of screen height, remembered per orientation. */
+    fun yFraction(landscape: Boolean): Float = prefs.getFloat(yKey(landscape), DEFAULT_Y_FRACTION)
+
+    fun setYFraction(landscape: Boolean, value: Float) {
+        prefs.edit().putFloat(yKey(landscape), value).apply()
+    }
+
+    private fun yKey(landscape: Boolean) = if (landscape) KEY_Y_LANDSCAPE else KEY_Y_PORTRAIT
+
+    /** Apps where the user dragged the bubble onto the dismiss target and held it. */
+    val hiddenApps: Set<String>
+        get() = prefs.getStringSet(KEY_HIDDEN, emptySet()) ?: emptySet()
+
+    fun hideInApp(pkg: String) {
+        prefs.edit().putStringSet(KEY_HIDDEN, hiddenApps + pkg).apply()
+    }
+
+    fun clearHiddenApps() {
+        prefs.edit().remove(KEY_HIDDEN).apply()
+    }
 
     /** Physical-keyboard dictation key on/off. */
     val hotkeyEnabled: Boolean
@@ -59,7 +80,11 @@ class BubblePrefs(context: Context) {
         private const val KEY_HOTKEY_ON = "hotkey_on"
         private const val KEY_HOTKEY_CODE = "hotkey_code"
         private const val KEY_SIZE = "size"
-        private const val KEY_OFFSET_Y = "offset_y_dp"
+        private const val KEY_DOCK_RIGHT = "dock_right"
+        private const val KEY_Y_PORTRAIT = "y_portrait"
+        private const val KEY_Y_LANDSCAPE = "y_landscape"
+        private const val KEY_HIDDEN = "hidden"
+        private const val DEFAULT_Y_FRACTION = 0.5f
         const val SIZE_SMALL_DP = 40
         const val SIZE_MEDIUM_DP = 52
     }

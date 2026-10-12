@@ -127,6 +127,10 @@ class SystemHandler(
                     }, 10_500L)
                 }
             }
+            "clearBubbleHiddenApps" -> {
+                BubblePrefs(context).clearHiddenApps()
+                result.success(null)
+            }
             "sdkInt" -> result.success(Build.VERSION.SDK_INT)
             "hasSecureSettingsPermission" -> result.success(BubbleKeeper.canWriteSecureSettings(context))
             "setBubbleAutoRestore" -> {

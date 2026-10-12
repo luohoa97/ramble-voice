@@ -156,8 +156,9 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Keep your usual keyboard. A small microphone appears next to text fields: tap it to start and stop, '
-          'or hold it to talk. Your cleaned text is inserted where the cursor is.',
+          'Keep your usual keyboard. A small microphone handle docks to the edge of the screen whenever a keyboard is up. '
+          'Tap it to dictate, hold it to talk, drag it anywhere (it snaps to an edge), or drag it to the X to hide it. '
+          'Your cleaned text is inserted where the cursor is.',
           style: t.bodyMedium,
         ),
         const SizedBox(height: 8),
@@ -337,6 +338,13 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
               ),
             ),
         const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            onPressed: _system.clearBubbleHiddenApps,
+            child: const Text('Show again in apps hidden by dragging'),
+          ),
+        ),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: TextButton.icon(

@@ -38,7 +38,7 @@ class AppSettings {
     this.haptics = true,
     this.typeIntoFocusedApp = true,
     this.modelLicenseAccepted = false,
-    this.autoSwitchBack = true,
+    this.autoSwitchBack = false,
     this.hotkeyTrigger = 'CTRL+ALT+space',
     this.hotkeyKey = 'capslock',
     this.languages = const [],
@@ -184,7 +184,7 @@ class AppSettings {
         'haptics': haptics,
         'typeIntoFocusedApp': typeIntoFocusedApp,
         'modelLicenseAccepted': modelLicenseAccepted,
-        'autoSwitchBack': autoSwitchBack,
+        'autoSwitchBackAfterDictation': autoSwitchBack,
         'hotkeyTrigger': hotkeyTrigger,
         'hotkeyKey': hotkeyKey,
         'languages': languages,
@@ -214,7 +214,9 @@ class AppSettings {
         haptics: j['haptics'] as bool? ?? true,
         typeIntoFocusedApp: j['typeIntoFocusedApp'] as bool? ?? true,
         modelLicenseAccepted: j['modelLicenseAccepted'] as bool? ?? false,
-        autoSwitchBack: j['autoSwitchBack'] as bool? ?? true,
+        // Renamed key: the old 'autoSwitchBack' defaulted to on; users now stay
+        // on Ramble until they press ABC unless they opt in.
+        autoSwitchBack: j['autoSwitchBackAfterDictation'] as bool? ?? false,
         hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
         hotkeyKey: j['hotkeyKey'] as String? ?? 'capslock',
         languages: _languagesFromJson(j, deviceLanguages),

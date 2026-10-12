@@ -22,22 +22,28 @@ import kotlin.math.abs
 enum class BubblePhase { IDLE, LISTENING, PROCESSING, DONE, ERROR }
 
 /**
- * The floating mic. Drawn by hand (circle, icon, level ring, spinner arc) so
- * it stays tiny and has no dependency on Flutter or a theme.
+ * The floating mic handle. Drawn by hand (circle, icon, spinner, and a pill
+ * with a live waveform while listening) so it stays tiny and has no dependency
+ * on Flutter or a theme.
  *
- * Gestures: tap toggles, press and hold is hold-to-talk, dragging moves it
- * vertically. The view reports intent through the callbacks; it never owns
- * dictation state.
+ * Gestures: tap, press and hold (hold-to-talk), and free dragging. The view
+ * only reports intent; the service owns position, docking and dictation state.
  */
-class BubbleView(context: Context, private val circleDp: Int) : View(context) {
+class BubbleView(context: Context, circleDp: Int) : View(context) {
     interface Listener {
+        /** Finger touched down: the service slides the bubble fully out. */
+        fun onPress()
+
+        /** Finger lifted without tap, hold or drag. */
+        fun onReleased()
         fun onTap()
         fun onHoldStart()
         fun onHoldEnd()
         fun onCancel()
+        fun onDragStart()
 
-        /** Finger moved the bubble by [dy] pixels since the last call. */
-        fun onDrag(dy: Float)
+        /** Finger moved the bubble by ([dx], [dy]) pixels since the last call. */
+        fun onDrag(dx: Float, dy: Float)
         fun onDragEnd()
     }
 
@@ -45,8 +51,17 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
 
     private val density = resources.displayMetrics.density
     private val circlePx = circleDp * density
-    private val ringPad = RING_PAD_DP * density
-    val sizePx: Int = (circlePx + ringPad * 2).toInt()
+
+    /** Idle/processing size; the window is exactly this big. */
+    val circleSizePx: Int = circlePx.toInt()
+
+    /** Window size while listening: a pill with waveform and a stop button. */
+    val pillWidthPx: Int = (circlePx * PILL_RATIO).toInt()
+
+    var expanded = false
+        private set
+
+    val widthPx: Int get() = if (expanded) pillWidthPx else circleSizePx
 
     private val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
         Configuration.UI_MODE_NIGHT_YES
@@ -58,20 +73,20 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
     private val onError = if (dark) 0xFF601410.toInt() else 0xFFFFFFFF.toInt()
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 3 * density
         strokeCap = Paint.Cap.ROUND
     }
-    private val arcBounds = RectF()
+    private val rect = RectF()
     private val micIcon: Drawable = requireNotNull(context.getDrawable(R.drawable.ic_bubble_mic)).mutate()
     private val checkIcon: Drawable = requireNotNull(context.getDrawable(R.drawable.ic_bubble_check)).mutate()
     private val errorIcon: Drawable = requireNotNull(context.getDrawable(R.drawable.ic_bubble_error)).mutate()
 
     private var phase = BubblePhase.IDLE
-    private var targetLevel = 0f
-    private var shownLevel = 0f
     private var spin = 0f
+
+    /** Recent input levels, newest last, drawn as the waveform. */
+    private val levels = FloatArray(BARS)
 
     private val spinner = ValueAnimator.ofFloat(0f, 360f).apply {
         duration = 900
@@ -86,7 +101,9 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
     // Gesture state.
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private val main = Handler(Looper.getMainLooper())
+    private var downX = 0f
     private var downY = 0f
+    private var lastX = 0f
     private var lastY = 0f
     private var dragging = false
     private var holding = false
@@ -108,11 +125,15 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        setMeasuredDimension(sizePx, sizePx)
+        setMeasuredDimension(widthPx, circleSizePx)
     }
 
     fun setPhase(next: BubblePhase, level: Float = 0f) {
-        targetLevel = level.coerceIn(0f, 1f)
+        val wantExpanded = next == BubblePhase.LISTENING
+        if (next == BubblePhase.LISTENING) {
+            System.arraycopy(levels, 1, levels, 0, BARS - 1)
+            levels[BARS - 1] = level.coerceIn(0f, 1f)
+        }
         if (next == phase) {
             if (next == BubblePhase.LISTENING) invalidate()
             return
@@ -123,9 +144,10 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
         } else if (spinner.isStarted) {
             spinner.cancel()
         }
-        if (next != BubblePhase.LISTENING) {
-            targetLevel = 0f
-            shownLevel = 0f
+        if (next != BubblePhase.LISTENING) levels.fill(0f)
+        if (wantExpanded != expanded) {
+            expanded = wantExpanded
+            requestLayout()
         }
         val description = describe(next)
         contentDescription = description
@@ -144,59 +166,85 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
     )
 
     override fun onDraw(canvas: Canvas) {
-        val cx = width / 2f
-        val cy = height / 2f
-        val radius = circlePx / 2f
+        val w = width.toFloat()
+        val h = height.toFloat()
         val error = phase == BubblePhase.ERROR
 
         fill.color = if (error) errorBg else accent
-        canvas.drawCircle(cx, cy, radius, fill)
+        rect.set(0f, 0f, w, h)
+        canvas.drawRoundRect(rect, h / 2, h / 2, fill)
 
-        // Level ring: the circle's halo swells with the voice.
-        if (phase == BubblePhase.LISTENING) {
-            shownLevel += (targetLevel - shownLevel) * 0.35f
-            ring.color = (accent and 0x00FFFFFF) or 0xAA000000.toInt()
-            ring.strokeWidth = (2f + shownLevel * 4f) * density
-            canvas.drawCircle(cx, cy, radius + ringPad * (0.35f + 0.65f * shownLevel), ring)
-            if (abs(targetLevel - shownLevel) > 0.01f) postInvalidateOnAnimation()
-        }
+        if (expanded) drawPill(canvas, w, h) else drawCircleContent(canvas, w, h, error)
+    }
 
-        // Processing: indeterminate arc hugging the circle.
+    private fun drawCircleContent(canvas: Canvas, w: Float, h: Float, error: Boolean) {
         if (phase == BubblePhase.PROCESSING) {
-            ring.color = accent
-            ring.strokeWidth = 3 * density
-            val r = radius + ringPad * 0.5f
-            arcBounds.set(cx - r, cy - r, cx + r, cy + r)
-            canvas.drawArc(arcBounds, spin, 100f, false, ring)
+            stroke.color = onAccent
+            stroke.strokeWidth = 3 * density
+            val r = h / 2 - 4 * density
+            rect.set(w / 2 - r, h / 2 - r, w / 2 + r, h / 2 + r)
+            canvas.drawArc(rect, spin, 100f, false, stroke)
         }
-
         val icon = when (phase) {
             BubblePhase.DONE -> checkIcon
             BubblePhase.ERROR -> errorIcon
             else -> micIcon
         }
         icon.setTint(if (error) onError else onAccent)
-        val half = (circlePx * 0.28f).toInt()
-        icon.setBounds((cx - half).toInt(), (cy - half).toInt(), (cx + half).toInt(), (cy + half).toInt())
+        val half = (h * 0.28f).toInt()
+        icon.setBounds((w / 2 - half).toInt(), (h / 2 - half).toInt(), (w / 2 + half).toInt(), (h / 2 + half).toInt())
         icon.draw(canvas)
+    }
+
+    /** Waveform on the left, stop button on the right. */
+    private fun drawPill(canvas: Canvas, w: Float, h: Float) {
+        val pad = h * 0.3f
+        val stopSize = h * 0.62f
+        val stopLeft = w - pad * 0.5f - stopSize
+        // Waveform bars.
+        val left = pad
+        val right = stopLeft - pad * 0.6f
+        val slot = (right - left) / BARS
+        fill.color = onAccent
+        val barWidth = slot * 0.5f
+        for (i in 0 until BARS) {
+            val bar = (0.12f + 0.88f * levels[i]) * (h * 0.56f)
+            val cx = left + slot * (i + 0.5f)
+            rect.set(cx - barWidth / 2, h / 2 - bar / 2, cx + barWidth / 2, h / 2 + bar / 2)
+            canvas.drawRoundRect(rect, barWidth / 2, barWidth / 2, fill)
+        }
+        // Stop button: a lighter disc with a rounded square.
+        fill.color = (onAccent and 0x00FFFFFF) or 0x33000000
+        val cx = stopLeft + stopSize / 2
+        canvas.drawCircle(cx, h / 2, stopSize / 2, fill)
+        fill.color = onAccent
+        val q = stopSize * 0.2f
+        rect.set(cx - q, h / 2 - q, cx + q, h / 2 + q)
+        canvas.drawRoundRect(rect, q * 0.3f, q * 0.3f, fill)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                downX = event.rawX
                 downY = event.rawY
-                lastY = event.rawY
+                lastX = downX
+                lastY = downY
                 dragging = false
                 holding = false
-                main.postDelayed(holdRunnable, ViewConfiguration.getLongPressTimeout().toLong())
+                listener?.onPress()
+                // No hold-to-talk while a session is already running; the pill is a stop button.
+                if (!expanded) main.postDelayed(holdRunnable, ViewConfiguration.getLongPressTimeout().toLong())
             }
             MotionEvent.ACTION_MOVE -> {
-                if (!holding && !dragging && abs(event.rawY - downY) > slop) {
+                if (!holding && !dragging && (abs(event.rawY - downY) > slop || abs(event.rawX - downX) > slop)) {
                     dragging = true
                     main.removeCallbacks(holdRunnable)
+                    listener?.onDragStart()
                 }
                 if (dragging) {
-                    listener?.onDrag(event.rawY - lastY)
+                    listener?.onDrag(event.rawX - lastX, event.rawY - lastY)
+                    lastX = event.rawX
                     lastY = event.rawY
                 }
             }
@@ -210,10 +258,12 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
                         performClick()
                     }
                 }
+                listener?.onReleased()
             }
             MotionEvent.ACTION_CANCEL -> {
                 main.removeCallbacks(holdRunnable)
                 if (holding) listener?.onHoldEnd() else if (dragging) listener?.onDragEnd()
+                listener?.onReleased()
             }
         }
         return true
@@ -225,7 +275,7 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
         return true
     }
 
-    /** Haptic for state changes: start, confirm and reject. */
+    /** Haptic for state changes and docking; follows the system touch-feedback setting. */
     fun buzz(kind: Int) {
         performHapticFeedback(kind)
     }
@@ -237,6 +287,7 @@ class BubbleView(context: Context, private val circleDp: Int) : View(context) {
     }
 
     companion object {
-        private const val RING_PAD_DP = 8
+        private const val PILL_RATIO = 3.6f
+        private const val BARS = 7
     }
 }

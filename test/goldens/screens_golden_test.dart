@@ -213,6 +213,8 @@ void main() {
     widgetScene('kb_listening', d, keyboardView, Scene(package: gmail, state: listening()));
     widgetScene('kb_paused', d, keyboardView, Scene(package: gmail, state: DictationListening(
       elapsed: const Duration(seconds: 42), level: 0, limit: const Duration(minutes: 10), warnBefore: const Duration(seconds: 60), paused: true)));
+    widgetScene('kb_done', d, keyboardView, Scene(package: gmail, state: DictationDone(outcome())));
+    widgetScene('kb_error', d, keyboardView, const Scene(package: gmail, state: DictationFailed(message: 'Add your Gemini API key.', kind: CleanupFailureKind.missingApiKey)));
     widgetScene('kb_discarded', d, keyboardView, const Scene(package: gmail, state: DictationIdle(notice: 'Recording discarded.', discardedId: 'x')));
   }
   widgetScene('keyboard_idle', keyboard, keyboardView, const Scene(package: gmail));

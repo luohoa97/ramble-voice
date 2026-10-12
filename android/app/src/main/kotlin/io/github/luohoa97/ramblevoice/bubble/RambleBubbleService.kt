@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.luohoa97.ramblevoice.bubble
 
+import io.github.luohoa97.ramblevoice.CrashLog
 import android.accessibilityservice.AccessibilityService
+import android.animation.ValueAnimator
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Handler
@@ -15,6 +18,8 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.Toast
 import android.content.ComponentName
 import android.view.inputmethod.InputMethodManager
@@ -45,11 +50,15 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     /** The field the bubble is attached to. Re-resolved before inserting. */
     private var focusNode: AccessibilityNodeInfo? = null
-    private var fieldBounds = Rect()
     private var fieldPackage: String? = null
 
     private var phase = BubblePhase.IDLE
     private var dragging = false
+    private var revealed = false
+    private var dismissedPackage: String? = null
+    private var target: DismissTargetView? = null
+    private var targetParams: WindowManager.LayoutParams? = null
+    private var overTarget = false
     private var holdStartedListening = false
     private var holdViaKeyboard = false
     private var hotkeyHeld = false
@@ -57,6 +66,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private val evaluateRunnable = Runnable { evaluate() }
     private val hideRunnable = Runnable { if (!sessionActive()) removeBubble() }
     private val settleRunnable = Runnable { settle() }
+    private val tuckRunnable = Runnable { tuck() }
+    private val armRunnable = Runnable {
+        target?.armed = true
+        view?.buzz(HapticFeedbackConstants.LONG_PRESS)
+    }
     private val releaseRunnable = Runnable { host.sendIfRunning("release") }
 
     override fun onServiceConnected() {
@@ -76,6 +90,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (!::prefs.isInitialized) return
+        // A new app coming forward ends a "hide until next app switch".
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && dismissedPackage != null) {
+            val pkg = event.packageName?.toString()
+            if (pkg != null && pkg != dismissedPackage && pkg != defaultKeyboardPackage()) dismissedPackage = null
+        }
         // Coalesce the burst of events one focus change produces.
         main.removeCallbacks(evaluateRunnable)
         main.postDelayed(evaluateRunnable, EVALUATE_DELAY_MS)
@@ -124,21 +143,27 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private fun evaluate() {
         if (dragging) return
         // Our own keyboard is up: it has its own mic, so the bubble steps aside.
-        if (ImeLaunch.imeShowing) {
+        // The flag can go stale if the keyboard is torn down without a hide
+        // callback, so only trust it while Ramble is the current keyboard.
+        if (ImeLaunch.imeShowing && defaultKeyboardPackage() == packageName) {
             removeBubble()
             return
         }
+        if (ImeLaunch.imeShowing) ImeLaunch.setImeShowing(false)
         val candidate = focusedEditable()
-        if (candidate == null) {
+        noteDecision(candidate)
+        // The handle belongs to a visible keyboard (any IME); a running dictation keeps it up regardless.
+        if (candidate == null || (!keyboardVisible() && !sessionActive())) {
             if (!sessionActive()) main.postDelayed(hideRunnable, HIDE_DELAY_MS)
             return
         }
         main.removeCallbacks(hideRunnable)
         focusNode = candidate
         fieldPackage = candidate.packageName?.toString()
-        candidate.getBoundsInScreen(fieldBounds)
         showOrMove()
     }
+
+    private fun keyboardVisible() = windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
 
     /** The focused text field of the active app window, or null if the bubble must not show. */
     private fun focusedEditable(): AccessibilityNodeInfo? {
@@ -148,7 +173,31 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         val pkg = node.packageName?.toString() ?: return null
         return node.takeIf {
             it.isEditable && !it.isPassword && it.isVisibleToUser &&
-                pkg != packageName && pkg !in prefs.blockedApps && pkg != defaultKeyboardPackage()
+                pkg != packageName && pkg !in prefs.blockedApps && pkg !in prefs.hiddenApps &&
+                pkg != dismissedPackage && pkg != defaultKeyboardPackage()
+        }
+    }
+
+    private var lastNote = ""
+
+    /** One line per change in the bubble's decision, to the local crash log. */
+    private fun noteDecision(candidate: AccessibilityNodeInfo?) {
+        val note = if (candidate != null) {
+            "show for ${candidate.packageName}"
+        } else {
+            val root = rootInActiveWindow
+            val focus = root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            when {
+                root == null -> "hide: no active window"
+                focus == null -> "hide: no input focus in ${root.packageName}"
+                !focus.isEditable -> "hide: focus not editable in ${focus.packageName}"
+                focus.isPassword -> "hide: password field"
+                else -> "hide: excluded ${focus.packageName}"
+            }
+        }
+        if (note != lastNote) {
+            lastNote = note
+            CrashLog.note("bubble $note")
         }
     }
 
@@ -157,15 +206,61 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     private fun sessionActive() = phase == BubblePhase.LISTENING || phase == BubblePhase.PROCESSING
 
-    // Overlay ---------------------------------------------------------------
+    // Overlay: docked handle ------------------------------------------------------
+
+    private val density get() = resources.displayMetrics.density
+    private val landscape get() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    private fun screen() = windowManager.currentWindowMetrics.bounds
+
+    private fun insets() = windowManager.currentWindowMetrics.windowInsets
+        .getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+
+    /** Top edge limits for the handle: below the status bar, above the keyboard. */
+    private fun verticalLimits(height: Int): Pair<Int, Int> {
+        val insets = insets()
+        val margin = (MARGIN_DP * density).toInt()
+        val imeTop = windows
+            .filter { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            .minOfOrNull { w -> Rect().also { w.getBoundsInScreen(it) }.top }
+        val bottom = minOf(imeTop ?: Int.MAX_VALUE, screen().bottom - insets.bottom)
+        val top = screen().top + insets.top
+        return top to maxOf(top, bottom - height - margin)
+    }
+
+    /** Resting position: on the docked edge, tucked 40% off-screen unless revealed or expanded. */
+    private fun dockedPosition(v: BubbleView): Pair<Int, Int> {
+        val s = screen()
+        val insets = insets()
+        val w = v.widthPx
+        val margin = (MARGIN_DP * density).toInt()
+        val out = revealed || v.expanded
+        val x = when {
+            prefs.dockRight && out -> s.right - insets.right - w - margin
+            prefs.dockRight -> s.right - (w * (1 - TUCK)).toInt()
+            out -> s.left + insets.left + margin
+            else -> s.left - (w * TUCK).toInt()
+        }
+        val (minY, maxY) = verticalLimits(v.circleSizePx)
+        val y = (prefs.yFraction(landscape) * s.height() - v.circleSizePx / 2).toInt().coerceIn(minY, maxY)
+        return x to y
+    }
 
     private fun showOrMove() {
+        if (dragging) return
         val v = view ?: createBubble()
         val p = params ?: return
-        val (x, y) = position(v.sizePx)
-        p.x = x
-        p.y = y
-        if (v.isAttachedToWindow) windowManager.updateViewLayout(v, p) else windowManager.addView(v, p)
+        p.width = v.widthPx
+        val (x, y) = dockedPosition(v)
+        if (v.isAttachedToWindow && v.width != p.width) windowManager.updateViewLayout(v, p)
+        if (!v.isAttachedToWindow) {
+            p.x = x
+            p.y = y
+            windowManager.addView(v, p)
+            v.post { v.animate().alpha(if (revealed || v.expanded) 1f else IDLE_ALPHA).setDuration(160).start() }
+        } else {
+            glideTo(v, p, x, y, spring = false)
+        }
     }
 
     private fun createBubble(): BubbleView {
@@ -174,8 +269,8 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         v.alpha = 0f
         view = v
         params = WindowManager.LayoutParams(
-            v.sizePx,
-            v.sizePx,
+            v.widthPx,
+            v.circleSizePx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -186,9 +281,31 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
             gravity = Gravity.TOP or Gravity.START
             title = "RambleBubble"
         }
-        v.post { v.animate().alpha(1f).setDuration(120).start() }
         host.ensureStarted()
         return v
+    }
+
+    private var glide: ValueAnimator? = null
+
+    /** Moves the window to ([x], [y]); [spring] adds the overshoot used when snapping to an edge. */
+    private fun glideTo(v: BubbleView, p: WindowManager.LayoutParams, x: Int, y: Int, spring: Boolean) {
+        glide?.cancel()
+        val fromX = p.x
+        val fromY = p.y
+        if (fromX == x && fromY == y) return
+        glide = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = if (spring) 360L else 200L
+            interpolator = if (spring) OvershootInterpolator(1.4f) else DecelerateInterpolator()
+            addUpdateListener {
+                if (!v.isAttachedToWindow) return@addUpdateListener
+                val f = it.animatedValue as Float
+                p.x = fromX + ((x - fromX) * f).toInt()
+                p.y = fromY + ((y - fromY) * f).toInt()
+                windowManager.updateViewLayout(v, p)
+            }
+            start()
+        }
+        v.animate().alpha(if (revealed || v.expanded) 1f else IDLE_ALPHA).setDuration(160).start()
     }
 
     private fun removeBubble() {
@@ -197,41 +314,151 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         params = null
         focusNode = null
         fieldPackage = null
+        revealed = false
+        glide?.cancel()
         main.removeCallbacks(settleRunnable)
+        main.removeCallbacks(tuckRunnable)
+        hideDismissTarget()
         v.animate().alpha(0f).setDuration(120).withEndAction {
             if (v.isAttachedToWindow) windowManager.removeView(v)
         }.start()
     }
 
-    /** Screen-pixel limits for the bubble's top edge: below the status bar, above the keyboard. */
-    private fun verticalLimits(size: Int): Pair<Int, Int> {
-        val metrics = windowManager.currentWindowMetrics
-        val insets = metrics.windowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-        val margin = (MARGIN_DP * resources.displayMetrics.density).toInt()
-        val imeTop = windows
-            .filter { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
-            .minOfOrNull { w -> Rect().also { w.getBoundsInScreen(it) }.top }
-        val bottom = minOf(imeTop ?: Int.MAX_VALUE, metrics.bounds.bottom - insets.bottom)
-        val top = metrics.bounds.top + insets.top
-        return top to maxOf(top, bottom - size - margin)
+    /** Slides out for interaction and back to the tucked, translucent rest state afterwards. */
+    private fun reveal() {
+        main.removeCallbacks(tuckRunnable)
+        revealed = true
+        showOrMove()
     }
 
-    /** Where the bubble sits with no user offset: centred on the field, vertically. */
-    private fun baseY(size: Int) = fieldBounds.centerY() - size / 2
+    private fun scheduleTuck() {
+        main.removeCallbacks(tuckRunnable)
+        main.postDelayed(tuckRunnable, TUCK_DELAY_MS)
+    }
 
-    /** Top-left of the bubble in screen pixels: field's right edge, above the keyboard, on screen. */
-    private fun position(size: Int): Pair<Int, Int> {
-        val metrics = windowManager.currentWindowMetrics
-        val insets = metrics.windowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-        val density = resources.displayMetrics.density
-        val screen = metrics.bounds
-        val right = minOf(fieldBounds.right, screen.right - insets.right)
-        val x = (right - size - (MARGIN_DP * density).toInt()).coerceIn(screen.left + insets.left, screen.right - insets.right - size)
-        val (minY, maxY) = verticalLimits(size)
-        return x to (baseY(size) + (prefs.offsetYDp * density).toInt()).coerceIn(minY, maxY)
+    private fun tuck() {
+        if (dragging || sessionActive() || phase != BubblePhase.IDLE) return
+        revealed = false
+        showOrMove()
+    }
+
+    // Overlay: dismiss target -----------------------------------------------------
+
+    private fun showDismissTarget() {
+        if (target != null) return
+        val t = DismissTargetView(this)
+        val s = screen()
+        val tp = WindowManager.LayoutParams(
+            t.widthPx,
+            t.heightPx,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            title = "RambleBubbleDismiss"
+            x = s.centerX() - t.widthPx / 2
+            y = s.bottom - insets().bottom - t.heightPx - (24 * density).toInt()
+        }
+        t.alpha = 0f
+        windowManager.addView(t, tp)
+        t.animate().alpha(1f).setDuration(140).start()
+        target = t
+        targetParams = tp
+    }
+
+    private fun hideDismissTarget() {
+        main.removeCallbacks(armRunnable)
+        overTarget = false
+        val t = target ?: return
+        target = null
+        targetParams = null
+        t.animate().alpha(0f).setDuration(120).withEndAction {
+            if (t.isAttachedToWindow) windowManager.removeView(t)
+        }.start()
+    }
+
+    /** Whether the bubble's centre is over the dismiss circle; updates the highlight and arming timer. */
+    private fun updateTargetHover(v: BubbleView, p: WindowManager.LayoutParams) {
+        val t = target ?: return
+        val tp = targetParams ?: return
+        val dx = (p.x + v.widthPx / 2f) - (tp.x + t.centerX)
+        val dy = (p.y + v.circleSizePx / 2f) - (tp.y + t.centerY)
+        val hot = dx * dx + dy * dy < (t.radiusPx + v.circleSizePx / 2f).let { it * it }
+        if (hot == overTarget) return
+        overTarget = hot
+        t.hot = hot
+        main.removeCallbacks(armRunnable)
+        if (hot) {
+            v.buzz(HapticFeedbackConstants.CLOCK_TICK)
+            main.postDelayed(armRunnable, HIDE_FOR_APP_MS)
+        } else {
+            t.armed = false
+        }
+    }
+
+    /** Hides the bubble until the next app switch, or for good in this app when [forApp]. */
+    private fun dismiss(forApp: Boolean) {
+        val pkg = fieldPackage
+        if (pkg != null) {
+            dismissedPackage = pkg
+            if (forApp) prefs.hideInApp(pkg)
+        }
+        dragging = false
+        hideDismissTarget()
+        removeBubble()
     }
 
     // User gestures (BubbleView.Listener) ---------------------------------------
+
+    override fun onPress() = reveal()
+
+    override fun onReleased() {
+        if (!dragging) scheduleTuck()
+    }
+
+    override fun onDragStart() {
+        dragging = true
+        glide?.cancel()
+        main.removeCallbacks(tuckRunnable)
+        view?.animate()?.alpha(1f)?.setDuration(100)?.start()
+        showDismissTarget()
+    }
+
+    override fun onDrag(dx: Float, dy: Float) {
+        val p = params ?: return
+        val v = view ?: return
+        val s = screen()
+        p.x = (p.x + dx.toInt()).coerceIn(s.left, s.right - v.widthPx)
+        p.y = (p.y + dy.toInt()).coerceIn(s.top, s.bottom - v.circleSizePx)
+        if (v.isAttachedToWindow) windowManager.updateViewLayout(v, p)
+        updateTargetHover(v, p)
+    }
+
+    override fun onDragEnd() {
+        val p = params ?: return
+        val v = view ?: return
+        if (overTarget) {
+            dismiss(forApp = target?.armed == true)
+            return
+        }
+        hideDismissTarget()
+        // Snap to the nearest edge and remember where it was dropped.
+        val s = screen()
+        prefs.dockRight = p.x + v.widthPx / 2 > s.centerX()
+        val (minY, maxY) = verticalLimits(v.circleSizePx)
+        val y = p.y.coerceIn(minY, maxY)
+        prefs.setYFraction(landscape, (y + v.circleSizePx / 2f) / s.height())
+        dragging = false
+        revealed = true
+        val (x, ty) = dockedPosition(v)
+        glideTo(v, p, x, ty, spring = true)
+        v.buzz(HapticFeedbackConstants.CLOCK_TICK)
+        scheduleTuck()
+    }
 
     override fun onTap() {
         // While a headless dictation is running the tap controls it; otherwise hand over to the keyboard.
@@ -284,22 +511,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     override fun onCancel() = command("cancel")
 
-    override fun onDrag(dy: Float) {
-        val p = params ?: return
-        val v = view ?: return
-        dragging = true
-        val (minY, maxY) = verticalLimits(v.sizePx)
-        p.y = (p.y + dy.toInt()).coerceIn(minY, maxY)
-        if (v.isAttachedToWindow) windowManager.updateViewLayout(v, p)
-    }
-
-    override fun onDragEnd() {
-        val p = params ?: return
-        val v = view ?: return
-        prefs.offsetYDp = (p.y - baseY(v.sizePx)) / resources.displayMetrics.density
-        dragging = false
-    }
-
     private fun command(method: String) {
         if (phase == BubblePhase.IDLE || phase == BubblePhase.DONE || phase == BubblePhase.ERROR) {
             if (!host.isReady) applyPhase(BubblePhase.PROCESSING, 0f) // engine warming up
@@ -324,6 +535,14 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         main.removeCallbacks(releaseRunnable)
         view?.let { v ->
             v.setPhase(next, level)
+            if (next != previous || params?.width != v.widthPx) {
+                // Busy phases keep the handle out; the pill needs a wider window.
+                if (next == BubblePhase.IDLE) scheduleTuck() else {
+                    main.removeCallbacks(tuckRunnable)
+                    revealed = true
+                }
+                main.post { showOrMove() }
+            }
             if (next != previous) when (next) {
                 BubblePhase.DONE -> v.buzz(HapticFeedbackConstants.CONFIRM)
                 BubblePhase.ERROR -> v.buzz(HapticFeedbackConstants.REJECT)
@@ -393,6 +612,8 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         ImeLaunch.onImeShowingChanged = null
         main.removeCallbacksAndMessages(null)
         view?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
+        target?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
+        target = null
         view = null
         params = null
         focusNode = null
@@ -406,6 +627,12 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         private const val ERROR_HOLD_MS = 2500L
         private const val IDLE_RELEASE_MS = 3 * 60 * 1000L
         private const val MARGIN_DP = 8
+
+        /** Share of the idle handle that sits off-screen. */
+        private const val TUCK = 0.4f
+        private const val IDLE_ALPHA = 0.7f
+        private const val TUCK_DELAY_MS = 2000L
+        private const val HIDE_FOR_APP_MS = 1000L
 
         /** ComponentCallbacks2.TRIM_MEMORY_BACKGROUND, spelled out because the constant is deprecated. */
         private const val TRIM_MEMORY_BACKGROUND_LEVEL = 40

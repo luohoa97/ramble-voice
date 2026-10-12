@@ -52,10 +52,19 @@ jobs:
           sudo ldconfig
           rm -rf gls.tar.gz gls-build gtk4-layer-shell-1.3.0
       - uses: subosito/flutter-action@v2
+        if: matrix.arch == 'x86_64'
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      # No prebuilt Linux arm64 SDK archive exists; install from the release tag.
+      - name: Install Flutter (arm64)
+        if: matrix.arch == 'aarch64'
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+          "$HOME/flutter/bin/flutter" --disable-analytics
+          "$HOME/flutter/bin/flutter" precache --linux
       - name: Get dependencies
         run: flutter pub get
       - name: Fetch pinned Flutter engine

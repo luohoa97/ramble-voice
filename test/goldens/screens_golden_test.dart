@@ -217,6 +217,22 @@ void main() {
     widgetScene('kb_error', d, keyboardView, const Scene(package: gmail, state: DictationFailed(message: 'Add your Gemini API key.', kind: CleanupFailureKind.missingApiKey)));
     widgetScene('kb_discarded', d, keyboardView, const Scene(package: gmail, state: DictationIdle(notice: 'Recording discarded.', discardedId: 'x')));
   }
+  for (final d in [keyboardLarge, keyboardSmall]) {
+    widgetScene(
+      'kb_model_menu',
+      d,
+      keyboardView,
+      Scene(package: gmail, keySource: KeySource.secureStorage, downloads: {'gemma-4-e4b': downloaded}),
+      act: (t) async {
+        await t.tap(find.byType(EngineChip));
+        await settle(t);
+      },
+    );
+  }
+  widgetScene('kb_tone_menu', keyboardLarge, keyboardView, const Scene(package: gmail), act: (t) async {
+    await t.tap(find.text('Professional'));
+    await settle(t);
+  });
   widgetScene('keyboard_idle', keyboard, keyboardView, const Scene(package: gmail));
   widgetScene('keyboard_listening', keyboard, keyboardView, Scene(package: gmail, state: listening()));
   widgetScene('keyboard_near_limit', keyboard, keyboardView, Scene(package: gmail, state: listening(seconds: 570, level: 0.3)));

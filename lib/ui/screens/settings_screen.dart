@@ -12,6 +12,9 @@ import '../widgets/settings_section.dart';
 import '../widgets/style_chips.dart';
 import 'settings/app_styles_section.dart';
 import 'settings/bubble_section.dart';
+import 'settings/field_context_section.dart';
+import 'settings/names_section.dart';
+import 'settings/polish_section.dart';
 import 'settings/language_section.dart';
 import 'settings/linux_section.dart';
 import 'settings/misc_sections.dart';
@@ -60,8 +63,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       )),
       if (isAndroid) const SettingsSection(title: 'Per-app styles', children: [AppStylesSection()]),
+      const PolishSection(),
       const LanguageSection(),
+      const ContactNamesSection(),
       const SnippetsSection(),
+      if (isAndroid) const FieldContextSection(),
       const SettingsSection(title: 'Recording', children: [RecordingSection()]),
       if (isLinux)
         const SettingsSection(

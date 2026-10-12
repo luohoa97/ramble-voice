@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../app/providers.dart';
 import '../core/style/app_styles.dart';
 import '../core/style/style_profile.dart';
+import '../ui/screens/settings/polish_section.dart';
 import '../ui/util/app_label.dart';
 
 /// Saves [preset] for the app the keyboard is typing into, or as the global
@@ -65,11 +66,13 @@ class ToneMenu extends ConsumerWidget {
         if (label != null)
           PopupMenuItem<String>(enabled: false, height: 32, child: Text('For $label', style: t.labelMedium)),
         for (final p in StylePreset.values)
-          CheckedPopupMenuItem<String>(value: p.name, checked: p == effective, child: Text(p.label)),
+          CheckedPopupMenuItem<String>(value: p.name, checked: p == effective, height: 40, child: Text(p.label)),
         const PopupMenuDivider(),
-        if (canGlobal) PopupMenuItem(value: 'all', child: Text('Use ${effective.label} for all apps')),
-        if (hasOverride) const PopupMenuItem(value: 'reset', child: Text('Reset for this app')),
-        const PopupMenuItem(value: 'edit', child: Text('Custom instructions')),
+        const _EmbeddedEntry(child: PolishChoice()),
+        const PopupMenuDivider(),
+        if (canGlobal) PopupMenuItem(value: 'all', height: 40, child: Text('Use ${effective.label} for all apps')),
+        if (hasOverride) const PopupMenuItem(value: 'reset', height: 40, child: Text('Reset for this app')),
+        const PopupMenuItem(value: 'edit', height: 40, child: Text('Custom instructions')),
       ],
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48),
@@ -86,4 +89,26 @@ class ToneMenu extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// A control placed inside a popup menu that does not close it.
+class _EmbeddedEntry extends PopupMenuEntry<String> {
+  const _EmbeddedEntry({required this.child});
+
+  final Widget child;
+
+  @override
+  double get height => 88;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  State<_EmbeddedEntry> createState() => _EmbeddedEntryState();
+}
+
+class _EmbeddedEntryState extends State<_EmbeddedEntry> {
+  @override
+  Widget build(BuildContext context) =>
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: widget.child);
 }

@@ -14,11 +14,11 @@ import '../core/dictation/dictation_controller.dart';
 import '../platform/android/ime_bridge.dart';
 import '../platform/platform_services.dart';
 import '../ui/util/format.dart';
-import '../ui/widgets/engine_chip.dart';
 import '../ui/widgets/mic_button.dart';
 import 'edit_panel.dart';
 import 'edit_session.dart';
 import 'ime_app.dart';
+import 'model_menu.dart';
 import 'tone_bar.dart';
 
 /// How long the "Inserted / Undo" confirmation stays.
@@ -241,9 +241,16 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
           children: [
             SizedBox(
               height: 48,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: EngineChip(onTap: () => act(() => _openApp(ImeRoutes.settings))),
+              child: Row(
+                children: [
+                  Expanded(child: Align(alignment: Alignment.centerLeft, child: ModelMenu(onTick: _tick))),
+                  IconButton(
+                    tooltip: 'Ramble settings',
+                    iconSize: 24,
+                    onPressed: () => act(() => _openApp(ImeRoutes.settings)),
+                    icon: Icon(Icons.settings_outlined, color: scheme.onSurfaceVariant),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -316,12 +323,6 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                         }),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Ramble settings',
-                    iconSize: 24,
-                    onPressed: () => act(() => _openApp(ImeRoutes.settings)),
-                    icon: Icon(Icons.settings_outlined, color: scheme.onSurfaceVariant),
                   ),
                 ],
               ),

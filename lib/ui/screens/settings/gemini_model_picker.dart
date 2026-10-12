@@ -49,7 +49,7 @@ class GeminiModelPicker extends ConsumerWidget {
             Text(geminiModelNote, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
             const SizedBox(height: 8),
             _ModelRow(
-              title: 'Newest Flash (automatic)',
+              title: 'Automatic (fastest working Flash)',
               subtitle: defaultId,
               selected: current == null,
               onTap: () => pick(null),
@@ -67,6 +67,7 @@ class GeminiModelPicker extends ConsumerWidget {
                   selected: current == m.id,
                   isDefault: m.id == defaultId,
                   warning: m.freeTierUnavailable ? 'Not on your free tier' : m.unavailableReason,
+                  health: m.healthLabel,
                   onTap: () => pick(m.id),
                 ),
             ],
@@ -85,6 +86,7 @@ class _ModelRow extends StatelessWidget {
     this.subtitle,
     this.isDefault = false,
     this.warning,
+    this.health,
   });
 
   final String title;
@@ -92,6 +94,7 @@ class _ModelRow extends StatelessWidget {
   final bool selected;
   final bool isDefault;
   final String? warning;
+  final String? health;
   final VoidCallback onTap;
 
   @override
@@ -137,6 +140,7 @@ class _ModelRow extends StatelessWidget {
                       ),
                       if (subtitle != null)
                         Text(subtitle!, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
+                      if (health != null) Text(health!, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
                       if (warning != null) Text(warning!, style: t.bodySmall?.copyWith(color: c.error)),
                     ],
                   ),

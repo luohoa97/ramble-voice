@@ -91,17 +91,19 @@ class CleanupPipeline {
     required StyleProfile style,
     required CleanupEngine primary,
     CleanupEngine? fallback,
+    String? contextBefore,
+    String? contextAfter,
   }) async {
     pcm = AutoGain.normalize(pcm);
     try {
-      return await _editWith(primary, pcm, sourceText, style);
+      return await _editWith(primary, pcm, sourceText, style, contextBefore, contextAfter);
     } on CleanupFailure catch (failure) {
       if (fallback == null || !failure.kind.cloudFallbackEligible || fallback.kind == primary.kind) {
         rethrow;
       }
       final ready = await fallback.readiness();
       if (ready is! EngineReady) rethrow;
-      final result = await _editWith(fallback, pcm, sourceText, style);
+      final result = await _editWith(fallback, pcm, sourceText, style, contextBefore, contextAfter);
       return PipelineResult(text: result.text, engine: fallback.kind, fallbackReason: failure);
     }
   }
@@ -111,6 +113,8 @@ class CleanupPipeline {
     Uint8List pcm,
     String sourceText,
     StyleProfile style,
+    String? contextBefore,
+    String? contextAfter,
   ) async {
     if (pcm.isEmpty) {
       throw const CleanupFailure(CleanupFailureKind.emptyResult, 'The recording is empty.');
@@ -123,6 +127,8 @@ class CleanupPipeline {
       style: style,
       mode: CleanupMode.edit,
       sourceText: sourceText,
+      contextBefore: contextBefore,
+      contextAfter: contextAfter,
     )))
         .trim();
     if (text.isEmpty) {

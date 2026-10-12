@@ -55,9 +55,10 @@ class CleanupRequest {
   static const contextBeforeLimit = 500;
   static const contextAfterLimit = 100;
 
-  /// Whether there is field context to continue from.
+  /// Whether there is field context: the text to continue from (clean mode)
+  /// or the text around a selection being edited (edit mode).
   bool get hasContext =>
-      mode == CleanupMode.clean &&
+      mode != CleanupMode.verbatim &&
       ((contextBefore?.isNotEmpty ?? false) || (contextAfter?.isNotEmpty ?? false));
 }
 

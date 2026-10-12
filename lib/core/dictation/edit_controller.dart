@@ -128,6 +128,8 @@ class EditController {
 
   /// The text being edited, while an edit is in progress or just finished.
   String? get sourceText => _source;
+  String? _contextBefore;
+  String? _contextAfter;
 
   void _emit(EditState s) {
     _state = s;
@@ -135,7 +137,9 @@ class EditController {
   }
 
   /// Starts listening for the editing instruction to apply to [sourceText].
-  Future<void> startEdit(String sourceText) async {
+  /// [contextBefore] and [contextAfter] are the text around it when it is a
+  /// selection; they guide the edit but are never changed.
+  Future<void> startEdit(String sourceText, {String? contextBefore, String? contextAfter}) async {
     if (isBusy) return;
     if (isBlocked?.call() ?? false) {
       _emit(const EditIdle(notice: 'Finish the dictation first.'));
@@ -150,6 +154,8 @@ class EditController {
       return;
     }
     _source = sourceText;
+    _contextBefore = contextBefore;
+    _contextAfter = contextAfter;
     _heldPcm = null;
     _emit(const EditStarting());
     try {
@@ -242,6 +248,8 @@ class EditController {
         style: await style(),
         primary: set.primary,
         fallback: set.fallback,
+        contextBefore: _contextBefore,
+        contextAfter: _contextAfter,
       );
       _heldPcm = null;
       _emit(EditDone(EditOutcome(

@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import '../core/cleanup/cleanup_engine.dart' show CleanupRequest;
 import '../core/dictation/edit_controller.dart';
 import '../platform/android/ime_bridge.dart';
 import 'ime_app.dart';
@@ -131,7 +132,7 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     _original = null;
     _revised = null;
     state = ImeEditState(phase: EditPhase.listening, source: resolved.source);
-    await _controller.startEdit(resolved.text);
+    await _controller.startEdit(resolved.text, contextBefore: resolved.before, contextAfter: resolved.after);
   }
 
   /// Tap-to-finish while the instruction is being spoken.
@@ -178,23 +179,30 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
   /// Chooses what to edit: the selection, else the text Ramble last typed here
   /// (if it is still right before the cursor), else the field's text on both
   /// sides of the cursor.
-  Future<({EditSource source, String text})?> resolveSource() async {
+  Future<({EditSource source, String text, String? before, String? after})?> resolveSource() async {
     _afterLength = 0;
     final selected = await _bridge.getSelectedText();
     if (selected != null && selected.trim().isNotEmpty) {
-      return (source: EditSource.selection, text: selected);
+      // The text around the selection is context only, so the revision fits
+      // in place (case, spacing, punctuation).
+      return (
+        source: EditSource.selection,
+        text: selected,
+        before: await _bridge.getTextBeforeCursor(CleanupRequest.contextBeforeLimit),
+        after: await _bridge.getTextAfterCursor(CleanupRequest.contextAfterLimit),
+      );
     }
     final last = ref.read(lastDictationProvider);
     if (last != null && last.text.isNotEmpty && last.packageName == _bridge.current.packageName) {
       final before = await _bridge.getTextBeforeCursor(last.text.length);
-      if (before == last.text) return (source: EditSource.lastDictation, text: last.text);
+      if (before == last.text) return (source: EditSource.lastDictation, text: last.text, before: null, after: null);
     }
     final before = await _bridge.getTextBeforeCursor(editContextLimit) ?? '';
     final after = await _bridge.getTextAfterCursor(editContextLimit) ?? '';
     final text = before + after;
     if (text.trim().isEmpty) return null;
     _afterLength = after.length;
-    return (source: EditSource.field, text: text);
+    return (source: EditSource.field, text: text, before: null, after: null);
   }
 
   void _onEditState(EditState s) {

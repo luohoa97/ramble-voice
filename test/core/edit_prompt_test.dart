@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_prompt.dart';
@@ -11,6 +13,30 @@ import '../fakes/pcm_fixtures.dart';
 void main() {
   polishTests();
   contextTests();
+  group('edit with selection context', () {
+    final request = CleanupRequest(
+      pcm: Uint8List.fromList([]),
+      style: const StyleProfile(),
+      mode: CleanupMode.edit,
+      sourceText: 'WORLD',
+      contextBefore: 'hello ',
+      contextAfter: ' and more',
+    );
+
+    test('adds the context rule and block', () {
+      expect(CleanupPrompt.systemFor(request), contains('never output it, never edit it'));
+      final user = CleanupPrompt.userTextFor(request);
+      expect(user, contains('<before>hello </before><after> and more</after>'));
+      expect(user, endsWith('<text>WORLD</text>'));
+    });
+
+    test('no rule without context', () {
+      final plain = CleanupRequest(pcm: Uint8List.fromList([]), style: const StyleProfile(), mode: CleanupMode.edit, sourceText: 'x');
+      expect(CleanupPrompt.systemFor(plain), isNot(contains('<before>')));
+      expect(CleanupPrompt.userTextFor(plain), isNot(contains('<before>')));
+    });
+  });
+
   group('buildEdit', () {
     final out = CleanupPrompt.buildEdit(const StyleProfile(vocabulary: ['Kubernetes'], customInstructions: 'Be terse.'));
 
@@ -201,8 +227,8 @@ void contextTests() {
       expect(t, contains('<\\/before>'));
     });
 
-    test('verbatim and edit modes ignore context', () {
-      for (final mode in [CleanupMode.verbatim, CleanupMode.edit]) {
+    test('verbatim mode ignores context (edit uses it around a selection)', () {
+      for (final mode in [CleanupMode.verbatim]) {
         final r = req(before: 'Hello', mode: mode);
         expect(r.hasContext, isFalse);
         expect(CleanupPrompt.systemFor(r), isNot(contains('<before>')));

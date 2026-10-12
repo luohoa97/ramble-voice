@@ -33,8 +33,9 @@ class _Field {
       case 'getTextAfterCursor':
         return text.substring(end, (end + (call.arguments as int)).clamp(end, text.length));
       case 'getTextBeforeCursor':
+        // Android reads before the selection start.
         final n = call.arguments as int;
-        return text.substring((end - n).clamp(0, end), end);
+        return text.substring((start - n).clamp(0, start), start);
       case 'replaceSelection':
         if (start == end) return 'false';
         text = text.replaceRange(start, end, call.arguments as String);
@@ -133,6 +134,9 @@ void main() {
 
     expect(engine.requests.single.sourceText, 'wrold');
     expect(engine.requests.single.mode, CleanupMode.edit);
+    // The surrounding text goes along as context only.
+    expect(engine.requests.single.contextBefore, 'Hello ');
+    expect(engine.requests.single.contextAfter, '. Second line.');
     expect(field.text, 'Hello REVISED. Second line.');
     expect(state().phase, EditPhase.applied);
     expect(state().undoable, isTrue);

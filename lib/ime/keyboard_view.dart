@@ -197,22 +197,24 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     return Material(
       color: scheme.surfaceContainer,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(8, 4, 8, bottom + 4),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, bottom + 8),
         child: Column(
           children: [
             SizedBox(
-              height: 48,
+              height: 56,
               child: Row(
                 children: [
                   ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
                   const Spacer(),
                   Flexible(child: _EngineLabel(onTap: () => _openApp(ImeRoutes.settings), onTick: _tick)),
-                  PopupMenuButton<String>(
-                    tooltip: 'More',
-                    icon: Icon(Icons.more_horiz_rounded, color: scheme.onSurfaceVariant),
-                    onOpened: _tick,
-                    onSelected: (_) => _openApp(ImeRoutes.settings),
-                    itemBuilder: (_) => const [PopupMenuItem(value: 'settings', child: Text('Settings'))],
+                  const SizedBox(width: 4),
+                  _KeyButton(
+                    icon: Icons.settings_outlined,
+                    label: 'Ramble settings',
+                    onPressed: () {
+                      _tick();
+                      _openApp(ImeRoutes.settings);
+                    },
                   ),
                 ],
               ),
@@ -223,7 +225,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                   SizedBox(
                     width: 72,
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (state is DictationListening) ...[
                           _KeyButton(
@@ -305,7 +307,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                   SizedBox(
                     width: 72,
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _RepeatKey(
                           icon: Icons.backspace_outlined,
@@ -452,7 +454,7 @@ class _Center extends StatelessWidget {
         Expanded(
           child: LayoutBuilder(
             builder: (context, c) {
-              final size = math.max(88.0, math.min(136.0, c.maxHeight - 4));
+              final size = math.max(88.0, math.min(104.0, c.maxHeight - 4));
               return Center(
                 child: MicButton(
                   state: s is DictationListening && s.paused ? const DictationIdle() : s,
@@ -467,7 +469,7 @@ class _Center extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 40,
+          height: 36,
           child: Center(child: _Status(state: s, info: info, undoText: undoText, onUndo: onUndo)),
         ),
       ],

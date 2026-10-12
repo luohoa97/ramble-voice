@@ -93,27 +93,27 @@ void main() {
     test('auto language line is present by default', () {
       expect(
         CleanupPrompt.build(const StyleProfile()),
-        contains('Write in the language that is spoken; if several are mixed, keep each phrase in its spoken language.'),
+        contains('Write each language in its own writing system, never romanized'),
       );
     });
 
     test('chosen languages are named, with the no-translation rule', () {
       const style = StyleProfile(languages: ['en', 'zh']);
-      const rule = 'Write every word in the language it was spoken in; never translate and never switch a word into another language.';
+      const rule = 'Write each language in its own writing system, never romanized';
       final out = CleanupPrompt.build(style);
-      expect(out, contains('The speaker only uses these languages: English, Chinese (Mandarin). $rule'));
+      expect(out, allOf(contains('The speaker usually speaks English, Chinese (Mandarin).'), contains(rule)));
       expect(out, isNot(contains('if several are mixed')));
-      expect(CleanupPrompt.buildVerbatim(style), contains('The speaker only uses these languages: English, Chinese (Mandarin). $rule'));
+      expect(CleanupPrompt.buildVerbatim(style), allOf(contains('The speaker usually speaks English, Chinese (Mandarin).'), contains(rule)));
       expect(CleanupPrompt.buildVerbatim(style), endsWith('Output only the transcript.'));
-      expect(CleanupPrompt.buildVerbatim(const StyleProfile()), isNot(contains('The speaker only uses')));
+      expect(CleanupPrompt.buildVerbatim(const StyleProfile()), isNot(contains('The speaker usually speaks')));
     });
 
     test('edit prompt carries the languages but allows a requested translation', () {
       final out = CleanupPrompt.buildEdit(const StyleProfile(languages: ['en']));
-      expect(out, contains('The speaker only uses English.'));
+      expect(out, contains('The speaker usually speaks English.'));
       expect(out, contains('unless the spoken instruction asks for a translation'));
       expect(out, endsWith('Output only the full revised text.'));
-      expect(CleanupPrompt.buildEdit(const StyleProfile()), isNot(contains('The speaker only uses')));
+      expect(CleanupPrompt.buildEdit(const StyleProfile()), isNot(contains('The speaker usually speaks')));
     });
 
     test('contact names get their own line in clean, verbatim and edit prompts', () {

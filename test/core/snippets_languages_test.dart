@@ -26,11 +26,10 @@ void main() {
     test('describe', () {
       expect(
         Languages.describe(['en', 'zh']),
-        'The speaker only uses these languages: English, Chinese (Mandarin). '
-        'Write every word in the language it was spoken in; never translate and never switch a word into another language.',
+        startsWith('The speaker usually speaks English, Chinese (Mandarin). Write each language in its own writing system'),
       );
-      expect(Languages.describe(['ja']), startsWith('The speaker only uses Japanese. Write every word'));
-      expect(Languages.describe(const []), startsWith('Write in the language that is spoken'));
+      expect(Languages.describe(['ja']), startsWith('The speaker usually speaks Japanese. Write each language'));
+      expect(Languages.describe(const []), startsWith('Write each language in its own writing system'));
       expect(Languages.describe(['nonsense']), Languages.describe(const []));
       expect(Languages.describe(['en'], allowTranslation: true), contains('asks for a translation'));
     });

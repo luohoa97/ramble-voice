@@ -166,7 +166,7 @@ class RambleImeService : InputMethodService() {
     }
 
     companion object {
-        private const val KEYBOARD_HEIGHT_DP = 300
+        private const val KEYBOARD_HEIGHT_DP = 248
         private const val RELEASE_TIMEOUT_MS = 2000L
         private const val TOUCH_GUARD_MS = 350L
     }

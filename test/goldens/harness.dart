@@ -45,9 +45,9 @@ class Device {
 
 const phone = Device('phone', Size(412, 915), 1.5, android: true);
 const desktop = Device('desktop', Size(1100, 760), 1, android: false);
-const keyboard = Device('keyboard', Size(412, 300), 1.5, android: true);
-const keyboardLarge = Device('keyboardLarge', Size(400, 345), 1.5, android: true);
-const keyboardSmall = Device('keyboardSmall', Size(360, 300), 1.5, android: true);
+const keyboard = Device('keyboard', Size(412, 248), 1.5, android: true);
+const keyboardLarge = Device('keyboardLarge', Size(400, 285), 1.5, android: true);
+const keyboardSmall = Device('keyboardSmall', Size(360, 248), 1.5, android: true);
 
 Future<ByteData> _bytes(String path) async => ByteData.sublistView(await File(path).readAsBytes());
 

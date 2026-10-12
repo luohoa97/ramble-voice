@@ -87,7 +87,7 @@ dictated content.
 
 Flutter's own Linux embedding is GTK3 only, so `linux/runner` is a GTK4
 application that drives the engine through the Embedder API. Engine binaries are
-fetched by `linux/fetch_engine.sh` from ardera/flutter-ci and pinned by SHA-256.
+fetched by `linux/engine/fetch_engine.sh` from ardera/flutter-ci and pinned by SHA-256.
 Flutter's GTK3 plugins are not registered, so Linux Dart code uses only pure
 Dart, D-Bus (`package:dbus`), `dart:ffi`, `Process`, and the runner channels
 below. The runner is a GApplication, so a second `ramble_voice --toggle`

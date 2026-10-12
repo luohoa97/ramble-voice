@@ -59,7 +59,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       - name: Fetch pinned Flutter engine
-        run: linux/fetch_engine.sh ${{ matrix.arch }} release
+        run: linux/engine/fetch_engine.sh ${{ matrix.arch == 'x86_64' && 'x64' || matrix.arch }} release
       - name: Build
         env:
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/aarch64-linux-gnu/pkgconfig

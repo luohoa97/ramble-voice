@@ -186,7 +186,7 @@ Then:
 
 ```sh
 flutter pub get
-linux/fetch_engine.sh x86_64 release   # or aarch64
+linux/engine/fetch_engine.sh x64 release   # or aarch64 (CMake also fetches it automatically)
 flutter build linux --release
 ```
 

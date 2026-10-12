@@ -8,6 +8,8 @@
 set -euo pipefail
 
 arch="${1:?usage: $0 <x64|aarch64> <debug|profile|release>}"
+[ "$arch" = "x86_64" ] && arch=x64
+[ "$arch" = "arm64" ] && arch=aarch64
 mode="${2:?usage: $0 <x64|aarch64> <debug|profile|release>}"
 here="$(cd "$(dirname "$0")" && pwd)"
 lock="$here/engine.lock"

@@ -14,11 +14,11 @@ import '../core/dictation/dictation_controller.dart';
 import '../platform/android/ime_bridge.dart';
 import '../platform/platform_services.dart';
 import '../ui/util/format.dart';
+import '../ui/widgets/engine_chip.dart';
 import '../ui/widgets/mic_button.dart';
 import 'edit_panel.dart';
 import 'edit_session.dart';
 import 'ime_app.dart';
-import 'key_style.dart';
 import 'tone_bar.dart';
 
 /// How long the "Inserted / Undo" confirmation stays.
@@ -203,8 +203,8 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     }
 
     Widget column(List<Widget> keys) => Column(
-          spacing: 8,
-          children: [for (final k in keys) Expanded(child: k)],
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: keys,
         );
 
     final left = listening != null
@@ -236,15 +236,21 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     return Material(
       color: scheme.surfaceContainer,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(8, 8, 8, bottom + 8),
+        padding: EdgeInsets.fromLTRB(8, 4, 8, bottom + 4),
         child: Column(
           children: [
+            SizedBox(
+              height: 48,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: EngineChip(onTap: () => act(() => _openApp(ImeRoutes.settings))),
+              ),
+            ),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, box) {
-                  final side = box.maxWidth * 0.22;
+                  const side = 72.0;
                   return Row(
-                    spacing: 8,
                     children: [
                       SizedBox(width: side, child: column(left)),
                       Expanded(
@@ -290,7 +296,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
               ),
             ),
             SizedBox(
-              height: 40,
+              height: 36,
               child: Row(
                 children: [
                   ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
@@ -523,24 +529,27 @@ class _BigKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
-    final bg = filled ? c.primary : keyFill(context);
-    final fg = filled ? c.onPrimary : keyForeground(context);
+    final bg = filled ? c.primary : c.secondaryContainer;
+    final fg = filled ? c.onPrimary : c.onSecondaryContainer;
     return Semantics(
       button: true,
       enabled: onPressed != null,
       label: label,
       excludeSemantics: true,
       onTap: onPressed,
-      child: Material(
-        color: onPressed == null ? bg.withValues(alpha: 0.5) : bg,
-        borderRadius: BorderRadius.circular(20),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPressed,
-          child: Center(
-            child: icon != null
-                ? Icon(icon, size: 28, color: fg)
-                : Text(text!, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: fg)),
+      child: SizedBox.square(
+        dimension: 56,
+        child: Material(
+          color: onPressed == null ? bg.withValues(alpha: 0.5) : bg,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            child: Center(
+              child: icon != null
+                  ? Icon(icon, size: 24, color: fg)
+                  : Text(text!, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg)),
+            ),
           ),
         ),
       ),
@@ -600,12 +609,15 @@ class _BigRepeatKeyState extends State<_BigRepeatKey> {
         onPointerDown: (_) => _press(),
         onPointerUp: (_) => _release(),
         onPointerCancel: (_) => _release(),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: _down ? c.surfaceContainerHigh : keyFill(context),
-            borderRadius: BorderRadius.circular(20),
+        child: SizedBox.square(
+          dimension: 56,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: _down ? c.secondaryFixedDim : c.secondaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(widget.icon, size: 24, color: c.onSecondaryContainer),
           ),
-          child: Center(child: Icon(widget.icon, size: 28, color: keyForeground(context))),
         ),
       ),
     );

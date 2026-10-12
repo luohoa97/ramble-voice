@@ -247,8 +247,14 @@ final dictationStateProvider = StreamProvider<DictationState>((ref) async* {
   yield* c.states;
 });
 
+/// Reports errors that the UI only summarises (set by main.dart).
+void Function(String what, Object error, StackTrace? stack)? appErrorLog;
+
 final historyProvider = StreamProvider.family<List<HistoryEntry>, String>(
-  (ref, query) => ref.watch(historyDbProvider).watch(query: query),
+  (ref, query) => ref.watch(historyDbProvider).watch(query: query).handleError((Object e, StackTrace s) {
+    appErrorLog?.call('history', e, s);
+    throw e;
+  }),
 );
 
 /// Computes and caches the word-for-word transcript for "show original".

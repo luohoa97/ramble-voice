@@ -8,6 +8,7 @@
 typedef struct {
   guint tex;
   guint fbo;
+  guint stencil;  // depth24/stencil8 renderbuffer: Impeller fills paths with stencil-then-cover
   int width, height;
   gboolean busy;  // referenced by Flutter, a pending slot or a GdkTexture
 } Buf;
@@ -63,6 +64,7 @@ RvRenderer* rv_renderer_new(GdkDisplay* display, GError** error) {
 
 static void destroy_buf(Buf* b) {
   if (b->fbo) glDeleteFramebuffers(1, &b->fbo);
+  if (b->stencil) glDeleteRenderbuffers(1, &b->stencil);
   if (b->tex) glDeleteTextures(1, &b->tex);
   g_free(b);
 }
@@ -131,6 +133,13 @@ static Buf* acquire_buf(RvRenderer* r, int w, int h) {
     glGenFramebuffers(1, &found->fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, found->fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, found->tex, 0);
+    // Without a stencil attachment Impeller cannot fill paths: shapes break
+    // and large glyphs (icons) drawn as paths disappear.
+    glGenRenderbuffers(1, &found->stencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, found->stencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, found->stencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
     g_ptr_array_add(r->bufs, found);
   }
   found->busy = TRUE;

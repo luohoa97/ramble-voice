@@ -43,18 +43,6 @@ class BubblePrefs(context: Context) {
 
     private fun yKey(landscape: Boolean) = if (landscape) KEY_Y_LANDSCAPE else KEY_Y_PORTRAIT
 
-    /** Apps where the user dragged the bubble onto the dismiss target and held it. */
-    val hiddenApps: Set<String>
-        get() = prefs.getStringSet(KEY_HIDDEN, emptySet()) ?: emptySet()
-
-    fun hideInApp(pkg: String) {
-        prefs.edit().putStringSet(KEY_HIDDEN, hiddenApps + pkg).apply()
-    }
-
-    fun clearHiddenApps() {
-        prefs.edit().remove(KEY_HIDDEN).apply()
-    }
-
     /** Physical-keyboard dictation key on/off. */
     val hotkeyEnabled: Boolean
         get() = prefs.getBoolean(KEY_HOTKEY_ON, true)
@@ -83,7 +71,6 @@ class BubblePrefs(context: Context) {
         private const val KEY_DOCK_RIGHT = "dock_right"
         private const val KEY_Y_PORTRAIT = "y_portrait"
         private const val KEY_Y_LANDSCAPE = "y_landscape"
-        private const val KEY_HIDDEN = "hidden"
         private const val DEFAULT_Y_FRACTION = 0.5f
         const val SIZE_SMALL_DP = 40
         const val SIZE_MEDIUM_DP = 52

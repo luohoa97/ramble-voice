@@ -55,10 +55,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private var phase = BubblePhase.IDLE
     private var dragging = false
     private var revealed = false
-    private var dismissedPackage: String? = null
-    private var target: DismissTargetView? = null
-    private var targetParams: WindowManager.LayoutParams? = null
-    private var overTarget = false
     private var holdStartedListening = false
     private var holdViaKeyboard = false
     private var hotkeyHeld = false
@@ -67,10 +63,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private val hideRunnable = Runnable { if (!sessionActive()) removeBubble() }
     private val settleRunnable = Runnable { settle() }
     private val tuckRunnable = Runnable { tuck() }
-    private val armRunnable = Runnable {
-        target?.armed = true
-        view?.buzz(HapticFeedbackConstants.LONG_PRESS)
-    }
     private val releaseRunnable = Runnable { host.sendIfRunning("release") }
 
     override fun onServiceConnected() {
@@ -90,11 +82,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (!::prefs.isInitialized) return
-        // A new app coming forward ends a "hide until next app switch".
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && dismissedPackage != null) {
-            val pkg = event.packageName?.toString()
-            if (pkg != null && pkg != dismissedPackage && pkg != defaultKeyboardPackage()) dismissedPackage = null
-        }
         // Coalesce the burst of events one focus change produces.
         main.removeCallbacks(evaluateRunnable)
         main.postDelayed(evaluateRunnable, EVALUATE_DELAY_MS)
@@ -173,8 +160,8 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         val pkg = node.packageName?.toString() ?: return null
         return node.takeIf {
             it.isEditable && !it.isPassword && it.isVisibleToUser &&
-                pkg != packageName && pkg !in prefs.blockedApps && pkg !in prefs.hiddenApps &&
-                pkg != dismissedPackage && pkg != defaultKeyboardPackage()
+                pkg != packageName && pkg !in prefs.blockedApps &&
+                pkg != defaultKeyboardPackage()
         }
     }
 
@@ -318,7 +305,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         glide?.cancel()
         main.removeCallbacks(settleRunnable)
         main.removeCallbacks(tuckRunnable)
-        hideDismissTarget()
         v.animate().alpha(0f).setDuration(120).withEndAction {
             if (v.isAttachedToWindow) windowManager.removeView(v)
         }.start()
@@ -342,76 +328,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         showOrMove()
     }
 
-    // Overlay: dismiss target -----------------------------------------------------
-
-    private fun showDismissTarget() {
-        if (target != null) return
-        val t = DismissTargetView(this)
-        val s = screen()
-        val tp = WindowManager.LayoutParams(
-            t.widthPx,
-            t.heightPx,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            title = "RambleBubbleDismiss"
-            x = s.centerX() - t.widthPx / 2
-            y = s.bottom - insets().bottom - t.heightPx - (24 * density).toInt()
-        }
-        t.alpha = 0f
-        windowManager.addView(t, tp)
-        t.animate().alpha(1f).setDuration(140).start()
-        target = t
-        targetParams = tp
-    }
-
-    private fun hideDismissTarget() {
-        main.removeCallbacks(armRunnable)
-        overTarget = false
-        val t = target ?: return
-        target = null
-        targetParams = null
-        t.animate().alpha(0f).setDuration(120).withEndAction {
-            if (t.isAttachedToWindow) windowManager.removeView(t)
-        }.start()
-    }
-
-    /** Whether the bubble's centre is over the dismiss circle; updates the highlight and arming timer. */
-    private fun updateTargetHover(v: BubbleView, p: WindowManager.LayoutParams) {
-        val t = target ?: return
-        val tp = targetParams ?: return
-        val dx = (p.x + v.widthPx / 2f) - (tp.x + t.centerX)
-        val dy = (p.y + v.circleSizePx / 2f) - (tp.y + t.centerY)
-        val hot = dx * dx + dy * dy < (t.radiusPx + v.circleSizePx / 2f).let { it * it }
-        if (hot == overTarget) return
-        overTarget = hot
-        t.hot = hot
-        main.removeCallbacks(armRunnable)
-        if (hot) {
-            v.buzz(HapticFeedbackConstants.CLOCK_TICK)
-            main.postDelayed(armRunnable, HIDE_FOR_APP_MS)
-        } else {
-            t.armed = false
-        }
-    }
-
-    /** Hides the bubble until the next app switch, or for good in this app when [forApp]. */
-    private fun dismiss(forApp: Boolean) {
-        val pkg = fieldPackage
-        if (pkg != null) {
-            dismissedPackage = pkg
-            if (forApp) prefs.hideInApp(pkg)
-        }
-        dragging = false
-        hideDismissTarget()
-        removeBubble()
-    }
-
     // User gestures (BubbleView.Listener) ---------------------------------------
 
     override fun onPress() = reveal()
@@ -425,7 +341,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         glide?.cancel()
         main.removeCallbacks(tuckRunnable)
         view?.animate()?.alpha(1f)?.setDuration(100)?.start()
-        showDismissTarget()
     }
 
     override fun onDrag(dx: Float, dy: Float) {
@@ -435,17 +350,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         p.x = (p.x + dx.toInt()).coerceIn(s.left, s.right - v.widthPx)
         p.y = (p.y + dy.toInt()).coerceIn(s.top, s.bottom - v.circleSizePx)
         if (v.isAttachedToWindow) windowManager.updateViewLayout(v, p)
-        updateTargetHover(v, p)
     }
 
     override fun onDragEnd() {
         val p = params ?: return
         val v = view ?: return
-        if (overTarget) {
-            dismiss(forApp = target?.armed == true)
-            return
-        }
-        hideDismissTarget()
         // Snap to the nearest edge and remember where it was dropped.
         val s = screen()
         prefs.dockRight = p.x + v.widthPx / 2 > s.centerX()
@@ -612,8 +521,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         ImeLaunch.onImeShowingChanged = null
         main.removeCallbacksAndMessages(null)
         view?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
-        target?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
-        target = null
         view = null
         params = null
         focusNode = null
@@ -632,7 +539,6 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         private const val TUCK = 0.4f
         private const val IDLE_ALPHA = 0.7f
         private const val TUCK_DELAY_MS = 2000L
-        private const val HIDE_FOR_APP_MS = 1000L
 
         /** ComponentCallbacks2.TRIM_MEMORY_BACKGROUND, spelled out because the constant is deprecated. */
         private const val TRIM_MEMORY_BACKGROUND_LEVEL = 40

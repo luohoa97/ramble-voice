@@ -82,9 +82,6 @@ extension BubbleSystem on AndroidSystem {
         'hotkeyCode': hotkeyCode,
       });
 
-  /// Forgets apps where the bubble was dismissed with "hide in this app".
-  Future<void> clearBubbleHiddenApps() => _call('clearBubbleHiddenApps');
-
   /// Waits (up to about 10 s) for the user to press one key on a physical
   /// keyboard and returns its Android key code, or null if none / the service is off.
   Future<int?> recordHotkey() async {

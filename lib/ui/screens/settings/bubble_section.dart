@@ -157,7 +157,7 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
       children: [
         Text(
           'Keep your usual keyboard. A small microphone handle docks to the edge of the screen whenever a keyboard is up. '
-          'Tap it to dictate, hold it to talk, drag it anywhere (it snaps to an edge), or drag it to the X to hide it. '
+          'Tap it to dictate, hold it to talk, or drag it anywhere (it snaps to an edge). '
           'Your cleaned text is inserted where the cursor is.',
           style: t.bodyMedium,
         ),
@@ -338,13 +338,6 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
               ),
             ),
         const SizedBox(height: 8),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton(
-            onPressed: _system.clearBubbleHiddenApps,
-            child: const Text('Show again in apps hidden by dragging'),
-          ),
-        ),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: TextButton.icon(

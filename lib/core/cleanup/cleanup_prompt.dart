@@ -39,7 +39,7 @@ abstract final class CleanupPrompt {
       'Transcribe only the main speaker, the clearest voice speaking to the device; ignore background '
       'conversations, other people, TV, and music. '
       'Transcribe by context: when a word is unclear or sounds like another, choose what makes sense in the '
-      'sentence and topic, and keep words in the language they were spoken in (never translate). '
+      'sentence and topic, and keep words in the language they were spoken in, in that language\'s own writing system (never translate or romanize). '
       'Use the speaker\'s tone: an excited or emphatic delivery ends with an exclamation mark, a rising '
       'question gets a question mark, and when the speaker quotes someone or something (said, like, '
       'goes, a change of voice) put the quoted words in quotation marks. '

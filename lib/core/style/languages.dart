@@ -102,16 +102,22 @@ abstract final class Languages {
   /// translation.
   static String describe(Iterable<String> codes, {bool allowTranslation = false}) {
     final names = [for (final l in normaliseList(codes)) byCode(l)!.name];
-    if (names.isEmpty) {
-      return 'Write in the language that is spoken; if several are mixed, keep each phrase in its spoken language.';
-    }
-    final subject = names.length == 1
-        ? 'The speaker only uses ${names.single}.'
-        : 'The speaker only uses these languages: ${names.join(', ')}.';
+    // The user's languages are a hint, never a limit: other languages that
+    // are actually spoken are still written as themselves.
+    final subject = names.isEmpty
+        ? ''
+        : names.length == 1
+            ? 'The speaker usually speaks ${names.single}. '
+            : 'The speaker usually speaks ${names.join(', ')}. ';
+    const script = 'Write each language in its own writing system, never romanized: Japanese in kana and kanji '
+        '(for example ありがとうございます), Chinese in Chinese characters, Korean in Hangul, Russian in '
+        'Cyrillic, Arabic in Arabic script, and so on. A word borrowed into the surrounding sentence\'s language '
+        '(sushi, karaoke, kimchi in an English sentence) stays as that language writes it. ';
     final rule = allowTranslation
         ? 'Keep every word in the language it is written in; never switch a word into another language '
             'unless the spoken instruction asks for a translation.'
-        : 'Write every word in the language it was spoken in; never translate and never switch a word into another language.';
-    return '$subject $rule';
+        : 'Write every word in the language it was spoken in; never translate.';
+    return '$subject$script$rule';
   }
+
 }

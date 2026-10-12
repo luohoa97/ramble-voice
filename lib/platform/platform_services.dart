@@ -57,7 +57,7 @@ class HotkeyEvent {
   final HotkeyPhase phase;
 }
 
-enum HotkeyBackend { portal, compositorBinding, x11, none }
+enum HotkeyBackend { portal, compositorBinding, x11, evdev, none }
 
 class HotkeyStatus {
   const HotkeyStatus(this.backend, {this.trigger, this.supportsRelease = false, this.message});

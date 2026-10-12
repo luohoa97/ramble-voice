@@ -76,7 +76,12 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
   }
 
   void _push(AppSettings s) {
-    unawaited(_system.setBubbleConfig(blockedApps: s.bubbleBlockedApps, size: s.bubbleSize.name));
+    unawaited(_system.setBubbleConfig(
+      blockedApps: s.bubbleBlockedApps,
+      size: s.bubbleSize.name,
+      hotkeyEnabled: s.physicalKeyHotkey,
+      hotkeyCode: s.physicalKeyCode,
+    ));
   }
 
   Future<void> _change(AppSettings Function(AppSettings) change) async {
@@ -92,6 +97,39 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
       if (a.packageName == package) return a.label;
     }
     return package;
+  }
+
+  Future<void> _pickHotkey() async {
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final code in const [BubbleHotkeys.capsLock, BubbleHotkeys.rightCtrl])
+              ListTile(title: Text(BubbleHotkeys.label(code)), onTap: () => Navigator.of(context).pop(code)),
+            ListTile(
+              leading: const Icon(Icons.fiber_manual_record_outlined),
+              title: const Text('Record a key'),
+              subtitle: const Text('Press the key you want within 10 seconds. The floating mic must be on.'),
+              onTap: () => Navigator.of(context).pop(-1),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null) return;
+    var code = choice;
+    if (choice == -1) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Press the key now')));
+      }
+      final recorded = await _system.recordHotkey();
+      if (recorded == null) return;
+      code = recorded;
+    }
+    await _change((s) => s.copyWith(physicalKeyCode: code));
   }
 
   Future<void> _addApp() async {
@@ -259,6 +297,26 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
           selected: {settings.bubbleSize},
           onSelectionChanged: (v) => _change((s) => s.copyWith(bubbleSize: v.first)),
         ),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Hardware keyboard key'),
+          subtitle: Text(
+            'Hold ${BubbleHotkeys.label(settings.physicalKeyCode)} on a physical keyboard to dictate. '
+            'Only this one key is watched; no other keystrokes are read.',
+          ),
+          value: settings.physicalKeyHotkey,
+          onChanged: (v) => _change((s) => s.copyWith(physicalKeyHotkey: v)),
+        ),
+        if (settings.physicalKeyHotkey)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: _pickHotkey,
+              icon: const Icon(Icons.keyboard_alt_outlined),
+              label: Text('Key: ${BubbleHotkeys.label(settings.physicalKeyCode)}'),
+            ),
+          ),
         const SizedBox(height: 16),
         Text('Hide in these apps', style: t.titleSmall),
         const SizedBox(height: 4),

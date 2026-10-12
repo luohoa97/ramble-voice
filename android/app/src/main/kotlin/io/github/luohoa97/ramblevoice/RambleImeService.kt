@@ -90,6 +90,16 @@ class RambleImeService : InputMethodService() {
         return minOf(wanted, cap) + navInset
     }
 
+    /**
+     * With a hardware keyboard attached the input view is usually not shown, so
+     * `onStartInputView` never runs. A pending auto-start from the dictation key
+     * is delivered here instead; the connection is all dictation needs.
+     */
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+        if (ImeLaunch.hasPendingAutoStart()) ime?.notifyInputStarted(attribute, restarting)
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         engine?.lifecycleChannel?.appIsResumed()

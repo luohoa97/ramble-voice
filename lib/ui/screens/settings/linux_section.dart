@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/providers.dart';
+import '../../../platform/linux/dictation_key_section.dart';
 import '../../../platform/linux/host_setup.dart';
 import '../../../platform/platform_services.dart';
 import '../../theme/app_theme.dart';
 import '../../util/clipboard.dart';
+import '../../linux_wiring.dart';
 import '../../util/hotkey_state.dart';
 
 String hotkeySummary(HotkeyStatus? s) {
@@ -35,6 +37,12 @@ class LinuxSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        DictationKeySection(
+          value: ref.watch(settingsProvider).hotkeyKey,
+          status: ref.watch(hotkeyStatusProvider),
+          onChanged: (k) => LinuxIntegration.instance?.setDictationKey(k),
+        ),
+        const SizedBox(height: 16),
         Text('Global shortcut', style: t.titleMedium),
         const SizedBox(height: 4),
         Semantics(liveRegion: true, child: Text(hotkeySummary(status), style: t.bodyLarge)),

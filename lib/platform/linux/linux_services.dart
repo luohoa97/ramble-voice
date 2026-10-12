@@ -19,6 +19,7 @@ import 'package:path/path.dart' as p;
 
 import '../platform_services.dart';
 import 'desktop_entry.dart';
+import 'linux_hotkey_service.dart';
 import 'linux_audio_source.dart';
 import 'linux_environment.dart';
 import 'portal/global_shortcuts.dart';
@@ -33,6 +34,7 @@ import 'tray.dart';
 
 export 'host_setup.dart';
 export 'linux_environment.dart';
+export 'linux_hotkey_service.dart' show LinuxHotkeyService;
 export 'secret_service_store.dart' show SecretServiceStore;
 export 'text_inserter.dart' show LinuxTextInserter;
 
@@ -49,7 +51,7 @@ Directory defaultSupportDirectory() {
   return Directory(p.join(data, rambleAppId));
 }
 
-Future<PlatformServices> createLinuxServices({Directory? supportDir}) async {
+Future<PlatformServices> createLinuxServices({Directory? supportDir, String hotkeyKey = 'capslock'}) async {
   final support = supportDir ?? defaultSupportDirectory();
   final bus = DBusClient.session();
   final portal = PortalClient(bus);
@@ -84,7 +86,7 @@ Future<PlatformServices> createLinuxServices({Directory? supportDir}) async {
     secrets: SecretServiceStore(bus, fallbackFile: File(p.join(support.path, 'gemini-api-key'))),
     inserter: LinuxTextInserter(env: env, portal: remoteDesktop),
     notifier: notifier,
-    hotkeys: PortalHotkeyService(portal, env),
+    hotkeys: LinuxHotkeyService(PortalHotkeyService(portal, env), hotkeyKey: hotkeyKey),
     indicator: LinuxStatusIndicator(tray: StatusNotifierTray(bus), notifications: notifier),
     accentColor: settings.accentColor,
   );

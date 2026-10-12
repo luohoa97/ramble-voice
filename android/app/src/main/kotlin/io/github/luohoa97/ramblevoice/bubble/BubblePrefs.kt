@@ -34,8 +34,18 @@ class BubblePrefs(context: Context) {
         get() = prefs.getFloat(KEY_OFFSET_Y, 0f)
         set(value) = prefs.edit().putFloat(KEY_OFFSET_Y, value).apply()
 
-    fun setConfig(blocked: Collection<String>, size: String) {
+    /** Physical-keyboard dictation key on/off. */
+    val hotkeyEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HOTKEY_ON, true)
+
+    /** Android key code of the dictation key. */
+    val hotkeyCode: Int
+        get() = prefs.getInt(KEY_HOTKEY_CODE, BubbleHotkey.DEFAULT_CODE)
+
+    fun setConfig(blocked: Collection<String>, size: String, hotkeyEnabled: Boolean = true, hotkeyCode: Int = BubbleHotkey.DEFAULT_CODE) {
         prefs.edit()
+            .putBoolean(KEY_HOTKEY_ON, hotkeyEnabled)
+            .putInt(KEY_HOTKEY_CODE, hotkeyCode)
             .putStringSet(KEY_BLOCKED, blocked.toSet())
             .putString(KEY_SIZE, size)
             .apply()
@@ -46,6 +56,8 @@ class BubblePrefs(context: Context) {
         private const val KEY_BLOCKED = "blocked"
         private const val KEY_AUTO_RESTORE = "auto_restore"
         private const val KEY_WANTED = "wanted"
+        private const val KEY_HOTKEY_ON = "hotkey_on"
+        private const val KEY_HOTKEY_CODE = "hotkey_code"
         private const val KEY_SIZE = "size"
         private const val KEY_OFFSET_Y = "offset_y_dp"
         const val SIZE_SMALL_DP = 40

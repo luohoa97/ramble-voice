@@ -9,6 +9,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -51,6 +52,7 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private var dragging = false
     private var holdStartedListening = false
     private var holdViaKeyboard = false
+    private var hotkeyHeld = false
 
     private val evaluateRunnable = Runnable { evaluate() }
     private val hideRunnable = Runnable { if (!sessionActive()) removeBubble() }
@@ -80,6 +82,42 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     }
 
     override fun onInterrupt() = Unit
+
+    // Physical keyboard dictation key ----------------------------------------------
+
+    /**
+     * Only the configured dictation key is acted on (and only while a real
+     * keyboard sends it and a text field is focused); every other key, and every
+     * event while the setting is off, passes through untouched and unread.
+     */
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (!::prefs.isInitialized) return false
+        if (BubbleHotkey.isRecording() && !BubbleHotkey.isSystemKey(event.keyCode)) {
+            if (event.action == KeyEvent.ACTION_DOWN) BubbleHotkey.deliver(event.keyCode)
+            return true
+        }
+        if (!prefs.hotkeyEnabled || event.keyCode != prefs.hotkeyCode) return false
+        if (!BubbleHotkey.isHardwareKeyboard(event.deviceId)) return false
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN -> when {
+                event.repeatCount > 0 -> hotkeyHeld
+                focusedEditable() == null -> false
+                else -> {
+                    hotkeyHeld = true
+                    onHoldStart()
+                    true
+                }
+            }
+            KeyEvent.ACTION_UP -> if (hotkeyHeld) {
+                hotkeyHeld = false
+                onHoldEnd()
+                true
+            } else {
+                false
+            }
+            else -> false
+        }
+    }
 
     // Focus tracking ------------------------------------------------------
 

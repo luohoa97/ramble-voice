@@ -69,8 +69,30 @@ extension BubbleSystem on AndroidSystem {
   Future<void> openAppDetails() => _call('openAppDetails');
 
   /// Mirrors the bubble preferences to the native service, which cannot read settings.json.
-  Future<void> setBubbleConfig({required List<String> blockedApps, required String size}) =>
-      _call('setBubbleConfig', {'blockedApps': blockedApps, 'size': size});
+  Future<void> setBubbleConfig({
+    required List<String> blockedApps,
+    required String size,
+    bool hotkeyEnabled = true,
+    int hotkeyCode = 115,
+  }) =>
+      _call('setBubbleConfig', {
+        'blockedApps': blockedApps,
+        'size': size,
+        'hotkeyEnabled': hotkeyEnabled,
+        'hotkeyCode': hotkeyCode,
+      });
+
+  /// Waits (up to about 10 s) for the user to press one key on a physical
+  /// keyboard and returns its Android key code, or null if none / the service is off.
+  Future<int?> recordHotkey() async {
+    try {
+      return await _channel.invokeMethod<int>('recordHotkey');
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
 
   /// Whether the OS exempts this app from battery optimisation.
   Future<bool> isIgnoringBattery() => _bool('isIgnoringBattery');

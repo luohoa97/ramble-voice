@@ -7,7 +7,7 @@
     <string name="ime_settings">Ramble Voice settings</string>
     <string name="share_chooser_title">Share text</string>
     <string name="bubble_service_name">Ramble Voice floating mic</string>
-    <string name="bubble_service_description">Shows a mic button next to text fields and inserts your dictated text. Ramble Voice does not read or store screen content.</string>
+    <string name="bubble_service_description">Shows a mic button next to text fields and inserts your dictated text. If you use a physical keyboard, it also watches for the one dictation key you choose (Caps Lock by default) and ignores every other key. Ramble Voice does not read or store screen content or keystrokes.</string>
     <string name="bubble_desc_idle">Dictate. Double tap to start, hold to talk.</string>
     <string name="bubble_desc_listening">Listening. Double tap to stop.</string>
     <string name="bubble_desc_processing">Cleaning up your text</string>

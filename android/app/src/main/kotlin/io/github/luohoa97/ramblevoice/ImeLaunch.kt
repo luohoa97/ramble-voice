@@ -43,6 +43,10 @@ object ImeLaunch {
         return result
     }
 
+    /** True if an unexpired auto-start request is waiting (does not consume it). */
+    @Synchronized
+    fun hasPendingAutoStart(): Boolean = expiresAt != 0L && SystemClock.uptimeMillis() <= expiresAt
+
     /** Bubble side: the user released a hold-to-talk that started the keyboard. */
     fun requestStop() {
         stopListener?.invoke()

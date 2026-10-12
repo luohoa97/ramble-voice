@@ -13,6 +13,18 @@ import '../style/style_profile.dart';
 /// Size of the Android floating mic bubble.
 enum BubbleSize { small, medium }
 
+/// Android key codes offered for the physical-keyboard dictation key.
+abstract final class BubbleHotkeys {
+  static const capsLock = 115;
+  static const rightCtrl = 114;
+
+  static String label(int code) => switch (code) {
+        capsLock => 'Caps Lock',
+        rightCtrl => 'Right Ctrl',
+        _ => 'Custom key ($code)',
+      };
+}
+
 /// Non-secret preferences. The Gemini key lives in [SecretStore].
 class AppSettings {
   const AppSettings({
@@ -28,6 +40,7 @@ class AppSettings {
     this.modelLicenseAccepted = false,
     this.autoSwitchBack = true,
     this.hotkeyTrigger = 'CTRL+ALT+space',
+    this.hotkeyKey = 'capslock',
     this.languages = const [],
     this.useContactNames = false,
     this.snippets = const [],
@@ -35,6 +48,8 @@ class AppSettings {
     this.completedSetup = const {},
     this.bubbleBlockedApps = const [],
     this.bubbleSize = BubbleSize.medium,
+    this.physicalKeyHotkey = true,
+    this.physicalKeyCode = BubbleHotkeys.capsLock,
     this.bubbleAutoRestore = false,
   });
 
@@ -64,6 +79,10 @@ class AppSettings {
   /// `CTRL+ALT+space`, or `Menu` when Caps Lock is mapped to Menu).
   final String hotkeyTrigger;
 
+  /// Linux dictation key: `capslock` (read from evdev, hold to talk) or
+  /// `portal` (the desktop's GlobalShortcuts shortcut, [hotkeyTrigger]).
+  final String hotkeyKey;
+
   /// BCP-47 codes from [Languages.all] the speaker uses. Empty means "detect
   /// any language". A fresh install starts with the device's language(s).
   final List<String> languages;
@@ -81,6 +100,12 @@ class AppSettings {
   /// Android floating mic: package names of apps where the bubble never shows.
   final List<String> bubbleBlockedApps;
   final BubbleSize bubbleSize;
+
+  /// Android physical keyboard: hold [physicalKeyCode] to dictate.
+  final bool physicalKeyHotkey;
+
+  /// Android key code of the dictation key (see [BubbleHotkeys]).
+  final int physicalKeyCode;
 
   /// Opt-in: turn the floating mic back on if the system switched it off.
   /// Needs WRITE_SECURE_SETTINGS granted over adb.
@@ -110,6 +135,7 @@ class AppSettings {
     bool? modelLicenseAccepted,
     bool? autoSwitchBack,
     String? hotkeyTrigger,
+    String? hotkeyKey,
     List<String>? languages,
     bool? useContactNames,
     List<Snippet>? snippets,
@@ -117,6 +143,8 @@ class AppSettings {
     Set<String>? completedSetup,
     List<String>? bubbleBlockedApps,
     BubbleSize? bubbleSize,
+    bool? physicalKeyHotkey,
+    int? physicalKeyCode,
     bool? bubbleAutoRestore,
   }) =>
       AppSettings(
@@ -132,6 +160,7 @@ class AppSettings {
         modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
         autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
         hotkeyTrigger: hotkeyTrigger ?? this.hotkeyTrigger,
+        hotkeyKey: hotkeyKey ?? this.hotkeyKey,
         languages: languages ?? this.languages,
         useContactNames: useContactNames ?? this.useContactNames,
         snippets: snippets ?? this.snippets,
@@ -139,6 +168,8 @@ class AppSettings {
         completedSetup: completedSetup ?? this.completedSetup,
         bubbleBlockedApps: bubbleBlockedApps ?? this.bubbleBlockedApps,
         bubbleSize: bubbleSize ?? this.bubbleSize,
+        physicalKeyHotkey: physicalKeyHotkey ?? this.physicalKeyHotkey,
+        physicalKeyCode: physicalKeyCode ?? this.physicalKeyCode,
         bubbleAutoRestore: bubbleAutoRestore ?? this.bubbleAutoRestore,
       );
 
@@ -155,6 +186,7 @@ class AppSettings {
         'modelLicenseAccepted': modelLicenseAccepted,
         'autoSwitchBack': autoSwitchBack,
         'hotkeyTrigger': hotkeyTrigger,
+        'hotkeyKey': hotkeyKey,
         'languages': languages,
         'useContactNames': useContactNames,
         'snippets': [for (final s in snippets) s.toJson()],
@@ -162,6 +194,8 @@ class AppSettings {
         'completedSetup': completedSetup.toList()..sort(),
         'bubbleBlockedApps': bubbleBlockedApps,
         'bubbleSize': bubbleSize.name,
+        'physicalKeyHotkey': physicalKeyHotkey,
+        'physicalKeyCode': physicalKeyCode,
         'bubbleAutoRestore': bubbleAutoRestore,
       };
 
@@ -182,6 +216,7 @@ class AppSettings {
         modelLicenseAccepted: j['modelLicenseAccepted'] as bool? ?? false,
         autoSwitchBack: j['autoSwitchBack'] as bool? ?? true,
         hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
+        hotkeyKey: j['hotkeyKey'] as String? ?? 'capslock',
         languages: _languagesFromJson(j, deviceLanguages),
         useContactNames: j['useContactNames'] as bool? ?? false,
         snippets: [
@@ -194,6 +229,8 @@ class AppSettings {
           if (j['bubbleBlockedApps'] case final List<Object?> l) ...l.whereType<String>(),
         ],
         bubbleSize: BubbleSize.values.asNameMap()[j['bubbleSize']] ?? BubbleSize.medium,
+        physicalKeyHotkey: j['physicalKeyHotkey'] as bool? ?? true,
+        physicalKeyCode: (j['physicalKeyCode'] as num?)?.toInt() ?? BubbleHotkeys.capsLock,
         bubbleAutoRestore: j['bubbleAutoRestore'] as bool? ?? false,
       );
 }

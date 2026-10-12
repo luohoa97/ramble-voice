@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
 import '../core/dictation/dictation_controller.dart';
+import '../platform/linux/linux_hotkey_service.dart';
 import '../platform/platform_services.dart';
 import 'util/hotkey_state.dart';
 import 'util/system_channel.dart';
@@ -13,7 +14,12 @@ import 'util/system_channel.dart';
 /// Connects hotkeys, CLI commands, the tray/overlay indicator and the window
 /// to the dictation controller. Linux only.
 class LinuxIntegration {
-  LinuxIntegration(this.container);
+  LinuxIntegration(this.container) {
+    instance = this;
+  }
+
+  /// The running integration, for settings widgets (Linux only, one per app).
+  static LinuxIntegration? instance;
 
   final ProviderContainer container;
   final _subs = <StreamSubscription<dynamic>>[];
@@ -71,9 +77,7 @@ class LinuxIntegration {
         }
       }));
       try {
-        final status = await hotkeys.bind(preferredTrigger: container.read(settingsProvider).hotkeyTrigger);
-        _holdSupported = status.supportsRelease;
-        container.read(hotkeyStatusProvider.notifier).set(status);
+        await _bind(hotkeys);
       } catch (_) {
         container.read(hotkeyStatusProvider.notifier).set(const HotkeyStatus(HotkeyBackend.none));
       }
@@ -100,6 +104,27 @@ class LinuxIntegration {
           fireImmediately: true,
         );
       } catch (_) {}
+    }
+  }
+
+  Future<void> _bind(HotkeyService hotkeys) async {
+    final settings = container.read(settingsProvider);
+    final status = hotkeys is LinuxHotkeyService
+        ? await hotkeys.bindWithKey(settings.hotkeyKey, preferredTrigger: settings.hotkeyTrigger)
+        : await hotkeys.bind(preferredTrigger: settings.hotkeyTrigger);
+    _holdSupported = status.supportsRelease;
+    container.read(hotkeyStatusProvider.notifier).set(status);
+  }
+
+  /// Saves the "Dictation key" choice (`capslock` | `portal`) and re-binds.
+  Future<void> setDictationKey(String key) async {
+    await container.read(settingsProvider.notifier).update((s) => s.copyWith(hotkeyKey: key));
+    final hotkeys = _services.hotkeys;
+    if (hotkeys == null) return;
+    try {
+      await _bind(hotkeys);
+    } catch (_) {
+      container.read(hotkeyStatusProvider.notifier).set(const HotkeyStatus(HotkeyBackend.none));
     }
   }
 

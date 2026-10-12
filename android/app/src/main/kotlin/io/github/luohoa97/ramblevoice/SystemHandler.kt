@@ -19,6 +19,7 @@ import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import io.github.luohoa97.ramblevoice.bubble.AccessibilitySettings
+import io.github.luohoa97.ramblevoice.bubble.BubbleHotkey
 import io.github.luohoa97.ramblevoice.bubble.BubbleKeeper
 import io.github.luohoa97.ramblevoice.bubble.BubblePrefs
 import io.github.luohoa97.ramblevoice.bubble.RambleBubbleService
@@ -93,6 +94,8 @@ class SystemHandler(
                 BubblePrefs(context).setConfig(
                     call.argument<List<String>>("blockedApps") ?: emptyList(),
                     call.argument<String>("size") ?: "medium",
+                    call.argument<Boolean>("hotkeyEnabled") ?: true,
+                    call.argument<Int>("hotkeyCode") ?: BubbleHotkey.DEFAULT_CODE,
                 )
                 result.success(null)
             }
@@ -104,6 +107,26 @@ class SystemHandler(
                 result.success(null)
             }
             "manufacturer" -> result.success(Build.MANUFACTURER)
+            "recordHotkey" -> {
+                // One-shot capture of the next key code, handled by the bubble service.
+                if (!BubbleKeeper.isEnabled(context)) {
+                    result.success(null)
+                } else {
+                    val main = android.os.Handler(android.os.Looper.getMainLooper())
+                    var answered = false
+                    val answer = { code: Int? ->
+                        if (!answered) {
+                            answered = true
+                            result.success(code)
+                        }
+                    }
+                    BubbleHotkey.record { code -> main.post { answer(code) } }
+                    main.postDelayed({
+                        BubbleHotkey.cancelRecording()
+                        answer(null)
+                    }, 10_500L)
+                }
+            }
             "sdkInt" -> result.success(Build.VERSION.SDK_INT)
             "hasSecureSettingsPermission" -> result.success(BubbleKeeper.canWriteSecureSettings(context))
             "setBubbleAutoRestore" -> {

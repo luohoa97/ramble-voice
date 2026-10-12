@@ -40,6 +40,8 @@ abstract final class NativeScript {
   };
 
   static const Map<String, String> chinese = {
+    'nin hao': '您好',
+    'ninhao': '您好',
     'ni hao': '你好',
     'nihao': '你好',
     'xie xie': '谢谢',

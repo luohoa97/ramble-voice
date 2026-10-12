@@ -256,8 +256,33 @@ abstract final class CleanupPrompt {
     r'(?=[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef])',
   );
 
+  // ASCII punctuation between CJK characters (a space may follow), or after
+  // one at the end of a line. Punctuation before English words stays ASCII.
+  static final _cjkPunct = RegExp(
+    r'(?<=[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff])([,.?!:;])(?= ?[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]|$)',
+    multiLine: true,
+  );
+  static final _kana = RegExp(r'[\u3040-\u30ff]');
+
+  /// Chinese and Japanese sentences use full-width punctuation (，。？！),
+  /// which models sometimes write as ASCII. A Japanese comma is 、.
+  static String fullWidthPunctuation(String s) {
+    final japanese = _kana.hasMatch(s);
+    return s.replaceAllMapped(_cjkPunct, (m) {
+      final p = switch (m[1]!) {
+        ',' => japanese ? '、' : '，',
+        '.' => '。',
+        '?' => '？',
+        '!' => '！',
+        ':' => '：',
+        _ => '；',
+      };
+      return p;
+    }).replaceAllMapped(RegExp(r'([，、。？！：；]) (?=[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff])'), (m) => m[1]!);
+  }
+
   static String tidyOutput(String raw) {
-    var s = raw.trim().replaceAll(_cjk, '');
+    var s = fullWidthPunctuation(raw.trim()).replaceAll(_cjk, '');
     final fence = RegExp(r'^```[a-zA-Z]*\n([\s\S]*?)\n?```$');
     final m = fence.firstMatch(s);
     if (m != null) s = m.group(1)!.trim();

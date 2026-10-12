@@ -117,6 +117,8 @@ abstract final class Languages {
         'English uses as ordinary nouns (sushi, ramen, tofu, kimchi) stay in Latin letters inside an English '
         'sentence; greetings, exclamations, and phrases are written in their own script. '
         'Use Simplified Chinese characters, never Traditional, unless the speech is Cantonese. '
+        'Write the exact Chinese word that was said, never a more common or plainer one: the polite nín is 您, '
+        'not 你 (nín hǎo is 您好), and 们, 呢, 啊, 吧 and other particles stay as spoken. '
         'When a word could be English or another language the speaker uses (mama, baba, ma), decide by '
         'pronunciation: Mandarin tones or a Chinese-speaking voice mean Chinese characters (妈妈, 爸爸, 吗). '
         'Final check before answering: any Japanese or Chinese word or phrase you wrote in Latin letters '

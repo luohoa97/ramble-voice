@@ -83,11 +83,31 @@ class ImeHandler(
         return true
     }
 
+    /**
+     * Returns to the user's typing keyboard. Order: the system's "previous"
+     * keyboard, then Gboard, then any other enabled real keyboard. The picker
+     * appears only when no other keyboard exists, so the automatic hop back
+     * after dictation never pops a dialog under the user's finger.
+     */
     private fun switchKeyboard(): Boolean {
         if (service.switchToPreviousInputMethod()) return true
-        // No previous keyboard recorded: let the user pick one.
+        val target = typingKeyboardId()
+        if (target != null) {
+            service.switchInputMethod(target)
+            return true
+        }
         service.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
-        return true
+        return false
+    }
+
+    private fun typingKeyboardId(): String? {
+        val imm = service.getSystemService(InputMethodManager::class.java) ?: return null
+        val own = service.packageName
+        val keyboards = imm.enabledInputMethodList.filter { info ->
+            info.packageName != own &&
+                (0 until info.subtypeCount).any { info.getSubtypeAt(it).mode == "keyboard" }
+        }
+        return (keyboards.firstOrNull { it.packageName == GBOARD } ?: keyboards.firstOrNull())?.id
     }
 
     private fun shouldOfferSwitch(): Boolean {
@@ -143,3 +163,5 @@ class ImeHandler(
         })
     }
 }
+
+private const val GBOARD = "com.google.android.inputmethod.latin"

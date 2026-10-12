@@ -222,9 +222,12 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
             Expanded(
               child: Row(
                 children: [
-                  SizedBox(
-                    width: 72,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: SizedBox(
+                    width: 64,
                     child: Column(
+                      spacing: 8,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (state is DictationListening) ...[
@@ -267,7 +270,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                         ],
                       ],
                     ),
-                  ),
+                  )),
                   Expanded(
                     child: edit.active
                       ? const EditPanel()
@@ -304,9 +307,12 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                           },
                         ),
                   ),
-                  SizedBox(
-                    width: 72,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: SizedBox(
+                    width: 64,
                     child: Column(
+                      spacing: 8,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _RepeatKey(
@@ -330,7 +336,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                         ),
                       ],
                     ),
-                  ),
+                  )),
                 ],
               ),
             ),

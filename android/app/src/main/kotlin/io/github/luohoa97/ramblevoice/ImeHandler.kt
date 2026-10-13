@@ -268,8 +268,13 @@ class ImeHandler(
         return count > 0 && (0 until count).all { info.getSubtypeAt(it).mode == "voice" }
     }
 
-    /** Number, phone, date/time and password fields: typed, never dictated. */
+    /**
+     * Fields that are typed, never dictated: numbers, phone numbers, dates and
+     * passwords, and Ramble's own fields (an email address in its settings),
+     * except the setup "Try it" box, which exists to try dictation.
+     */
     fun needsTypingKeyboard(info: EditorInfo?): Boolean {
+        if (info?.packageName == service.packageName && !ImeLaunch.allowInOwnApp) return true
         val type = info?.inputType ?: return false
         val cls = type and InputType.TYPE_MASK_CLASS
         if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE || cls == InputType.TYPE_CLASS_DATETIME) {

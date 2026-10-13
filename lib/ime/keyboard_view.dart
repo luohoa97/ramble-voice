@@ -213,6 +213,9 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   void _openApp(String route) => unawaited(_bridge.openApp(route));
 
+  /// Typing into Ramble's own app (its settings): no email chips there.
+  bool get _inOwnApp => _info.packageName == 'io.github.luohoa97.ramblevoice';
+
   void _tick() => _haptic('tick');
 
   @override
@@ -343,7 +346,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
             ),
             SizedBox(
               height: 36,
-              child: _info.isEmailField && state is DictationIdle && _undoText == null
+              child: _info.isEmailField && !_inOwnApp && state is DictationIdle && _undoText == null
                   ? Row(
                       children: [
                         ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),

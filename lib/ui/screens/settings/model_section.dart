@@ -9,7 +9,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../../app/providers.dart';
 import '../../../core/models/model_catalog.dart';
 import '../../../platform/android/android_system.dart';
-import '../onboarding/setup_status.dart';
 import '../../../core/models/model_downloader.dart';
 import '../../../core/models/model_downloads.dart';
 import '../../util/format.dart';
@@ -129,8 +128,14 @@ class _ModelRowState extends ConsumerState<ModelRow> {
       if (!ok || !mounted) return;
       await ref.read(settingsProvider.notifier).update((s) => s.copyWith(modelLicenseAccepted: true));
     }
+    // One tap for the NPU model: its runtime downloads alongside it.
+    final npu = widget.variant.usesNpu && !(ref.read(deviceInfoProvider).value?.npuRuntime ?? false);
+    if (!mounted) return;
+    if (npu && !await confirmNpuRuntime(context)) return;
+    if (!mounted) return;
     _select();
     unawaited(_downloader.start(widget.variant));
+    if (npu) unawaited(ref.read(npuInstallProvider.notifier).install(context, accepted: true));
   }
 
   Future<void> _delete() async {
@@ -318,81 +323,92 @@ class _ModelRowState extends ConsumerState<ModelRow> {
   }
 }
 
-/// Qualcomm's NPU runtime for the NPU model: downloaded on request from
-/// Maven Central (never in the app), after accepting Qualcomm's licence.
-class NpuRuntimeTile extends ConsumerStatefulWidget {
+/// Progress of the Qualcomm NPU runtime download: null when idle, 0..1 while
+/// downloading; [NpuInstall.error] keeps the last failure.
+class NpuInstall extends Notifier<double?> {
+  String? error;
+
+  @override
+  double? build() => null;
+
+  /// Asks for Qualcomm's license (unless [accepted]) and installs the runtime.
+  /// Returns whether it is installed afterwards.
+  Future<bool> install(BuildContext context, {bool accepted = false}) async {
+    if (state != null) return false;
+    if (!accepted && !await confirmNpuRuntime(context)) return false;
+    error = null;
+    state = 0;
+    try {
+      await AndroidSystem().installNpuRuntime(onProgress: (got, total) {
+        if (total > 0) state = got / total;
+      });
+      return true;
+    } on PlatformException catch (e) {
+      error = e.message ?? e.code;
+      return false;
+    } finally {
+      state = null;
+      ref.invalidate(deviceInfoProvider);
+      ref.invalidate(activeEngineReadinessProvider);
+    }
+  }
+}
+
+final npuInstallProvider = NotifierProvider<NpuInstall, double?>(NpuInstall.new);
+
+/// Qualcomm's license for its NPU runtime. True when the user accepts.
+Future<bool> confirmNpuRuntime(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      icon: const Icon(Icons.memory_rounded),
+      title: const Text('Use the NPU?'),
+      content: const Text(
+        "The NPU model runs on Qualcomm's QNN runtime (about 71 MB). It is Qualcomm's proprietary software "
+        'under its AI Stack license, not part of Ramble Voice. Ramble downloads it from Maven Central with the '
+        "model, checks it, and keeps it on this device. Continuing accepts Qualcomm's license.",
+      ),
+      actions: [
+        TextButton(onPressed: () => openUrl(npuRuntimeLicenseUrl), child: const Text('License')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Accept')),
+      ],
+    ),
+  );
+  return ok ?? false;
+}
+
+/// Status of Qualcomm's NPU runtime, with Download (one tap, after the
+/// license) or Remove. The NPU model's own Download installs it too.
+class NpuRuntimeTile extends ConsumerWidget {
   const NpuRuntimeTile({super.key});
 
   @override
-  ConsumerState<NpuRuntimeTile> createState() => _NpuRuntimeTileState();
-}
-
-class _NpuRuntimeTileState extends ConsumerState<NpuRuntimeTile> {
-  double? _progress;
-  String? _error;
-
-  Future<void> _install() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.memory_rounded),
-        title: const Text('Download the Qualcomm NPU runtime?'),
-        content: const Text(
-          "The NPU model runs on Qualcomm's QNN runtime (about 71 MB, version 2.50.0). It is proprietary software "
-          'from Qualcomm under its AI Stack license, not part of Ramble Voice: Ramble downloads it from Maven '
-          "Central, checks it, and keeps it on this device. By downloading it you accept Qualcomm's license.",
-        ),
-        actions: [
-          TextButton(onPressed: () => openUrl(npuRuntimeLicenseUrl), child: const Text('License')),
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Accept and download')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    setState(() {
-      _progress = 0;
-      _error = null;
-    });
-    try {
-      await ref.read(androidSystemProvider).installNpuRuntime(onProgress: (got, total) {
-        if (mounted && total > 0) setState(() => _progress = got / total);
-      });
-    } on Object catch (e) {
-      if (mounted) setState(() => _error = e is PlatformException ? (e.message ?? e.code) : '$e');
-    }
-    if (mounted) setState(() => _progress = null);
-    ref.invalidate(deviceInfoProvider);
-    ref.invalidate(activeEngineReadinessProvider);
-  }
-
-  Future<void> _remove() async {
-    await ref.read(androidSystemProvider).removeNpuRuntime();
-    ref.invalidate(deviceInfoProvider);
-    ref.invalidate(activeEngineReadinessProvider);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final installed = ref.watch(deviceInfoProvider).value?.npuRuntime ?? false;
-    final busy = _progress != null;
+    final progress = ref.watch(npuInstallProvider);
+    final notifier = ref.read(npuInstallProvider.notifier);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: const Icon(Icons.memory_rounded),
       title: const Text('Qualcomm NPU runtime'),
       subtitle: Text(
-        _error ??
-            (busy
-                ? 'Downloading ${(_progress! * 100).round()}%'
-                : installed
-                    ? 'Installed. The NPU model can run.'
-                    : 'Needed by the NPU model. About 71 MB, from Qualcomm.'),
+        progress != null
+            ? 'Downloading ${(progress * 100).round()}%'
+            : notifier.error ?? (installed ? 'Installed. The NPU model can run.' : 'Needed by the NPU model. About 71 MB.'),
       ),
-      trailing: busy
-          ? SizedBox.square(dimension: 24, child: CircularProgressIndicator(value: _progress == 0 ? null : _progress))
+      trailing: progress != null
+          ? SizedBox.square(dimension: 24, child: CircularProgressIndicator(value: progress == 0 ? null : progress))
           : installed
-              ? TextButton(onPressed: _remove, child: const Text('Remove'))
-              : FilledButton.tonal(onPressed: _install, child: const Text('Download')),
+              ? TextButton(
+                  onPressed: () async {
+                    await AndroidSystem().removeNpuRuntime();
+                    ref.invalidate(deviceInfoProvider);
+                    ref.invalidate(activeEngineReadinessProvider);
+                  },
+                  child: const Text('Remove'),
+                )
+              : FilledButton.tonal(onPressed: () => notifier.install(context), child: const Text('Download')),
     );
   }
 }

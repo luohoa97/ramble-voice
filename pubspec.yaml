@@ -2,7 +2,7 @@
 name: ramble_voice
 description: "Voice dictation that turns messy rambles into clean text, on-device or with Gemini."
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+100
 
 environment:
   sdk: ^3.13.5

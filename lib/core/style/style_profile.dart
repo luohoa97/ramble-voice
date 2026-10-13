@@ -9,7 +9,10 @@ import 'snippets.dart';
 enum StylePreset {
   casual(
     'Casual',
-    'Relaxed and conversational, with normal capitalization and punctuation. Contractions are fine',
+    'Relaxed and conversational, with normal capitalization and punctuation. Contractions are fine. Adapt the '
+    'shape to the length: a quick remark stays one or two plain sentences; a long ramble or speech becomes '
+    'well-organized paragraphs, one per idea, with a list where the speaker lists things, still in their own '
+    'relaxed voice',
   ),
   professional(
     'Professional',

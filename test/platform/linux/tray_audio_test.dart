@@ -30,15 +30,9 @@ void main() {
 
   group('tray', () {
     test('icon names per state', () {
-      expect(
-        trayIconFor(IndicatorState.idle),
-        'audio-input-microphone-symbolic',
-      );
+      expect(trayIconFor(IndicatorState.idle), 'audio-input-microphone-symbolic');
       expect(trayIconFor(IndicatorState.listening), 'media-record-symbolic');
-      expect(
-        trayIconFor(IndicatorState.processing),
-        'emblem-synchronizing-symbolic',
-      );
+      expect(trayIconFor(IndicatorState.processing), 'emblem-synchronizing-symbolic');
     });
 
     test('dbusmenu layout has the three entries and a separator', () {

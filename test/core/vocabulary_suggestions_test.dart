@@ -19,42 +19,26 @@ void main() {
     });
 
     test('ignores plain words and sentence-initial capitals', () {
-      expect(
-        suggestVocabulary(
-          'i think so. we go',
-          'I think so. We should go. Then leave.',
-        ),
-        isEmpty,
-      );
+      expect(suggestVocabulary('i think so. we go', 'I think so. We should go. Then leave.'), isEmpty);
     });
 
     test('ignores tokens already present', () {
-      expect(
-        suggestVocabulary('Ask Neil about it', 'Ask Neil about it now'),
-        isEmpty,
-      );
+      expect(suggestVocabulary('Ask Neil about it', 'Ask Neil about it now'), isEmpty);
     });
 
     test('suggests case corrections in the middle of a sentence', () {
-      expect(suggestVocabulary('use kubernetes here', 'use Kubernetes here'), [
-        'Kubernetes',
-      ]);
+      expect(suggestVocabulary('use kubernetes here', 'use Kubernetes here'), ['Kubernetes']);
     });
 
     test('finds digits, dots and underscores', () {
       expect(
-        suggestVocabulary(
-          'edit the config',
-          'edit package.json and snake_case.py with gpt4',
-        ),
+        suggestVocabulary('edit the config', 'edit package.json and snake_case.py with gpt4'),
         ['package.json', 'snake_case.py', 'gpt4'],
       );
     });
 
     test('deduplicates case-insensitively and drops possessives', () {
-      expect(suggestVocabulary('hi', "hi from Neil and NEIL, Neil's cat"), [
-        'Neil',
-      ]);
+      expect(suggestVocabulary('hi', "hi from Neil and NEIL, Neil's cat"), ['Neil']);
     });
 
     test('respects max and handles empty input', () {
@@ -63,10 +47,7 @@ void main() {
     });
 
     test('works with non-latin letters', () {
-      expect(suggestVocabulary('hallo', 'hallo Zoë und Müller'), [
-        'Zoë',
-        'Müller',
-      ]);
+      expect(suggestVocabulary('hallo', 'hallo Zoë und Müller'), ['Zoë', 'Müller']);
     });
   });
 
@@ -76,16 +57,14 @@ void main() {
     tearDown(() => db.close());
 
     test('replaces the cleaned text only', () async {
-      await db.upsert(
-        HistoryEntriesCompanion.insert(
-          id: 'a',
-          createdAt: DateTime.utc(2026),
-          durationMs: 1,
-          cleaned: 'old',
-          verbatim: const Value('raw'),
-          engine: 'gemini',
-        ),
-      );
+      await db.upsert(HistoryEntriesCompanion.insert(
+        id: 'a',
+        createdAt: DateTime.utc(2026),
+        durationMs: 1,
+        cleaned: 'old',
+        verbatim: const Value('raw'),
+        engine: 'gemini',
+      ));
       expect(await db.updateCleaned('a', 'new'), isTrue);
       final e = (await db.byId('a'))!;
       expect(e.cleaned, 'new');

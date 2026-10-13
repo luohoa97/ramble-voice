@@ -16,9 +16,7 @@ ButtonStyle keyStyle(BuildContext context) {
 }
 
 /// Fill of a custom-drawn key, matching [keyStyle].
-Color keyFill(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerHighest;
+Color keyFill(BuildContext context) => Theme.of(context).colorScheme.surfaceContainerHighest;
 
 /// Icon and label colour on [keyFill].
-Color keyForeground(BuildContext context) =>
-    Theme.of(context).colorScheme.onSurfaceVariant;
+Color keyForeground(BuildContext context) => Theme.of(context).colorScheme.onSurfaceVariant;

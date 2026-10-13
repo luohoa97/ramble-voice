@@ -50,19 +50,9 @@ void main() {
 
   test('notification post and remove', () async {
     final n = PortalNotifier(portal);
-    await n.post(
-      'ramble-live-test',
-      'Ramble Voice test',
-      'Live notification check',
-      persistent: true,
-    );
+    await n.post('ramble-live-test', 'Ramble Voice test', 'Live notification check', persistent: true);
     await Future<void>.delayed(const Duration(seconds: 2));
-    await n.post(
-      'ramble-live-test',
-      'Ramble Voice test',
-      'Replaced in place',
-      persistent: true,
-    );
+    await n.post('ramble-live-test', 'Ramble Voice test', 'Replaced in place', persistent: true);
     await Future<void>.delayed(const Duration(seconds: 1));
     await n.remove('ramble-live-test');
     // ignore: avoid_print
@@ -72,12 +62,8 @@ void main() {
   test('secret service round trip', () async {
     final tmp = Directory.systemTemp.createTempSync('ramble-secret');
     addTearDown(() => tmp.deleteSync(recursive: true));
-    final store = SecretServiceStore(
-      bus,
-      fallbackFile: File('${tmp.path}/key'),
-      secretKey: 'ramble-test-${DateTime.now().millisecondsSinceEpoch}',
-      environment: const {},
-    );
+    final store = SecretServiceStore(bus,
+        fallbackFile: File('${tmp.path}/key'), secretKey: 'ramble-test-${DateTime.now().millisecondsSinceEpoch}', environment: const {});
     await store.writeGeminiKey('test-key-123');
     // ignore: avoid_print
     print('describe: ${await store.describe()}');
@@ -91,11 +77,7 @@ void main() {
   test('environment variable wins', () async {
     final tmp = Directory.systemTemp.createTempSync('ramble-secret');
     addTearDown(() => tmp.deleteSync(recursive: true));
-    final store = SecretServiceStore(
-      bus,
-      fallbackFile: File('${tmp.path}/key'),
-      environment: const {'GEMINI_API_KEY': 'envkey'},
-    );
+    final store = SecretServiceStore(bus, fallbackFile: File('${tmp.path}/key'), environment: const {'GEMINI_API_KEY': 'envkey'});
     expect(await store.readGeminiKey(), 'envkey');
     expect(await store.geminiKeySource(), KeySource.environment);
   }, skip: skip);
@@ -105,11 +87,7 @@ void main() {
     addTearDown(() => tmp.deleteSync(recursive: true));
     final dead = DBusClient(DBusAddress.unix(path: '/nonexistent/bus'));
     addTearDown(dead.close);
-    final store = SecretServiceStore(
-      dead,
-      fallbackFile: File('${tmp.path}/key'),
-      environment: const {},
-    );
+    final store = SecretServiceStore(dead, fallbackFile: File('${tmp.path}/key'), environment: const {});
     await store.writeGeminiKey('abc');
     expect(await store.readGeminiKey(), 'abc');
     expect(File('${tmp.path}/key').statSync().mode & 0x1ff, 384); // 0600
@@ -127,9 +105,7 @@ void main() {
     await cap.stop();
     await sub.cancel();
     // ignore: avoid_print
-    print(
-      'backend=${src.backendName} lib=${src.nativeLibraryPath} bytes=$bytes',
-    );
+    print('backend=${src.backendName} lib=${src.nativeLibraryPath} bytes=$bytes');
     expect(bytes, greaterThan(16000));
   }, skip: skip);
 
@@ -142,25 +118,17 @@ void main() {
     await cap.stop();
     await sub.cancel();
     // ignore: avoid_print
-    print(
-      'backend=${src.backendName} lib=${src.nativeLibraryPath} bytes=$bytes',
-    );
+    print('backend=${src.backendName} lib=${src.nativeLibraryPath} bytes=$bytes');
     expect(bytes, greaterThan(8000));
   }, skip: skip);
 
-  test(
-    'global shortcuts session',
-    () async {
-      await register();
-      final env = await LinuxEnvironment.detect(portal: portal);
-      final svc = PortalHotkeyService(portal, env);
-      final status = await svc.bind();
-      // ignore: avoid_print
-      print('hotkey: ${status.backend} ${status.trigger} ${status.message}');
-      await svc.dispose();
-    },
-    skip: live && Platform.environment['RAMBLE_LIVE_SHORTCUTS'] == '1'
-        ? null
-        : 'set RAMBLE_LIVE=1 RAMBLE_LIVE_SHORTCUTS=1',
-  );
+  test('global shortcuts session', () async {
+    await register();
+    final env = await LinuxEnvironment.detect(portal: portal);
+    final svc = PortalHotkeyService(portal, env);
+    final status = await svc.bind();
+    // ignore: avoid_print
+    print('hotkey: ${status.backend} ${status.trigger} ${status.message}');
+    await svc.dispose();
+  }, skip: live && Platform.environment['RAMBLE_LIVE_SHORTCUTS'] == '1' ? null : 'set RAMBLE_LIVE=1 RAMBLE_LIVE_SHORTCUTS=1');
 }

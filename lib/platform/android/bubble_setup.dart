@@ -30,8 +30,8 @@ abstract interface class BubbleSetupEnv {
 
 class AndroidBubbleSetupEnv implements BubbleSetupEnv {
   AndroidBubbleSetupEnv({AndroidSystem? system, AndroidAudioSource? audio})
-    : _system = system ?? AndroidSystem(),
-      _audio = audio ?? AndroidAudioSource();
+      : _system = system ?? AndroidSystem(),
+        _audio = audio ?? AndroidAudioSource();
 
   final AndroidSystem _system;
   final AndroidAudioSource _audio;
@@ -97,27 +97,25 @@ class BubbleSetup extends ChangeNotifier {
   bool get finished => _started && current == null;
 
   /// 1-based number of [current] among [steps], for "Step n of m".
-  int get number =>
-      current == null ? _steps.length : _steps.indexOf(current!) + 1;
+  int get number => current == null ? _steps.length : _steps.indexOf(current!) + 1;
 
   /// Accessibility was opened but the service stayed off: Android blocked it
   /// as a restricted setting for a sideloaded app.
   bool get restricted => _restricted;
 
   Future<bool> _isDone(BubbleSetupStep s) async => switch (s) {
-    BubbleSetupStep.microphone => _env.hasMicrophone(),
-    BubbleSetupStep.keyboard => _env.isKeyboardEnabled(),
-    BubbleSetupStep.accessibility => _env.isBubbleEnabled(),
-    BubbleSetupStep.battery => _env.isIgnoringBattery(),
-    BubbleSetupStep.autostart => Future.value(_openedAutostart),
-  };
+        BubbleSetupStep.microphone => _env.hasMicrophone(),
+        BubbleSetupStep.keyboard => _env.isKeyboardEnabled(),
+        BubbleSetupStep.accessibility => _env.isBubbleEnabled(),
+        BubbleSetupStep.battery => _env.isIgnoringBattery(),
+        BubbleSetupStep.autostart => Future.value(_openedAutostart),
+      };
 
   /// Works out which steps are needed and begins.
   Future<void> start() async {
     final needed = <BubbleSetupStep>[];
     for (final s in BubbleSetupStep.values) {
-      if (s == BubbleSetupStep.autostart && !await _env.needsAutostartStep())
-        continue;
+      if (s == BubbleSetupStep.autostart && !await _env.needsAutostartStep()) continue;
       if (!await _isDone(s)) needed.add(s);
     }
     _steps = needed;
@@ -141,8 +139,7 @@ class BubbleSetup extends ChangeNotifier {
     }
     if (_done.contains(BubbleSetupStep.accessibility)) {
       _restricted = false;
-    } else if (_openedAccessibility &&
-        await _env.sdkInt() >= restrictedSettingsSdk) {
+    } else if (_openedAccessibility && await _env.sdkInt() >= restrictedSettingsSdk) {
       _restricted = true;
     }
     notifyListeners();

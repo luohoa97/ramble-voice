@@ -11,8 +11,7 @@ class AudioSourceException implements Exception {
   final String? detail;
 
   @override
-  String toString() =>
-      'AudioSourceException($error${detail == null ? '' : ': $detail'})';
+  String toString() => 'AudioSourceException($error${detail == null ? '' : ': $detail'})';
 }
 
 /// A running capture. [pcm] emits [Pcm]-formatted blocks (16 kHz mono s16le)

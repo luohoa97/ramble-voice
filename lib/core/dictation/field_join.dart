@@ -9,27 +9,18 @@
 /// - mid-text, a space separates words ("hello|" + "world").
 abstract final class FieldJoin {
   /// A list marker at the start of a line: bullets, numbers, letters, task boxes.
-  static final marker = RegExp(
-    r'^([ \t]*)([-*] \[[ xX]\]|[-*+•◦▪‣]|\d+[.)]|[a-zA-Z][.)])[ \t]+',
-  );
+  static final marker = RegExp(r'^([ \t]*)([-*] \[[ xX]\]|[-*+•◦▪‣]|\d+[.)]|[a-zA-Z][.)])[ \t]+');
 
   static final _cjk = RegExp(r'[　-〿぀-ヿ㐀-䶿一-鿿＀-￯]');
-  static final _wordStart = RegExp(
-    r'''^[\p{L}\p{N}"'“‘(\[{¿¡#@$~/`*_-]''',
-    unicode: true,
-  );
-  static final _wordEnd = RegExp(
-    r'''[\p{L}\p{N}.,!?;:)\]}"'”’%]$''',
-    unicode: true,
-  );
+  static final _wordStart = RegExp(r'''^[\p{L}\p{N}"'“‘(\[{¿¡#@$~/`*_-]''', unicode: true);
+  static final _wordEnd = RegExp(r'''[\p{L}\p{N}.,!?;:)\]}"'”’%]$''', unicode: true);
 
   static String fit(String before, String text, [String after = '']) {
     // A leading line break from the model is its decision to start a new line.
     final lead = RegExp(r'^\n+').firstMatch(text)?.group(0) ?? '';
     var out = text.trim();
     if (out.isEmpty) return out;
-    if (lead.isNotEmpty)
-      return _tail(before.isEmpty ? out : '$lead$out', after);
+    if (lead.isNotEmpty) return _tail(before.isEmpty ? out : '$lead$out', after);
     final line = before.substring(before.lastIndexOf('\n') + 1);
     final m = marker.firstMatch(line);
     if (m != null) {
@@ -45,10 +36,7 @@ abstract final class FieldJoin {
     if (before.isNotEmpty && !RegExp(r'\s$').hasMatch(before)) {
       final last = before.substring(before.length - 1);
       final cjk = _cjk.hasMatch(last) || _cjk.hasMatch(out.substring(0, 1));
-      if (!cjk &&
-          _wordEnd.hasMatch(last) &&
-          _wordStart.hasMatch(out) &&
-          !_isOpening(last)) {
+      if (!cjk && _wordEnd.hasMatch(last) && _wordStart.hasMatch(out) && !_isOpening(last)) {
         out = ' $out';
       }
     }
@@ -63,8 +51,7 @@ abstract final class FieldJoin {
     final first = after.substring(0, 1);
     final last = out.substring(out.length - 1);
     if (_cjk.hasMatch(first) || _cjk.hasMatch(last)) return out;
-    if (RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(first) &&
-        RegExp(r'[\p{L}\p{N}.,!?;:]', unicode: true).hasMatch(last)) {
+    if (RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(first) && RegExp(r'[\p{L}\p{N}.,!?;:]', unicode: true).hasMatch(last)) {
       return '$out ';
     }
     return out;

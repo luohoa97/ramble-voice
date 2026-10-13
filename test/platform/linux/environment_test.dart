@@ -14,17 +14,18 @@ LinuxEnvironment env(
   bool flatpak = false,
   bool rd = false,
   bool wayland = true,
-}) => LinuxEnvironment.fromEnv(
-  {
-    'XDG_CURRENT_DESKTOP': desktop,
-    'XDG_SESSION_TYPE': session,
-    if (wayland) 'WAYLAND_DISPLAY': 'wayland-0',
-  },
-  binaries: bins,
-  ydotoolSocket: socket,
-  isFlatpak: flatpak,
-  portalVersions: {'RemoteDesktop': rd ? 2 : null},
-);
+}) =>
+    LinuxEnvironment.fromEnv(
+      {
+        'XDG_CURRENT_DESKTOP': desktop,
+        'XDG_SESSION_TYPE': session,
+        if (wayland) 'WAYLAND_DISPLAY': 'wayland-0',
+      },
+      binaries: bins,
+      ydotoolSocket: socket,
+      isFlatpak: flatpak,
+      portalVersions: {'RemoteDesktop': rd ? 2 : null},
+    );
 
 void main() {
   group('compositor detection', () {
@@ -38,27 +39,13 @@ void main() {
         expect(env(d, 'wayland').compositor, Compositor.wlroots, reason: d);
       }
     });
-    test(
-      'X11',
-      () =>
-          expect(env('XFCE', 'x11', wayland: false).compositor, Compositor.x11),
-    );
+    test('X11', () => expect(env('XFCE', 'x11', wayland: false).compositor, Compositor.x11));
   });
 
   group('injection chain', () {
     test('GNOME Wayland prefers the portal, then wtype, then ydotool', () {
-      final e = env(
-        'GNOME',
-        'wayland',
-        rd: true,
-        bins: {'wtype', 'ydotool'},
-        socket: true,
-      );
-      expect(e.injectionChain(), [
-        Injector.remoteDesktopPortal,
-        Injector.wtype,
-        Injector.ydotool,
-      ]);
+      final e = env('GNOME', 'wayland', rd: true, bins: {'wtype', 'ydotool'}, socket: true);
+      expect(e.injectionChain(), [Injector.remoteDesktopPortal, Injector.wtype, Injector.ydotool]);
     });
     test('Sway uses wtype first', () {
       final e = env('sway', 'wayland', bins: {'wtype'});
@@ -69,48 +56,23 @@ void main() {
       expect(e.injectionChain(), [Injector.xdotool]);
     });
     test('ydotool needs its socket', () {
-      expect(
-        env('sway', 'wayland', bins: {'ydotool'}).injectionChain(),
-        isEmpty,
-      );
-      expect(
-        env(
-          'sway',
-          'wayland',
-          bins: {'ydotool'},
-          socket: true,
-        ).injectionChain(),
-        [Injector.ydotool],
-      );
+      expect(env('sway', 'wayland', bins: {'ydotool'}).injectionChain(), isEmpty);
+      expect(env('sway', 'wayland', bins: {'ydotool'}, socket: true).injectionChain(), [Injector.ydotool]);
     });
     test('nothing available means empty chain (clipboard only)', () {
       expect(env('GNOME', 'wayland').injectionChain(), isEmpty);
     });
     test('describe mentions the chain', () {
-      expect(
-        env('GNOME', 'wayland', rd: true).describe(),
-        contains('remoteDesktopPortal'),
-      );
+      expect(env('GNOME', 'wayland', rd: true).describe(), contains('remoteDesktopPortal'));
     });
   });
 
   group('HostSetup', () {
     test('only for Flatpak without any typing path', () {
       expect(HostSetup.appliesTo(env('sway', 'wayland')), isFalse);
-      expect(
-        HostSetup.appliesTo(env('sway', 'wayland', flatpak: true)),
-        isTrue,
-      );
-      expect(
-        HostSetup.appliesTo(
-          env('sway', 'wayland', flatpak: true, bins: {'wtype'}),
-        ),
-        isFalse,
-      );
-      expect(
-        HostSetup.appliesTo(env('GNOME', 'wayland', flatpak: true, rd: true)),
-        isFalse,
-      );
+      expect(HostSetup.appliesTo(env('sway', 'wayland', flatpak: true)), isTrue);
+      expect(HostSetup.appliesTo(env('sway', 'wayland', flatpak: true, bins: {'wtype'})), isFalse);
+      expect(HostSetup.appliesTo(env('GNOME', 'wayland', flatpak: true, rd: true)), isFalse);
       expect(HostSetup.command, contains('host-setup.sh'));
     });
   });
@@ -119,43 +81,24 @@ void main() {
     test('Sway gets bindsym press and release lines', () {
       final s = PortalHotkeyService.fallbackStatus(env('sway', 'wayland'));
       expect(s.backend, HotkeyBackend.compositorBinding);
-      expect(
-        s.message,
-        contains('bindsym Ctrl+Alt+space exec ramble_voice --start'),
-      );
-      expect(
-        s.message,
-        contains('bindsym --release Ctrl+Alt+space exec ramble_voice --stop'),
-      );
+      expect(s.message, contains('bindsym Ctrl+Alt+space exec ramble_voice --start'));
+      expect(s.message, contains('bindsym --release Ctrl+Alt+space exec ramble_voice --stop'));
     });
     test('Hyprland gets bind and bindr', () {
       final s = PortalHotkeyService.fallbackStatus(env('Hyprland', 'wayland'));
-      expect(
-        s.message,
-        contains('bindr = CTRL ALT, space, exec, ramble_voice --stop'),
-      );
+      expect(s.message, contains('bindr = CTRL ALT, space, exec, ramble_voice --stop'));
     });
     test('Flatpak uses flatpak run', () {
-      final s = PortalHotkeyService.fallbackStatus(
-        env('sway', 'wayland', flatpak: true),
-      );
-      expect(
-        s.message,
-        contains('flatpak run io.github.luohoa97.RambleVoice --start'),
-      );
+      final s = PortalHotkeyService.fallbackStatus(env('sway', 'wayland', flatpak: true));
+      expect(s.message, contains('flatpak run io.github.luohoa97.RambleVoice --start'));
     });
     test('X11 reports the x11 backend', () {
-      final s = PortalHotkeyService.fallbackStatus(
-        env('i3', 'x11', wayland: false),
-      );
+      final s = PortalHotkeyService.fallbackStatus(env('i3', 'x11', wayland: false));
       expect(s.backend, HotkeyBackend.x11);
       expect(s.message, contains('--toggle'));
     });
     test('prettyTrigger', () {
-      expect(
-        PortalHotkeyService.prettyTrigger('CTRL+ALT+space'),
-        'Ctrl+Alt+Space',
-      );
+      expect(PortalHotkeyService.prettyTrigger('CTRL+ALT+space'), 'Ctrl+Alt+Space');
     });
   });
 }

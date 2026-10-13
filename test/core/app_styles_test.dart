@@ -8,18 +8,9 @@ import 'package:ramble_voice/core/style/style_profile.dart';
 void main() {
   group('built-in defaults', () {
     test('mail apps are professional', () {
-      expect(
-        builtInStyleFor('com.google.android.gm'),
-        StylePreset.professional,
-      );
-      expect(
-        builtInStyleFor('com.microsoft.office.outlook'),
-        StylePreset.professional,
-      );
-      expect(
-        builtInStyleFor('ch.protonmail.android'),
-        StylePreset.professional,
-      );
+      expect(builtInStyleFor('com.google.android.gm'), StylePreset.professional);
+      expect(builtInStyleFor('com.microsoft.office.outlook'), StylePreset.professional);
+      expect(builtInStyleFor('ch.protonmail.android'), StylePreset.professional);
       expect(builtInStyleFor('com.fastmail.app'), StylePreset.professional);
     });
 
@@ -66,50 +57,31 @@ void main() {
   group('styleFor', () {
     test('falls back to the global preset', () {
       expect(styleFor(null), StylePreset.casual);
-      expect(
-        styleFor('com.example.browser', global: StylePreset.professional),
-        StylePreset.professional,
-      );
+      expect(styleFor('com.example.browser', global: StylePreset.professional), StylePreset.professional);
     });
 
     test('built-in beats global', () {
-      expect(
-        styleFor('com.whatsapp', global: StylePreset.professional),
-        StylePreset.texting,
-      );
+      expect(styleFor('com.whatsapp', global: StylePreset.professional), StylePreset.texting);
     });
 
     test('override beats built-in', () {
       expect(
-        styleFor(
-          'com.whatsapp',
-          overrides: {'com.whatsapp': StylePreset.notes},
-        ),
+        styleFor('com.whatsapp', overrides: {'com.whatsapp': StylePreset.notes}),
         StylePreset.notes,
       );
     });
 
     test('overrides are per package', () {
       final overrides = {'com.example.a': StylePreset.notes};
-      expect(
-        styleFor('com.example.a', overrides: overrides),
-        StylePreset.notes,
-      );
-      expect(
-        styleFor('com.example.b', overrides: overrides),
-        StylePreset.casual,
-      );
+      expect(styleFor('com.example.a', overrides: overrides), StylePreset.notes);
+      expect(styleFor('com.example.b', overrides: overrides), StylePreset.casual);
     });
   });
 
   group('AppSettings integration', () {
     test('resolves through settings and keeps vocabulary and instructions', () {
       const s = AppSettings(
-        style: StyleProfile(
-          preset: StylePreset.professional,
-          customInstructions: 'No emoji',
-          vocabulary: ['Ramble'],
-        ),
+        style: StyleProfile(preset: StylePreset.professional, customInstructions: 'No emoji', vocabulary: ['Ramble']),
         appStyles: {'com.example.notes': StylePreset.notes},
       );
       expect(s.styleForApp('com.example.notes'), StylePreset.notes);
@@ -122,9 +94,7 @@ void main() {
     });
 
     test('appStyles round-trips through json', () {
-      const s = AppSettings(
-        appStyles: {'com.a': StylePreset.texting, 'com.b': StylePreset.notes},
-      );
+      const s = AppSettings(appStyles: {'com.a': StylePreset.texting, 'com.b': StylePreset.notes});
       final back = AppSettings.fromJson(s.toJson());
       expect(back.appStyles, s.appStyles);
       expect(back.toJson(), s.toJson());

@@ -33,19 +33,14 @@ void main() {
   var notificationRequests = 0;
 
   AndroidModelDownloads make() => AndroidModelDownloads(
-    directory: dir,
-    channel: channel,
-    events: events.stream,
-    requestNotifications: () async => notificationRequests++,
-  );
+        directory: dir,
+        channel: channel,
+        events: events.stream,
+        requestNotifications: () async => notificationRequests++,
+      );
 
-  Map<String, Object?> event(String state, {int bytes = 0, String? error}) => {
-    'fileName': 'tiny.litertlm',
-    'state': state,
-    'bytes': bytes,
-    'total': 100,
-    'error': error,
-  };
+  Map<String, Object?> event(String state, {int bytes = 0, String? error}) =>
+      {'fileName': 'tiny.litertlm', 'state': state, 'bytes': bytes, 'total': 100, 'error': error};
 
   File part() => File(p.join(dir.path, 'tiny.litertlm.part'));
 
@@ -53,35 +48,27 @@ void main() {
     dir = await Directory.systemTemp.createTemp('ramble_dl_');
     calls = [];
     notificationRequests = 0;
-    statusReply = {
-      'fileName': 'tiny.litertlm',
-      'state': 'idle',
-      'bytes': 0,
-      'total': 0,
-    };
+    statusReply = {'fileName': 'tiny.litertlm', 'state': 'idle', 'bytes': 0, 'total': 0};
     events = StreamController<dynamic>.broadcast();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          calls.add(call);
-          return switch (call.method) {
-            'status' => statusReply,
-            'modelsDir' => dir.path,
-            _ => null,
-          };
-        });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return switch (call.method) {
+        'status' => statusReply,
+        'modelsDir' => dir.path,
+        _ => null,
+      };
+    });
     downloads = make();
   });
 
   tearDown(() async {
     downloads.dispose();
     await events.close();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
     await dir.delete(recursive: true);
   });
 
-  List<MethodCall> named(String m) =>
-      calls.where((c) => c.method == m).toList();
+  List<MethodCall> named(String m) => calls.where((c) => c.method == m).toList();
 
   test('create resolves the models directory and pause is supported', () async {
     final d = await AndroidModelDownloads.create(channel: channel);
@@ -111,9 +98,7 @@ void main() {
   });
 
   test('progress events update the status', () async {
-    final seen = downloads
-        .watch(variant)
-        .firstWhere((s) => s is Downloading && s.received == 30);
+    final seen = downloads.watch(variant).firstWhere((s) => s is Downloading && s.received == 30);
     events.add(event('running', bytes: 30));
     expect((await seen as Downloading).total, 100);
     expect(downloads.isActive(variant), isTrue);
@@ -129,15 +114,8 @@ void main() {
   });
 
   test('a checksum failure surfaces the service error', () async {
-    final failed = downloads
-        .watch(variant)
-        .firstWhere((s) => s is DownloadFailed);
-    events.add(
-      event(
-        'failed',
-        error: 'The downloaded file failed its checksum and was removed.',
-      ),
-    );
+    final failed = downloads.watch(variant).firstWhere((s) => s is DownloadFailed);
+    events.add(event('failed', error: 'The downloaded file failed its checksum and was removed.'));
     expect((await failed as DownloadFailed).message, contains('checksum'));
   });
 
@@ -148,14 +126,10 @@ void main() {
     expect(named('start'), isEmpty);
   });
 
-  test(
-    'refresh picks up a model that finished while the app was closed',
-    () async {
-      File(p.join(dir.path, 'tiny.litertlm'))
-          .writeAsBytesSync(List.filled(100, 1));
-      expect(await downloads.refresh(variant), isA<Downloaded>());
-    },
-  );
+  test('refresh picks up a model that finished while the app was closed', () async {
+    File(p.join(dir.path, 'tiny.litertlm')).writeAsBytesSync(List.filled(100, 1));
+    expect(await downloads.refresh(variant), isA<Downloaded>());
+  });
 
   test('refresh with only a part file is Paused', () async {
     part().writeAsBytesSync(List.filled(20, 1));

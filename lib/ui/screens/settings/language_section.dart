@@ -15,9 +15,8 @@ import '../../widgets/settings_section.dart';
 class LanguageSection extends ConsumerWidget {
   const LanguageSection({super.key});
 
-  Future<void> _save(WidgetRef ref, List<String> codes) => ref
-      .read(settingsProvider.notifier)
-      .update((s) => s.copyWith(languages: Languages.normaliseList(codes)));
+  Future<void> _save(WidgetRef ref, List<String> codes) =>
+      ref.read(settingsProvider.notifier).update((s) => s.copyWith(languages: Languages.normaliseList(codes)));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,8 +25,7 @@ class LanguageSection extends ConsumerWidget {
     final c = Theme.of(context).colorScheme;
     return SettingsSection(
       title: 'Languages',
-      subtitle:
-          'Pick the languages you speak. Words stay in the language you said them in, '
+      subtitle: 'Pick the languages you speak. Words stay in the language you said them in, '
           'so "calendar" never turns into "calendario".',
       children: [
         Padding(
@@ -46,10 +44,8 @@ class LanguageSection extends ConsumerWidget {
               for (final code in selected)
                 InputChip(
                   label: Text(Languages.displayName(code)),
-                  onDeleted: () =>
-                      unawaited(_save(ref, [...selected]..remove(code))),
-                  deleteButtonTooltipMessage:
-                      'Remove ${Languages.displayName(code)}',
+                  onDeleted: () => unawaited(_save(ref, [...selected]..remove(code))),
+                  deleteButtonTooltipMessage: 'Remove ${Languages.displayName(code)}',
                 ),
               ActionChip(
                 avatar: const Icon(Icons.add, size: 18),
@@ -106,8 +102,7 @@ class _LanguagePickerState extends State<_LanguagePicker> {
     final q = _query.trim().toLowerCase();
     final shown = [
       for (final l in Languages.all)
-        if (q.isEmpty || l.name.toLowerCase().contains(q) || l.code.contains(q))
-          l,
+        if (q.isEmpty || l.name.toLowerCase().contains(q) || l.code.contains(q)) l,
     ];
     return AlertDialog(
       title: const Text('Languages'),
@@ -118,10 +113,7 @@ class _LanguagePickerState extends State<_LanguagePicker> {
           children: [
             TextField(
               autofocus: true,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search languages',
-              ),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search languages'),
               onChanged: (v) => setState(() => _query = v),
             ),
             const SizedBox(height: 8),
@@ -133,17 +125,9 @@ class _LanguagePickerState extends State<_LanguagePicker> {
                       value: _chosen.contains(l.code),
                       title: Text(l.name),
                       dense: true,
-                      onChanged: (on) => setState(
-                        () => on == true
-                            ? _chosen.add(l.code)
-                            : _chosen.remove(l.code),
-                      ),
+                      onChanged: (on) => setState(() => on == true ? _chosen.add(l.code) : _chosen.remove(l.code)),
                     ),
-                  if (shown.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No match'),
-                    ),
+                  if (shown.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('No match')),
                 ],
               ),
             ),
@@ -151,14 +135,8 @@ class _LanguagePickerState extends State<_LanguagePicker> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _chosen.toList()),
-          child: const Text('Done'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, _chosen.toList()), child: const Text('Done')),
       ],
     );
   }

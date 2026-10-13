@@ -118,12 +118,7 @@ class DictationFailed extends DictationState {
 
 /// The text around the cursor of the field being dictated into.
 class FieldContext {
-  const FieldContext({
-    this.before = '',
-    this.after = '',
-    this.screen,
-    this.field,
-  });
+  const FieldContext({this.before = '', this.after = '', this.screen, this.field});
 
   /// Up to 500 characters before the cursor.
   final String before;
@@ -139,10 +134,7 @@ class FieldContext {
   final String? field;
 
   bool get isEmpty =>
-      before.isEmpty &&
-      after.isEmpty &&
-      (screen?.isEmpty ?? true) &&
-      (field?.isEmpty ?? true);
+      before.isEmpty && after.isEmpty && (screen?.isEmpty ?? true) && (field?.isEmpty ?? true);
 }
 
 class EngineSet {
@@ -176,7 +168,6 @@ class DictationController {
   final AudioSource audio;
   final RecordingVault vault;
   final Future<EngineSet> Function() engines;
-
   /// May be async, e.g. to read the address book.
   final FutureOr<StyleProfile> Function() style;
 
@@ -187,6 +178,7 @@ class DictationController {
   final Duration maxSession;
   final Duration warnBefore;
   final Duration minSpeech;
+
 
   /// Reads the text around the cursor when a dictation starts (the Android
   /// keyboard). It runs while the microphone starts; the result is only
@@ -208,10 +200,7 @@ class DictationController {
   DictationState get state => _state;
   Stream<DictationState> get states => _states.stream;
 
-  bool get isBusy =>
-      _state is DictationStarting ||
-      _state is DictationListening ||
-      _state is DictationProcessing;
+  bool get isBusy => _state is DictationStarting || _state is DictationListening || _state is DictationProcessing;
 
   void _emit(DictationState s) {
     _state = s;
@@ -244,11 +233,7 @@ class DictationController {
   Future<void> cancelProcessing() async {
     if (_state is! DictationProcessing) return;
     _processToken++;
-    _emit(
-      const DictationIdle(
-        notice: 'Cancelled. The recording is saved; retry it from the app.',
-      ),
-    );
+    _emit(const DictationIdle(notice: 'Cancelled. The recording is saved; retry it from the app.'));
   }
 
   Future<void> start() async {
@@ -266,28 +251,22 @@ class DictationController {
       _capture = await audio.start();
     } on AudioSourceException catch (e) {
       await _discardSink();
-      _emit(
-        DictationFailed(message: _audioMessage(e.error), audioError: e.error),
-      );
+      _emit(DictationFailed(message: _audioMessage(e.error), audioError: e.error));
       return;
     } catch (e) {
       await _discardSink();
-      _emit(
-        DictationFailed(
-          message: 'The microphone could not start.',
-          audioError: AudioSourceError.deviceUnavailable,
-        ),
-      );
+      _emit(DictationFailed(
+        message: 'The microphone could not start.',
+        audioError: AudioSourceError.deviceUnavailable,
+      ));
       return;
     }
-    _emit(
-      DictationListening(
-        elapsed: Duration.zero,
-        level: 0,
-        limit: maxSession,
-        warnBefore: warnBefore,
-      ),
-    );
+    _emit(DictationListening(
+      elapsed: Duration.zero,
+      level: 0,
+      limit: maxSession,
+      warnBefore: warnBefore,
+    ));
     _sub = _capture!.pcm.listen(
       _onPcm,
       onDone: () => _captureDone?.complete(),
@@ -314,14 +293,12 @@ class DictationController {
     // Blocks that arrive while stopping are kept but don't update the UI.
     if (_state is! DictationListening) return;
     final elapsed = Pcm.durationOf(sink.bytesWritten);
-    _emit(
-      DictationListening(
-        elapsed: elapsed,
-        level: Pcm.level(block),
-        limit: maxSession,
-        warnBefore: warnBefore,
-      ),
-    );
+    _emit(DictationListening(
+      elapsed: elapsed,
+      level: Pcm.level(block),
+      limit: maxSession,
+      warnBefore: warnBefore,
+    ));
     if (elapsed >= maxSession) unawaited(stop());
   }
 
@@ -346,15 +323,7 @@ class DictationController {
     final s = _state;
     if (s is! DictationListening || s.paused) return;
     await _stopCapture();
-    _emit(
-      DictationListening(
-        elapsed: s.elapsed,
-        level: 0,
-        limit: maxSession,
-        warnBefore: warnBefore,
-        paused: true,
-      ),
-    );
+    _emit(DictationListening(elapsed: s.elapsed, level: 0, limit: maxSession, warnBefore: warnBefore, paused: true));
   }
 
   Future<void> resume() async {
@@ -364,25 +333,10 @@ class DictationController {
       _captureDone = Completer<void>();
       _capture = await audio.start();
     } on Object {
-      _emit(
-        DictationListening(
-          elapsed: s.elapsed,
-          level: 0,
-          limit: maxSession,
-          warnBefore: warnBefore,
-          paused: true,
-        ),
-      );
+      _emit(DictationListening(elapsed: s.elapsed, level: 0, limit: maxSession, warnBefore: warnBefore, paused: true));
       return;
     }
-    _emit(
-      DictationListening(
-        elapsed: s.elapsed,
-        level: 0,
-        limit: maxSession,
-        warnBefore: warnBefore,
-      ),
-    );
+    _emit(DictationListening(elapsed: s.elapsed, level: 0, limit: maxSession, warnBefore: warnBefore));
     _sub = _capture!.pcm.listen(
       _onPcm,
       onDone: () => _captureDone?.complete(),
@@ -393,13 +347,9 @@ class DictationController {
 
   /// Ends the recording without cleaning it up. The audio is kept for
   /// [undoWindow] so [undoDiscard] can still process it, then deleted.
-  Future<void> discard({
-    Duration undoWindow = const Duration(seconds: 5),
-  }) async {
+  Future<void> discard({Duration undoWindow = const Duration(seconds: 5)}) async {
     final sink = _sink;
-    if (sink == null ||
-        !(_state is DictationListening || _state is DictationStarting))
-      return;
+    if (sink == null || !(_state is DictationListening || _state is DictationStarting)) return;
     await _stopCapture();
     _sink = null;
     await sink.close();
@@ -439,23 +389,15 @@ class DictationController {
       await _stopCapture();
       _sink = null;
       await sink?.close();
-      if (sink != null && sink.bytesWritten < Pcm.bytesFor(minSpeech))
-        await vault.delete(sink.id);
-      _emit(
-        const DictationIdle(notice: 'Recording saved. Retry it from the app.'),
-      );
+      if (sink != null && sink.bytesWritten < Pcm.bytesFor(minSpeech)) await vault.delete(sink.id);
+      _emit(const DictationIdle(notice: 'Recording saved. Retry it from the app.'));
     }
   }
 
   /// Re-runs cleanup on a kept recording (after an error or for a pending
   /// recording found at startup).
   Future<void> retry([String? recordingId]) async {
-    final id =
-        recordingId ??
-        switch (_state) {
-          DictationFailed(:final recordingId) => recordingId,
-          _ => null,
-        };
+    final id = recordingId ?? switch (_state) { DictationFailed(:final recordingId) => recordingId, _ => null };
     if (id == null || isBusy) return;
     _emit(DictationProcessing(recordingId: id));
     await _process(id);
@@ -471,9 +413,7 @@ class DictationController {
     bool cancelled() => token != _processToken;
     final pcm = await vault.read(id);
     if (pcm == null) {
-      _emit(
-        const DictationFailed(message: 'The recording could not be found.'),
-      );
+      _emit(const DictationFailed(message: 'The recording could not be found.'));
       return;
     }
     final context = _contextId == id ? await _context : null;
@@ -489,8 +429,7 @@ class DictationController {
         primary: set.primary,
         fallback: set.fallback,
         onProgress: (p) {
-          if (!cancelled())
-            _emit(DictationProcessing(recordingId: id, progress: p));
+          if (!cancelled()) _emit(DictationProcessing(recordingId: id, progress: p));
         },
       );
       if (cancelled()) return;
@@ -512,23 +451,19 @@ class DictationController {
       _emit(DictationDone(outcome));
     } on CleanupFailure catch (f) {
       if (cancelled()) return;
-      _emit(
-        DictationFailed(
-          message: f.message,
-          kind: f.kind,
-          recordingId: id,
-          retryAfter: f.retryAfter,
-        ),
-      );
+      _emit(DictationFailed(
+        message: f.message,
+        kind: f.kind,
+        recordingId: id,
+        retryAfter: f.retryAfter,
+      ));
     } catch (e) {
       if (cancelled()) return;
-      _emit(
-        DictationFailed(
-          message: 'Cleanup failed unexpectedly. Your recording is saved.',
-          kind: CleanupFailureKind.unknown,
-          recordingId: id,
-        ),
-      );
+      _emit(DictationFailed(
+        message: 'Cleanup failed unexpectedly. Your recording is saved.',
+        kind: CleanupFailureKind.unknown,
+        recordingId: id,
+      ));
     }
   }
 
@@ -539,10 +474,7 @@ class DictationController {
       try {
         await capture.stop();
         // Let buffered blocks drain into the sink before closing it.
-        await _captureDone?.future.timeout(
-          const Duration(seconds: 2),
-          onTimeout: () {},
-        );
+        await _captureDone?.future.timeout(const Duration(seconds: 2), onTimeout: () {});
       } catch (_) {}
     }
     await _sub?.cancel();
@@ -559,12 +491,10 @@ class DictationController {
   }
 
   static String _audioMessage(AudioSourceError e) => switch (e) {
-    AudioSourceError.permissionDenied =>
-      'Microphone access is off. Allow it to dictate.',
-    AudioSourceError.deviceUnavailable => 'No microphone is available.',
-    AudioSourceError.backendMissing =>
-      'Audio capture is not available on this system.',
-  };
+        AudioSourceError.permissionDenied => 'Microphone access is off. Allow it to dictate.',
+        AudioSourceError.deviceUnavailable => 'No microphone is available.',
+        AudioSourceError.backendMissing => 'Audio capture is not available on this system.',
+      };
 
   Future<void> dispose() async {
     await cancel();

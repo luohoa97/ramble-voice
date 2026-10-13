@@ -177,9 +177,9 @@ abstract final class CleanupPrompt {
         'there had been no split, in the same sentence, grammar, capitalization, list, language and style. Do not '
         'start a new sentence or paragraph, capitalize, or add a greeting unless the speech itself does.'
         '${repeated > 0 ? ' The first ${repeated.toStringAsFixed(1)} seconds of this audio repeat the end of the '
-                  'previous part, where the split cut through a word; the words heard there may be missing from the end '
-                  'of <before>. Write every word that comes after the end of <before>, including those, and never repeat '
-                  'words that <before> already ends with.' : ''}';
+            'previous part, where the split cut through a word; the words heard there may be missing from the end '
+            'of <before>. Write every word that comes after the end of <before>, including those, and never repeat '
+            'words that <before> already ends with.' : ''}';
   }
 
   /// Added for [Polish.full], before the final sentence.
@@ -205,7 +205,9 @@ abstract final class CleanupPrompt {
       profile.describeLanguage(),
       profile.describeContacts(),
       profile.describeSnippets(),
-    ].where((s) => s.isNotEmpty).join(' ');
+    ]
+        .where((s) => s.isNotEmpty)
+        .join(' ');
     return template
         .replaceAll('{style}', _inline(profile.describe()))
         .replaceAll('{vocab}', _inline(profile.describeVocabulary()))
@@ -215,19 +217,12 @@ abstract final class CleanupPrompt {
   static const _finalSentence = 'Output only the cleaned text.';
 
   static String buildVerbatim(StyleProfile profile) {
-    final out = verbatimTemplate.replaceAll(
-      '{vocab}',
-      _inline(profile.describeVocabulary()),
-    );
-    final extras = [
-      if (profile.hasLanguages) profile.describeLanguage(),
-      profile.describeContacts(),
-    ].where((s) => s.isNotEmpty).join(' ');
+    final out = verbatimTemplate.replaceAll('{vocab}', _inline(profile.describeVocabulary()));
+    final extras = [if (profile.hasLanguages) profile.describeLanguage(), profile.describeContacts()]
+        .where((s) => s.isNotEmpty)
+        .join(' ');
     if (extras.isEmpty) return out;
-    return out.replaceFirst(
-      _finalVerbatimSentence,
-      '$extras $_finalVerbatimSentence',
-    );
+    return out.replaceFirst(_finalVerbatimSentence, '$extras $_finalVerbatimSentence');
   }
 
   static const _finalVerbatimSentence = 'Output only the transcript.';
@@ -269,13 +264,13 @@ abstract final class CleanupPrompt {
       if (withContext) editContextRule,
       if (profile.hasLanguages) profile.describeLanguageForEdit(),
       profile.describeContacts(),
-    ].where((s) => s.isNotEmpty).join(' ');
+    ]
+        .where((s) => s.isNotEmpty)
+        .join(' ');
     final out = editTemplate
         .replaceAll('{style}', _inline(profile.describe()))
         .replaceAll('{vocab}', _inline(profile.describeVocabulary()));
-    return extras.isEmpty
-        ? out
-        : out.replaceFirst(_finalEditSentence, '$extras $_finalEditSentence');
+    return extras.isEmpty ? out : out.replaceFirst(_finalEditSentence, '$extras $_finalEditSentence');
   }
 
   static const _finalEditSentence = 'Output only the full revised text.';
@@ -290,69 +285,56 @@ abstract final class CleanupPrompt {
   /// Breaks up literal `<text>`, `<before>`, `<after>` and their closing tags
   /// (any case) with a backslash.
   static String escapeEditText(String s) => s.replaceAllMapped(
-    RegExp(r'<(/?)(text|before|after|screen|field)', caseSensitive: false),
-    (m) => '<\\${m[1]}${m[2]}',
-  );
+        RegExp(r'<(/?)(text|before|after|screen|field)', caseSensitive: false),
+        (m) => '<\\${m[1]}${m[2]}',
+      );
 
   /// Reverses [escapeEditText].
   static String unescapeEditText(String s) => s.replaceAllMapped(
-    RegExp(r'<\\(/?)(text|before|after|screen|field)', caseSensitive: false),
-    (m) => '<${m[1]}${m[2]}',
-  );
+        RegExp(r'<\\(/?)(text|before|after|screen|field)', caseSensitive: false),
+        (m) => '<${m[1]}${m[2]}',
+      );
 
   /// The system prompt for [request], by mode. Engines use this so a mode can
   /// never get another mode's prompt.
   static String systemFor(CleanupRequest request) => switch (request.mode) {
-    CleanupMode.clean => build(
-      request.style,
-      withContext: request.hasContext,
-      withScreen: request.screenContext?.isNotEmpty ?? false,
-      withField: request.fieldInfo?.isNotEmpty ?? false,
-      part: request.part == null ? null : partRule(request),
-    ),
-    CleanupMode.verbatim => buildVerbatim(request.style),
-    CleanupMode.edit => buildEdit(
-      request.style,
-      withContext: request.hasContext,
-    ),
-  };
+        CleanupMode.clean => build(
+            request.style,
+            withContext: request.hasContext,
+            withScreen: request.screenContext?.isNotEmpty ?? false,
+            withField: request.fieldInfo?.isNotEmpty ?? false,
+            part: request.part == null ? null : partRule(request),
+          ),
+        CleanupMode.verbatim => buildVerbatim(request.style),
+        CleanupMode.edit => buildEdit(request.style, withContext: request.hasContext),
+      };
 
   /// The user text part sent with the audio for [request].
   static String userTextFor(CleanupRequest request) => switch (request.mode) {
-    CleanupMode.edit => editUserTurn(
-      request.sourceText ?? '',
-      context: request.hasContext ? contextBlock(request) : null,
-    ),
-    CleanupMode.clean when request.hasContext =>
-      '$userTurn\n${contextBlock(request)}',
-    _ => userTurn,
-  };
+        CleanupMode.edit => editUserTurn(
+            request.sourceText ?? '',
+            context: request.hasContext ? contextBlock(request) : null,
+          ),
+        CleanupMode.clean when request.hasContext => '$userTurn\n${contextBlock(request)}',
+        _ => userTurn,
+      };
 
   /// `<before>…</before><after>…</after>` for the text around the cursor, cut
   /// to the limits (the end of the text before, the start of the text after),
   /// with literal tags escaped so the context cannot close its own block.
   static String contextBlock(CleanupRequest request) {
-    final before = _tail(
-      request.contextBefore ?? '',
-      CleanupRequest.contextBeforeLimit,
-    );
-    final after = _head(
-      request.contextAfter ?? '',
-      CleanupRequest.contextAfterLimit,
-    );
+    final before = _tail(request.contextBefore ?? '', CleanupRequest.contextBeforeLimit);
+    final after = _head(request.contextAfter ?? '', CleanupRequest.contextAfterLimit);
     final screen = request.screenContext ?? '';
     final shown = screen.isEmpty
         ? ''
         : '<screen>${escapeEditText(_tail(screen, CleanupRequest.screenContextLimit))}</screen>';
     final info = request.fieldInfo ?? '';
-    final field = info.isEmpty
-        ? ''
-        : '<field>${escapeEditText(info.replaceAll(RegExp(r'[\r\n]+'), ' '))}</field>';
+    final field = info.isEmpty ? '' : '<field>${escapeEditText(info.replaceAll(RegExp(r'[\r\n]+'), ' '))}</field>';
     return '$field$shown<before>${escapeEditText(before)}</before><after>${escapeEditText(after)}</after>';
   }
 
-  static String _tail(String s, int n) =>
-      s.length <= n ? s : s.substring(s.length - n);
+  static String _tail(String s, int n) => s.length <= n ? s : s.substring(s.length - n);
   static String _head(String s, int n) => s.length <= n ? s : s.substring(0, n);
 
   /// Tidies the model output for [request]'s mode.
@@ -361,9 +343,7 @@ abstract final class CleanupPrompt {
     final text = NativeScript.apply(tidyOutput(raw), request.style.languages);
     // With field context a leading line break is the model's decision to
     // start a new line or paragraph: keep it (at most a blank line).
-    final lead = request.hasContext && text.isNotEmpty
-        ? RegExp(r'^[ \t]*(\n+)').firstMatch(raw)?.group(1) ?? ''
-        : '';
+    final lead = request.hasContext && text.isNotEmpty ? RegExp(r'^[ \t]*(\n+)').firstMatch(raw)?.group(1) ?? '' : '';
     return '${lead.length > 2 ? '\n\n' : lead}$text';
   }
 
@@ -371,10 +351,7 @@ abstract final class CleanupPrompt {
   /// then the usual quote/fence tidying, then restores escaped tags.
   static String tidyEditOutput(String raw) {
     var s = raw.trim();
-    final wrapped = RegExp(
-      r'^<text>([\s\S]*)</text>$',
-      caseSensitive: false,
-    ).firstMatch(s);
+    final wrapped = RegExp(r'^<text>([\s\S]*)</text>$', caseSensitive: false).firstMatch(s);
     if (wrapped != null) s = wrapped.group(1)!;
     return unescapeEditText(tidyOutput(s));
   }
@@ -409,22 +386,17 @@ abstract final class CleanupPrompt {
   /// which models sometimes write as ASCII. A Japanese comma is 、.
   static String fullWidthPunctuation(String s) {
     final japanese = _kana.hasMatch(s);
-    return s
-        .replaceAllMapped(_cjkPunct, (m) {
-          final p = switch (m[1]!) {
-            ',' => japanese ? '、' : '，',
-            '.' => '。',
-            '?' => '？',
-            '!' => '！',
-            ':' => '：',
-            _ => '；',
-          };
-          return p;
-        })
-        .replaceAllMapped(
-          RegExp(r'([，、。？！：；]) (?=[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff])'),
-          (m) => m[1]!,
-        );
+    return s.replaceAllMapped(_cjkPunct, (m) {
+      final p = switch (m[1]!) {
+        ',' => japanese ? '、' : '，',
+        '.' => '。',
+        '?' => '？',
+        '!' => '！',
+        ':' => '：',
+        _ => '；',
+      };
+      return p;
+    }).replaceAllMapped(RegExp(r'([，、。？！：；]) (?=[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff])'), (m) => m[1]!);
   }
 
   static String tidyOutput(String raw) {
@@ -433,8 +405,7 @@ abstract final class CleanupPrompt {
     final m = fence.firstMatch(s);
     if (m != null) s = m.group(1)!.trim();
     if (s.length >= 2 &&
-        ((s.startsWith('"') && s.endsWith('"')) ||
-            (s.startsWith('“') && s.endsWith('”')))) {
+        ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith('“') && s.endsWith('”')))) {
       final inner = s.substring(1, s.length - 1);
       if (!inner.contains('"') && !inner.contains('“')) s = inner.trim();
     }

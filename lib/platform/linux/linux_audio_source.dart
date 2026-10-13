@@ -56,13 +56,13 @@ typedef _Void = void Function();
 
 class _Native {
   _Native(DynamicLibrary lib)
-    : open = lib.lookupFunction<_NoArgIntC, _NoArgInt>('rc_open'),
-      start = lib.lookupFunction<_NoArgIntC, _NoArgInt>('rc_start'),
-      read = lib.lookupFunction<_ReadC, _Read>('rc_read'),
-      stop = lib.lookupFunction<_NoArgIntC, _NoArgInt>('rc_stop'),
-      close = lib.lookupFunction<_VoidC, _Void>('rc_close'),
-      _backend = lib.lookupFunction<_StrC, _Str>('rc_backend'),
-      _lastError = lib.lookupFunction<_StrC, _Str>('rc_last_error');
+      : open = lib.lookupFunction<_NoArgIntC, _NoArgInt>('rc_open'),
+        start = lib.lookupFunction<_NoArgIntC, _NoArgInt>('rc_start'),
+        read = lib.lookupFunction<_ReadC, _Read>('rc_read'),
+        stop = lib.lookupFunction<_NoArgIntC, _NoArgInt>('rc_stop'),
+        close = lib.lookupFunction<_VoidC, _Void>('rc_close'),
+        _backend = lib.lookupFunction<_StrC, _Str>('rc_backend'),
+        _lastError = lib.lookupFunction<_StrC, _Str>('rc_last_error');
 
   final _NoArgInt open, start, stop;
   final _Read read;
@@ -94,11 +94,7 @@ external Pointer<Void> _malloc(int size);
 external void _free(Pointer<Void> ptr);
 
 class LinuxAudioSource implements AudioSource {
-  LinuxAudioSource({
-    this.libraryPath,
-    this.environment,
-    this.allowNative = true,
-  });
+  LinuxAudioSource({this.libraryPath, this.environment, this.allowNative = true});
 
   /// Skip libramble_capture and use pw-record/parecord directly (tests).
   final bool allowNative;
@@ -132,8 +128,7 @@ class LinuxAudioSource implements AudioSource {
     final exeDir = p.dirname(Platform.resolvedExecutable);
     return [
       ?libraryPath,
-      if ((env['RAMBLE_CAPTURE_LIB'] ?? '').isNotEmpty)
-        env['RAMBLE_CAPTURE_LIB']!,
+      if ((env['RAMBLE_CAPTURE_LIB'] ?? '').isNotEmpty) env['RAMBLE_CAPTURE_LIB']!,
       p.join(exeDir, 'lib', 'libramble_capture.so'),
       p.join(exeDir, 'libramble_capture.so'),
       '/app/lib/libramble_capture.so',
@@ -159,11 +154,7 @@ class LinuxAudioSource implements AudioSource {
 
   @override
   Future<AudioCapture> start() async {
-    if (_active)
-      throw const AudioSourceException(
-        AudioSourceError.deviceUnavailable,
-        'Already recording',
-      );
+    if (_active) throw const AudioSourceException(AudioSourceError.deviceUnavailable, 'Already recording');
     final errors = <String>[];
 
     final native = allowNative ? _loadNative() : null;
@@ -191,10 +182,7 @@ class LinuxAudioSource implements AudioSource {
         errors.add('${tool.binary}: ${e.detail}');
       }
     }
-    throw AudioSourceException(
-      AudioSourceError.backendMissing,
-      errors.join('; '),
-    );
+    throw AudioSourceException(AudioSourceError.backendMissing, errors.join('; '));
   }
 
   AudioCapture _track(_Capture cap) {
@@ -204,30 +192,13 @@ class LinuxAudioSource implements AudioSource {
   }
 
   static const _processTools = [
-    (
-      binary: 'pw-record',
-      args: [
-        '--rate',
-        '16000',
-        '--channels',
-        '1',
-        '--format',
-        's16',
-        '--raw',
-        '-',
-      ],
-    ),
-    (
-      binary: 'parecord',
-      args: ['--rate=16000', '--channels=1', '--format=s16le', '--raw'],
-    ),
+    (binary: 'pw-record', args: ['--rate', '16000', '--channels', '1', '--format', 's16', '--raw', '-']),
+    (binary: 'parecord', args: ['--rate=16000', '--channels=1', '--format=s16le', '--raw']),
   ];
 
   static String? _findBinary(String name) {
     final dirs = [
-      ...(Platform.environment['PATH'] ?? '')
-          .split(':')
-          .where((e) => e.isNotEmpty),
+      ...(Platform.environment['PATH'] ?? '').split(':').where((e) => e.isNotEmpty),
       '/app/bin',
       '/usr/bin',
     ];
@@ -287,12 +258,7 @@ class _NativeCapture extends _Capture {
     if (_stopped) return;
     if (!_drain()) {
       final detail = _native.lastError;
-      _controller.addError(
-        AudioSourceException(
-          AudioSourceError.deviceUnavailable,
-          detail.isEmpty ? 'capture failed' : detail,
-        ),
-      );
+      _controller.addError(AudioSourceException(AudioSourceError.deviceUnavailable, detail.isEmpty ? 'capture failed' : detail));
       stop();
     }
   }
@@ -325,40 +291,25 @@ class _ProcessCapture extends _Capture {
     }
     final cap = _ProcessCapture._(process);
     final stderr = StringBuffer();
-    process.stderr
-        .transform(const SystemEncoding().decoder)
-        .listen(stderr.write, onError: (_) {});
+    process.stderr.transform(const SystemEncoding().decoder).listen(stderr.write, onError: (_) {});
 
     final first = Completer<void>();
     final aligner = PcmAligner();
-    process.stdout.listen(
-      (chunk) {
-        final aligned = aligner.push(Uint8List.fromList(chunk));
-        if (aligned == null) return;
-        if (!first.isCompleted) first.complete();
-        if (!cap._controller.isClosed) cap._controller.add(aligned);
-      },
-      onDone: () {
-        if (!first.isCompleted)
-          first.completeError(
-            AudioSourceException(
-              AudioSourceError.deviceUnavailable,
-              stderr.toString().trim(),
-            ),
-          );
-        if (!cap._stopped) cap.stop();
-      },
-      onError: (_) {},
-    );
+    process.stdout.listen((chunk) {
+      final aligned = aligner.push(Uint8List.fromList(chunk));
+      if (aligned == null) return;
+      if (!first.isCompleted) first.complete();
+      if (!cap._controller.isClosed) cap._controller.add(aligned);
+    }, onDone: () {
+      if (!first.isCompleted) first.completeError(AudioSourceException(AudioSourceError.deviceUnavailable, stderr.toString().trim()));
+      if (!cap._stopped) cap.stop();
+    }, onError: (_) {});
 
     try {
       await first.future.timeout(const Duration(seconds: 3));
     } on TimeoutException {
       process.kill();
-      throw AudioSourceException(
-        AudioSourceError.deviceUnavailable,
-        'no audio within 3 s ${stderr.toString().trim()}',
-      );
+      throw AudioSourceException(AudioSourceError.deviceUnavailable, 'no audio within 3 s ${stderr.toString().trim()}');
     } on AudioSourceException {
       process.kill();
       rethrow;

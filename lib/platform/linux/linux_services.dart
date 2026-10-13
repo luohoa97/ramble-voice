@@ -47,15 +47,11 @@ LinuxEnvironment? get linuxEnvironment => _environment;
 /// XDG_DATA_HOME already points into `~/.var/app/<app id>/data`).
 Directory defaultSupportDirectory() {
   final env = Platform.environment;
-  final data =
-      env['XDG_DATA_HOME'] ?? p.join(env['HOME'] ?? '.', '.local', 'share');
+  final data = env['XDG_DATA_HOME'] ?? p.join(env['HOME'] ?? '.', '.local', 'share');
   return Directory(p.join(data, rambleAppId));
 }
 
-Future<PlatformServices> createLinuxServices({
-  Directory? supportDir,
-  String hotkeyKey = 'capslock',
-}) async {
+Future<PlatformServices> createLinuxServices({Directory? supportDir, String hotkeyKey = 'capslock'}) async {
   final support = supportDir ?? defaultSupportDirectory();
   final bus = DBusClient.session();
   final portal = PortalClient(bus);
@@ -81,29 +77,17 @@ Future<PlatformServices> createLinuxServices({
 
   final notifier = PortalNotifier(portal);
   final remoteDesktop = env.hasPortal('RemoteDesktop')
-      ? RemoteDesktopPortal(
-          portal,
-          tokenFile: File(p.join(support.path, 'remote-desktop-token')),
-        )
+      ? RemoteDesktopPortal(portal, tokenFile: File(p.join(support.path, 'remote-desktop-token')))
       : null;
   final settings = PortalSettings(portal);
 
   return PlatformServices(
     audio: LinuxAudioSource(),
-    secrets: SecretServiceStore(
-      bus,
-      fallbackFile: File(p.join(support.path, 'gemini-api-key')),
-    ),
+    secrets: SecretServiceStore(bus, fallbackFile: File(p.join(support.path, 'gemini-api-key'))),
     inserter: LinuxTextInserter(env: env, portal: remoteDesktop),
     notifier: notifier,
-    hotkeys: LinuxHotkeyService(
-      PortalHotkeyService(portal, env),
-      hotkeyKey: hotkeyKey,
-    ),
-    indicator: LinuxStatusIndicator(
-      tray: StatusNotifierTray(bus),
-      notifications: notifier,
-    ),
+    hotkeys: LinuxHotkeyService(PortalHotkeyService(portal, env), hotkeyKey: hotkeyKey),
+    indicator: LinuxStatusIndicator(tray: StatusNotifierTray(bus), notifications: notifier),
     accentColor: settings.accentColor,
   );
 }

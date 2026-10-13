@@ -11,9 +11,7 @@ import '../ui/theme/app_theme.dart';
 import 'keyboard_view.dart';
 
 /// The keyboard service channel. Overridden in `imeMain`.
-final imeBridgeProvider = Provider<ImeBridge>(
-  (ref) => throw UnimplementedError('override imeBridgeProvider'),
-);
+final imeBridgeProvider = Provider<ImeBridge>((ref) => throw UnimplementedError('override imeBridgeProvider'));
 
 /// Root of the keyboard's Flutter UI.
 class ImeApp extends ConsumerStatefulWidget {

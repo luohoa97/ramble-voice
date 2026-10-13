@@ -17,27 +17,12 @@ String two(int n) => n.toString().padLeft(2, '0');
 
 String formatDateTime(DateTime t) {
   final now = DateTime.now();
-  final sameDay =
-      t.year == now.year && t.month == now.month && t.day == now.day;
+  final sameDay = t.year == now.year && t.month == now.month && t.day == now.day;
   final time = '${two(t.hour)}:${two(t.minute)}';
   if (sameDay) return 'Today, $time';
   final y = now.subtract(const Duration(days: 1));
-  if (t.year == y.year && t.month == y.month && t.day == y.day)
-    return 'Yesterday, $time';
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
+  if (t.year == y.year && t.month == y.month && t.day == y.day) return 'Yesterday, $time';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   final year = t.year == now.year ? '' : ' ${t.year}';
   return '${months[t.month - 1]} ${t.day}$year, $time';
 }

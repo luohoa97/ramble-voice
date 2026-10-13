@@ -58,9 +58,7 @@ abstract final class AutoGain {
       final v = s[i] * gain;
       final a = v.abs();
       // Soft limiter above the knee: approaches full scale, never clips.
-      final limited = a <= knee
-          ? a
-          : knee + (32767 - knee) * _tanh((a - knee) / (32767 - knee));
+      final limited = a <= knee ? a : knee + (32767 - knee) * _tanh((a - knee) / (32767 - knee));
       out[i] = (v < 0 ? -limited : limited).round();
     }
     final bytes = ByteData(out.length * Pcm.bytesPerSample);

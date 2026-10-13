@@ -19,9 +19,7 @@ class EditKey extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton.filledTonal(
-      onPressed: enabled
-          ? () => unawaited(ref.read(imeEditProvider.notifier).begin())
-          : null,
+      onPressed: enabled ? () => unawaited(ref.read(imeEditProvider.notifier).begin()) : null,
       icon: const Icon(Icons.edit_note),
       tooltip: 'Edit by voice',
       style: keyStyle(context),
@@ -43,27 +41,16 @@ class EditPanel extends ConsumerWidget {
 
     final source = edit.source?.label;
     final (IconData icon, String title, String? hint) = switch (edit.phase) {
-      EditPhase.idle ||
-      EditPhase.resolving => (Icons.edit_note, 'Looking at the field', null),
+      EditPhase.idle || EditPhase.resolving => (Icons.edit_note, 'Looking at the field', null),
       EditPhase.listening => (
-        Icons.mic,
-        edit.listening == null
-            ? 'Starting microphone'
-            : 'Say your edit  ${formatClock(edit.listening!.elapsed)}',
-        'For example: make it shorter, fix the name, translate to French',
-      ),
+          Icons.mic,
+          edit.listening == null ? 'Starting microphone' : 'Say your edit  ${formatClock(edit.listening!.elapsed)}',
+          'For example: make it shorter, fix the name, translate to French',
+        ),
       EditPhase.processing => (Icons.auto_fix_high, 'Editing', null),
-      EditPhase.applied when edit.unchanged => (
-        Icons.info_outline,
-        'No change made',
-        'Try saying the edit again',
-      ),
+      EditPhase.applied when edit.unchanged => (Icons.info_outline, 'No change made', 'Try saying the edit again'),
       EditPhase.applied => (Icons.check_circle_outline, 'Edited', null),
-      EditPhase.failed => (
-        Icons.error_outline,
-        edit.message ?? 'The edit failed',
-        null,
-      ),
+      EditPhase.failed => (Icons.error_outline, edit.message ?? 'The edit failed', null),
     };
     final failed = edit.phase == EditPhase.failed;
 
@@ -85,27 +72,19 @@ class EditPanel extends ConsumerWidget {
           if (edit.phase == EditPhase.listening)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-              child: LinearProgressIndicator(
-                value: edit.listening?.level.clamp(0.04, 1.0),
-              ),
+              child: LinearProgressIndicator(value: edit.listening?.level.clamp(0.04, 1.0)),
             ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 22,
-                color: failed ? scheme.error : scheme.primary,
-              ),
+              Icon(icon, size: 22, color: failed ? scheme.error : scheme.primary),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: scheme.onSurface,
-                  ),
+                  style: theme.textTheme.titleMedium?.copyWith(color: scheme.onSurface),
                 ),
               ),
             ],
@@ -118,9 +97,7 @@ class EditPanel extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ),
           const SizedBox(height: 8),
@@ -130,39 +107,29 @@ class EditPanel extends ConsumerWidget {
             children: [
               if (edit.phase == EditPhase.listening)
                 FilledButton.icon(
-                  onPressed: edit.listening == null
-                      ? null
-                      : () => unawaited(notifier.finish()),
+                  onPressed: edit.listening == null ? null : () => unawaited(notifier.finish()),
                   icon: const Icon(Icons.stop),
                   label: const Text('Done'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
                 ),
               if (edit.phase == EditPhase.applied && edit.undoable)
                 FilledButton.tonalIcon(
                   onPressed: () => unawaited(notifier.undo()),
                   icon: const Icon(Icons.undo),
                   label: const Text('Undo'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
                 ),
               if (edit.phase == EditPhase.failed)
                 FilledButton.tonal(
                   onPressed: () => unawaited(notifier.begin()),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
                   child: const Text('Try again'),
                 ),
               if (edit.phase != EditPhase.processing)
                 TextButton(
                   onPressed: () => unawaited(notifier.dismiss()),
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                  child: Text(
-                    edit.phase == EditPhase.listening ? 'Cancel' : 'Close',
-                  ),
+                  child: Text(edit.phase == EditPhase.listening ? 'Cancel' : 'Close'),
                 ),
             ],
           ),

@@ -2,8 +2,7 @@
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_3_expressive/material_3_expressive.dart'
-    show M3ELoadingIndicator;
+import 'package:material_3_expressive/material_3_expressive.dart' show M3ELoadingIndicator;
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/providers.dart';
@@ -14,22 +13,19 @@ import '../../util/open_url.dart';
 import 'gemini_model_picker.dart';
 import '../../util/platform_flags.dart';
 
-const geminiFreeTierWarning =
-    'Free-tier requests may be used by Google to improve its products.';
+const geminiFreeTierWarning = 'Free-tier requests may be used by Google to improve its products.';
 
 String keySourceText(KeySource s) => switch (s) {
-  KeySource.none => 'No key saved',
-  KeySource.secureStorage => 'Saved in secure storage on this device',
-  KeySource.environment => 'From the GEMINI_API_KEY environment variable',
-};
+      KeySource.none => 'No key saved',
+      KeySource.secureStorage => 'Saved in secure storage on this device',
+      KeySource.environment => 'From the GEMINI_API_KEY environment variable',
+    };
 
 final geminiKeySourceProvider = FutureProvider.autoDispose<KeySource>(
   (ref) => ref.watch(platformServicesProvider).secrets.geminiKeySource(),
 );
 
-final geminiModelsProvider = FutureProvider.autoDispose<List<GeminiModelInfo>>((
-  ref,
-) {
+final geminiModelsProvider = FutureProvider.autoDispose<List<GeminiModelInfo>>((ref) {
   ref.watch(geminiKeySourceProvider);
   return ref.watch(geminiEngineProvider).availableModels();
 });
@@ -142,18 +138,9 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 18,
-                color: c.onSurfaceVariant,
-              ),
+              Icon(Icons.info_outline_rounded, size: 18, color: c.onSurfaceVariant),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  geminiFreeTierWarning,
-                  style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-                ),
-              ),
+              Expanded(child: Text(geminiFreeTierWarning, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant))),
             ],
           ),
         ),
@@ -177,18 +164,10 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
                       children: [
                         IconButton(
                           tooltip: _obscure ? 'Show key' : 'Hide key',
-                          icon: Icon(
-                            _obscure
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
+                          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
-                        IconButton(
-                          tooltip: 'Paste key',
-                          icon: const Icon(Icons.content_paste_rounded),
-                          onPressed: _paste,
-                        ),
+                        IconButton(tooltip: 'Paste key', icon: const Icon(Icons.content_paste_rounded), onPressed: _paste),
                       ],
                     ),
                   ),
@@ -200,24 +179,14 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    FilledButton(
-                      onPressed: _save,
-                      child: const Text('Save key'),
-                    ),
-                    TextButton(
-                      onPressed: _testing ? null : _test,
-                      child: const Text('Test key'),
-                    ),
+                    FilledButton(onPressed: _save, child: const Text('Save key')),
+                    TextButton(onPressed: _testing ? null : _test, child: const Text('Test key')),
                     TextButton.icon(
                       onPressed: () => openUrl(geminiConsoleUrl),
                       icon: const Icon(Icons.open_in_new_rounded, size: 18),
                       label: const Text('Get a key at aistudio.google.com'),
                     ),
-                    if (hasKey)
-                      TextButton(
-                        onPressed: () => setState(() => _editing = false),
-                        child: const Text('Cancel'),
-                      ),
+                    if (hasKey) TextButton(onPressed: () => setState(() => _editing = false), child: const Text('Cancel')),
                   ],
                 ),
               ],
@@ -229,20 +198,14 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
             leading: Icon(Icons.key_rounded, color: c.onSurfaceVariant),
             title: const Text('API key'),
             subtitle: Text(
-              source == KeySource.environment
-                  ? keySourceText(source)
-                  : 'Saved on this device',
+              source == KeySource.environment ? keySourceText(source) : 'Saved on this device',
               style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_testing)
-                  M3ELoadingIndicator(
-                    size: 32,
-                    color: c.primary,
-                    semanticLabel: 'Testing key',
-                  )
+                  M3ELoadingIndicator(size: 32, color: c.primary, semanticLabel: 'Testing key')
                 else
                   TextButton(onPressed: _test, child: const Text('Test')),
                 if (source == KeySource.secureStorage)
@@ -253,10 +216,7 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
                       if (a == 'remove') _remove();
                     },
                     itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'replace',
-                        child: Text('Replace key'),
-                      ),
+                      PopupMenuItem(value: 'replace', child: Text('Replace key')),
                       PopupMenuItem(value: 'remove', child: Text('Remove key')),
                     ],
                   ),
@@ -268,32 +228,20 @@ class _GeminiOptionsState extends ConsumerState<GeminiOptions> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Semantics(
               liveRegion: true,
-              child: Text(
-                _testResult!,
-                style: t.bodyMedium?.copyWith(
-                  color: _testOk ? c.onSurfaceVariant : c.error,
-                ),
-              ),
+              child: Text(_testResult!, style: t.bodyMedium?.copyWith(color: _testOk ? c.onSurfaceVariant : c.error)),
             ),
           ),
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GeminiModelPicker(
-            selected: settings.geminiModel,
-            hasKey: hasKey,
-          ),
+          child: GeminiModelPicker(selected: settings.geminiModel, hasKey: hasKey),
         ),
         const SizedBox(height: 4),
         SwitchListTile(
           contentPadding: const EdgeInsets.only(left: 16, right: 8),
-          title: const Text(
-            'If Gemini is unavailable, use the on-device model',
-          ),
+          title: const Text('If Gemini is unavailable, use the on-device model'),
           value: settings.fallbackToOnDevice,
-          onChanged: (v) => ref
-              .read(settingsProvider.notifier)
-              .update((s) => s.copyWith(fallbackToOnDevice: v)),
+          onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(fallbackToOnDevice: v)),
         ),
       ],
     );

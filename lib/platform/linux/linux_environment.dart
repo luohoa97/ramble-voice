@@ -62,27 +62,13 @@ class LinuxEnvironment {
   /// interface version; null when the interface is not offered.
   final Map<String, int?> portalVersions;
 
-  bool get isWayland =>
-      sessionType == SessionType.wayland ||
-      (sessionType == SessionType.other && waylandDisplay);
+  bool get isWayland => sessionType == SessionType.wayland || (sessionType == SessionType.other && waylandDisplay);
 
   Compositor get compositor {
     bool has(String s) => desktops.any((d) => d.contains(s));
     if (has('gnome') || has('ubuntu') || has('unity')) return Compositor.gnome;
     if (has('kde') || has('plasma')) return Compositor.kde;
-    const wlroots = [
-      'sway',
-      'hyprland',
-      'river',
-      'niri',
-      'wayfire',
-      'labwc',
-      'wlroots',
-      'miracle',
-      'mango',
-      'dwl',
-      'scroll',
-    ];
+    const wlroots = ['sway', 'hyprland', 'river', 'niri', 'wayfire', 'labwc', 'wlroots', 'miracle', 'mango', 'dwl', 'scroll'];
     if (wlroots.any(has)) return Compositor.wlroots;
     if (!isWayland && sessionType == SessionType.x11) return Compositor.x11;
     return Compositor.other;
@@ -92,11 +78,9 @@ class LinuxEnvironment {
   bool has(String binary) => binaries.contains(binary);
 
   /// The command a compositor key binding must run, for shortcut advice.
-  String get cliCommand =>
-      isFlatpak ? 'flatpak run $rambleAppId' : rambleBinary;
+  String get cliCommand => isFlatpak ? 'flatpak run $rambleAppId' : rambleBinary;
 
-  String get desktopLabel =>
-      desktops.isEmpty ? 'unknown desktop' : desktops.join(':');
+  String get desktopLabel => desktops.isEmpty ? 'unknown desktop' : desktops.join(':');
 
   /// Priority-ordered text injection candidates for this session. The first
   /// entry that works is used; later ones are tried when an earlier one fails.
@@ -130,28 +114,12 @@ class LinuxEnvironment {
 
   String describe() {
     final b = StringBuffer()
-      ..write(
-        '$desktopLabel, ${isWayland
-            ? 'Wayland'
-            : sessionType == SessionType.x11
-            ? 'X11'
-            : 'unknown session'}',
-      )
+      ..write('$desktopLabel, ${isWayland ? 'Wayland' : sessionType == SessionType.x11 ? 'X11' : 'unknown session'}')
       ..write(isFlatpak ? ', Flatpak' : '')
       ..write('; injectors: ')
-      ..write(
-        injectionChain().isEmpty
-            ? 'none (clipboard only)'
-            : injectionChain().map((i) => i.name).join(' > '),
-      )
+      ..write(injectionChain().isEmpty ? 'none (clipboard only)' : injectionChain().map((i) => i.name).join(' > '))
       ..write('; portals: ')
-      ..write(
-        portalVersions.isEmpty
-            ? 'none'
-            : portalVersions.entries
-                  .map((e) => '${e.key}=${e.value ?? '-'}')
-                  .join(' '),
-      );
+      ..write(portalVersions.isEmpty ? 'none' : portalVersions.entries.map((e) => '${e.key}=${e.value ?? '-'}').join(' '));
     return b.toString();
   }
 
@@ -169,11 +137,7 @@ class LinuxEnvironment {
       _ => SessionType.other,
     };
     return LinuxEnvironment(
-      desktops: (env['XDG_CURRENT_DESKTOP'] ?? '')
-          .toLowerCase()
-          .split(':')
-          .where((e) => e.isNotEmpty)
-          .toList(),
+      desktops: (env['XDG_CURRENT_DESKTOP'] ?? '').toLowerCase().split(':').where((e) => e.isNotEmpty).toList(),
       sessionType: type,
       waylandDisplay: (env['WAYLAND_DISPLAY'] ?? '').isNotEmpty,
       isFlatpak: isFlatpak || (env['FLATPAK_ID'] ?? '').isNotEmpty,
@@ -184,20 +148,12 @@ class LinuxEnvironment {
   }
 
   static const _tools = ['wtype', 'xdotool', 'ydotool', 'wl-copy', 'wl-paste'];
-  static const _portalInterfaces = [
-    'GlobalShortcuts',
-    'RemoteDesktop',
-    'Settings',
-    'Notification',
-    'Clipboard',
-  ];
+  static const _portalInterfaces = ['GlobalShortcuts', 'RemoteDesktop', 'Settings', 'Notification', 'Clipboard'];
 
   /// Inspects the running session. [portal] enables portal version probing.
   static Future<LinuxEnvironment> detect({PortalClient? portal}) async {
     final env = Platform.environment;
-    final flatpak =
-        File('/.flatpak-info').existsSync() ||
-        (env['FLATPAK_ID'] ?? '').isNotEmpty;
+    final flatpak = File('/.flatpak-info').existsSync() || (env['FLATPAK_ID'] ?? '').isNotEmpty;
     final dirs = [
       ...(env['PATH'] ?? '').split(':').where((e) => e.isNotEmpty),
       if (flatpak) '/app/bin',
@@ -209,8 +165,7 @@ class LinuxEnvironment {
     final versions = <String, int?>{};
     if (portal != null) {
       final found = await Future.wait([
-        for (final name in _portalInterfaces)
-          portal.interfaceVersion('org.freedesktop.portal.$name'),
+        for (final name in _portalInterfaces) portal.interfaceVersion('org.freedesktop.portal.$name'),
       ]);
       for (var i = 0; i < _portalInterfaces.length; i++) {
         versions[_portalInterfaces[i]] = found[i];
@@ -229,16 +184,12 @@ class LinuxEnvironment {
   static String? ydotoolSocketPath(Map<String, String> env) {
     final candidates = [
       env['YDOTOOL_SOCKET'],
-      if (env['XDG_RUNTIME_DIR'] != null)
-        '${env['XDG_RUNTIME_DIR']}/.ydotool_socket',
+      if (env['XDG_RUNTIME_DIR'] != null) '${env['XDG_RUNTIME_DIR']}/.ydotool_socket',
       '/run/user/$_uid/.ydotool_socket',
       '/tmp/.ydotool_socket',
     ];
     for (final c in candidates) {
-      if (c != null &&
-          c.isNotEmpty &&
-          FileSystemEntity.typeSync(c) == FileSystemEntityType.unixDomainSock)
-        return c;
+      if (c != null && c.isNotEmpty && FileSystemEntity.typeSync(c) == FileSystemEntityType.unixDomainSock) return c;
     }
     return null;
   }

@@ -15,9 +15,9 @@ class AndroidAudioSource implements AudioSource {
     MethodChannel? control,
     EventChannel? pcm,
     Future<bool> Function()? requestMicrophone,
-  }) : _control = control ?? const MethodChannel('ramble/audio'),
-       _pcm = pcm ?? const EventChannel('ramble/audio/pcm'),
-       _requestMicrophone = requestMicrophone ?? _defaultRequest;
+  })  : _control = control ?? const MethodChannel('ramble/audio'),
+        _pcm = pcm ?? const EventChannel('ramble/audio/pcm'),
+        _requestMicrophone = requestMicrophone ?? _defaultRequest;
 
   /// False in the keyboard engine: permission prompts need an Activity, so the
   /// UI sends the user to the app instead.
@@ -31,8 +31,7 @@ class AndroidAudioSource implements AudioSource {
   bool Function() noiseReduction = _off;
   static bool _off() => false;
 
-  static Future<bool> _defaultRequest() async =>
-      (await Permission.microphone.request()).isGranted;
+  static Future<bool> _defaultRequest() async => (await Permission.microphone.request()).isGranted;
 
   @override
   String get backendName => 'AudioRecord';
@@ -78,11 +77,7 @@ class AndroidAudioSource implements AudioSource {
 
     var started = false;
     try {
-      started =
-          await _control.invokeMethod<bool>('start', {
-            'noiseReduction': noiseReduction(),
-          }) ??
-          false;
+      started = await _control.invokeMethod<bool>('start', {'noiseReduction': noiseReduction()}) ?? false;
     } on PlatformException {
       started = false;
     }
@@ -91,9 +86,7 @@ class AndroidAudioSource implements AudioSource {
       // Never awaited: close() only completes once someone listens.
       unawaited(out.close());
       throw AudioSourceException(
-        await hasPermission()
-            ? AudioSourceError.deviceUnavailable
-            : AudioSourceError.permissionDenied,
+        await hasPermission() ? AudioSourceError.deviceUnavailable : AudioSourceError.permissionDenied,
       );
     }
     return _AndroidCapture(_control, out);

@@ -28,11 +28,7 @@ class FieldContextSection extends ConsumerWidget {
             'Use text around the cursor so dictation continues your sentence. '
             'In Gemini mode this text is sent to Google with the audio.',
           ),
-          onChanged: (v) => unawaited(
-            ref
-                .read(settingsProvider.notifier)
-                .update((s) => s.copyWith(useFieldContext: v)),
-          ),
+          onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(useFieldContext: v))),
         ),
         SwitchListTile(
           value: ref.watch(settingsProvider.select((s) => s.screenContext)),
@@ -42,11 +38,7 @@ class FieldContextSection extends ConsumerWidget {
             'so your words, names and tone fit the conversation. Needs the floating mic switched on. '
             'In Gemini mode those messages are sent to Google with the audio; nothing is stored.',
           ),
-          onChanged: (v) => unawaited(
-            ref
-                .read(settingsProvider.notifier)
-                .update((s) => s.copyWith(screenContext: v)),
-          ),
+          onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(screenContext: v))),
         ),
       ],
     );

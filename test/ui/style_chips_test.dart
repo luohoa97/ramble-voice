@@ -26,17 +26,13 @@ ChoiceChip chip(WidgetTester tester, String label) =>
 void main() {
   testWidgets('tapping a chip changes the saved tone at once', (tester) async {
     late ProviderContainer container;
-    await tester.pumpWidget(
-      host(
-        Consumer(
-          builder: (context, ref, _) {
-            container = ProviderScope.containerOf(context);
-            return StyleChips(onEdit: () {});
-          },
-        ),
-        overrides: baseOverrides(),
-      ),
-    );
+    await tester.pumpWidget(host(
+      Consumer(builder: (context, ref, _) {
+        container = ProviderScope.containerOf(context);
+        return StyleChips(onEdit: () {});
+      }),
+      overrides: baseOverrides(),
+    ));
     expect(chip(tester, 'Casual').selected, isTrue);
     await tester.tap(find.text('Texting'));
     await tester.pump();
@@ -45,33 +41,21 @@ void main() {
     expect(chip(tester, 'Casual').selected, isFalse);
   });
 
-  testWidgets('Custom chip only shows when custom instructions exist', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      host(StyleChips(onEdit: () {}), overrides: baseOverrides()),
-    );
+  testWidgets('Custom chip only shows when custom instructions exist', (tester) async {
+    await tester.pumpWidget(host(StyleChips(onEdit: () {}), overrides: baseOverrides()));
     expect(find.text('Custom'), findsNothing);
-    await tester.pumpWidget(
-      host(
-        StyleChips(onEdit: () {}),
-        overrides: baseOverrides(
-          settings: const AppSettings(
-            style: StyleProfile(customInstructions: 'Keep British spelling.'),
-          ),
-        ),
+    await tester.pumpWidget(host(
+      StyleChips(onEdit: () {}),
+      overrides: baseOverrides(
+        settings: const AppSettings(style: StyleProfile(customInstructions: 'Keep British spelling.')),
       ),
-    );
+    ));
     expect(find.text('Custom'), findsOneWidget);
   });
 
-  testWidgets('long press and the edit button both open editing', (
-    tester,
-  ) async {
+  testWidgets('long press and the edit button both open editing', (tester) async {
     var edits = 0;
-    await tester.pumpWidget(
-      host(StyleChips(onEdit: () => edits++), overrides: baseOverrides()),
-    );
+    await tester.pumpWidget(host(StyleChips(onEdit: () => edits++), overrides: baseOverrides()));
     await tester.longPress(find.text('Notes'));
     await tester.pump();
     expect(edits, 1);
@@ -80,42 +64,26 @@ void main() {
   });
 
   group('keyboard tone menu', () {
-    List<Override> keyboard(
-      String? pkg, {
-      AppSettings settings = const AppSettings(onboarded: true),
-    }) => [
-      ...baseOverrides(settings: settings),
-      currentPackageProvider.overrideWith(() => _Pkg(pkg)),
-      appLabelProvider.overrideWith(
-        (ref, p) async => p == 'com.google.android.gm' ? 'Gmail' : p,
-      ),
-    ];
+    List<Override> keyboard(String? pkg, {AppSettings settings = const AppSettings(onboarded: true)}) => [
+          ...baseOverrides(settings: settings),
+          currentPackageProvider.overrideWith(() => _Pkg(pkg)),
+          appLabelProvider.overrideWith((ref, p) async => p == 'com.google.android.gm' ? 'Gmail' : p),
+        ];
 
-    Widget menu(void Function(ProviderContainer) grab) => Consumer(
-      builder: (context, ref, _) {
-        grab(ProviderScope.containerOf(context));
-        return Row(children: [ToneMenu(onEdit: () {})]);
-      },
-    );
+    Widget menu(void Function(ProviderContainer) grab) => Consumer(builder: (context, ref, _) {
+          grab(ProviderScope.containerOf(context));
+          return Row(children: [ToneMenu(onEdit: () {})]);
+        });
 
     testWidgets('shows the built-in tone for the current app', (tester) async {
-      await tester.pumpWidget(
-        host(menu((_) {}), overrides: keyboard('com.whatsapp')),
-      );
+      await tester.pumpWidget(host(menu((_) {}), overrides: keyboard('com.whatsapp')));
       await tester.pump();
       expect(find.text('Texting'), findsOneWidget);
     });
 
-    testWidgets('picking a tone saves an override for that app only', (
-      tester,
-    ) async {
+    testWidgets('picking a tone saves an override for that app only', (tester) async {
       late ProviderContainer container;
-      await tester.pumpWidget(
-        host(
-          menu((c) => container = c),
-          overrides: keyboard('com.google.android.gm'),
-        ),
-      );
+      await tester.pumpWidget(host(menu((c) => container = c), overrides: keyboard('com.google.android.gm')));
       await tester.pump();
       expect(find.text('Professional'), findsOneWidget);
       await tester.tap(find.text('Professional'));
@@ -129,51 +97,35 @@ void main() {
       expect(container.read(effectiveStyleProvider).preset, StylePreset.notes);
     });
 
-    testWidgets(
-      'unknown app saves the global tone and offers no per-app items',
-      (tester) async {
-        late ProviderContainer container;
-        await tester.pumpWidget(
-          host(menu((c) => container = c), overrides: keyboard(null)),
-        );
-        await tester.tap(find.text('Casual'));
-        await pumpFor(tester);
-        expect(find.textContaining('for all apps'), findsNothing);
-        await tester.tap(find.text('Professional'));
-        await pumpFor(tester);
-        expect(
-          container.read(settingsProvider).style.preset,
-          StylePreset.professional,
-        );
-        expect(container.read(settingsProvider).appStyles, isEmpty);
-      },
-    );
+    testWidgets('unknown app saves the global tone and offers no per-app items', (tester) async {
+      late ProviderContainer container;
+      await tester.pumpWidget(host(menu((c) => container = c), overrides: keyboard(null)));
+      await tester.tap(find.text('Casual'));
+      await pumpFor(tester);
+      expect(find.textContaining('for all apps'), findsNothing);
+      await tester.tap(find.text('Professional'));
+      await pumpFor(tester);
+      expect(container.read(settingsProvider).style.preset, StylePreset.professional);
+      expect(container.read(settingsProvider).appStyles, isEmpty);
+    });
 
-    testWidgets(
-      '"Use for all apps" makes the tone global and clears the override',
-      (tester) async {
-        late ProviderContainer container;
-        await tester.pumpWidget(
-          host(
-            menu((c) => container = c),
-            overrides: keyboard(
-              'com.google.android.gm',
-              settings: const AppSettings(
-                onboarded: true,
-                appStyles: {'com.google.android.gm': StylePreset.notes},
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-        await tester.tap(find.text('Notes'));
-        await pumpFor(tester);
-        await tester.tap(find.text('Use Notes for all apps'));
-        await pumpFor(tester);
-        final s = container.read(settingsProvider);
-        expect(s.style.preset, StylePreset.notes);
-        expect(s.appStyles, isEmpty);
-      },
-    );
+    testWidgets('"Use for all apps" makes the tone global and clears the override', (tester) async {
+      late ProviderContainer container;
+      await tester.pumpWidget(host(
+        menu((c) => container = c),
+        overrides: keyboard(
+          'com.google.android.gm',
+          settings: const AppSettings(onboarded: true, appStyles: {'com.google.android.gm': StylePreset.notes}),
+        ),
+      ));
+      await tester.pump();
+      await tester.tap(find.text('Notes'));
+      await pumpFor(tester);
+      await tester.tap(find.text('Use Notes for all apps'));
+      await pumpFor(tester);
+      final s = container.read(settingsProvider);
+      expect(s.style.preset, StylePreset.notes);
+      expect(s.appStyles, isEmpty);
+    });
   });
 }

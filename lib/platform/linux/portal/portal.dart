@@ -34,8 +34,8 @@ class PortalResponse {
       code == 0
           ? PortalResponseCode.success
           : code == 1
-          ? PortalResponseCode.cancelled
-          : PortalResponseCode.other,
+              ? PortalResponseCode.cancelled
+              : PortalResponseCode.other,
       signal.values[1].asStringVariantDict(),
     );
   }
@@ -59,8 +59,7 @@ class PortalClient {
   PortalClient(this.bus);
   final DBusClient bus;
 
-  DBusRemoteObject get desktop =>
-      DBusRemoteObject(bus, name: portalBusName, path: portalPath);
+  DBusRemoteObject get desktop => DBusRemoteObject(bus, name: portalBusName, path: portalPath);
 
   /// Sender part of request paths: unique name without ':' and with '.' -> '_'.
   Future<String> _senderToken() async {
@@ -69,18 +68,12 @@ class PortalClient {
   }
 
   /// Predicted Request path for [handleToken].
-  Future<DBusObjectPath> requestPath(
-    String handleToken,
-  ) async => DBusObjectPath(
-    '/org/freedesktop/portal/desktop/request/${await _senderToken()}/$handleToken',
-  );
+  Future<DBusObjectPath> requestPath(String handleToken) async =>
+      DBusObjectPath('/org/freedesktop/portal/desktop/request/${await _senderToken()}/$handleToken');
 
   /// Predicted Session path for [sessionToken].
-  Future<DBusObjectPath> sessionPath(
-    String sessionToken,
-  ) async => DBusObjectPath(
-    '/org/freedesktop/portal/desktop/session/${await _senderToken()}/$sessionToken',
-  );
+  Future<DBusObjectPath> sessionPath(String sessionToken) async =>
+      DBusObjectPath('/org/freedesktop/portal/desktop/session/${await _senderToken()}/$sessionToken');
 
   bool _registered = false;
 
@@ -96,11 +89,8 @@ class PortalClient {
     if (_registered) return;
     _registered = true;
     try {
-      await desktop.callMethod(
-        'org.freedesktop.host.portal.Registry',
-        'Register',
-        [DBusString(appId), DBusDict.stringVariant({})],
-      );
+      await desktop.callMethod('org.freedesktop.host.portal.Registry', 'Register',
+          [DBusString(appId), DBusDict.stringVariant({})]);
     } catch (e) {
       // Older portals lack the Registry; GNOME then refuses GlobalShortcuts.
       stderr.writeln('ramble: host portal registration failed: $e');
@@ -134,38 +124,37 @@ class PortalClient {
     final token = portalToken('req');
     final path = await requestPath(token);
     final completer = Completer<PortalResponse>();
-    StreamSubscription<DBusSignal> watch(DBusObjectPath p) =>
-        DBusSignalStream(
+    StreamSubscription<DBusSignal> watch(DBusObjectPath p) => DBusSignalStream(
           bus,
           sender: portalBusName,
           interface: 'org.freedesktop.portal.Request',
           name: 'Response',
           path: p,
         ).listen((signal) {
-          if (!completer.isCompleted)
-            completer.complete(PortalResponse.fromSignal(signal));
+          if (!completer.isCompleted) completer.complete(PortalResponse.fromSignal(signal));
         });
     final sub = watch(path);
     try {
       // Make sure the match rule is installed before the call is sent.
       await Future<void>.delayed(Duration.zero);
-      final reply = await desktop.callMethod(interface, method, [
-        ...leading,
-        DBusDict.stringVariant({...options, 'handle_token': DBusString(token)}),
-      ], replySignature: DBusSignature('o'));
+      final reply = await desktop.callMethod(
+        interface,
+        method,
+        [
+          ...leading,
+          DBusDict.stringVariant({...options, 'handle_token': DBusString(token)}),
+        ],
+        replySignature: DBusSignature('o'),
+      );
       final returned = reply.returnValues[0].asObjectPath();
       if (returned != path) {
         // Very old portals did not honour handle_token; follow the real path.
         final late = watch(returned);
         completer.future.whenComplete(late.cancel);
       }
-      return await (timeout == null
-          ? completer.future
-          : completer.future.timeout(timeout));
+      return await (timeout == null ? completer.future : completer.future.timeout(timeout));
     } on TimeoutException {
-      throw PortalException(
-        '$interface.$method timed out waiting for the user',
-      );
+      throw PortalException('$interface.$method timed out waiting for the user');
     } finally {
       await sub.cancel();
     }

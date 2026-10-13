@@ -12,11 +12,7 @@ Uint8List _sine(double hz, {double amp = 8000, int seconds = 1}) {
   final out = Uint8List(n * 2);
   final d = ByteData.sublistView(out);
   for (var i = 0; i < n; i++) {
-    d.setInt16(
-      i * 2,
-      (amp * math.sin(2 * math.pi * hz * i / Pcm.sampleRate)).round(),
-      Endian.little,
-    );
+    d.setInt16(i * 2, (amp * math.sin(2 * math.pi * hz * i / Pcm.sampleRate)).round(), Endian.little);
   }
   return out;
 }
@@ -39,11 +35,7 @@ void main() {
   test('the voice band passes unchanged in level', () {
     for (final hz in [200.0, 1000.0, 3000.0]) {
       final pcm = _sine(hz);
-      expect(
-        _rms(RumbleFilter.apply(pcm)) / _rms(pcm),
-        closeTo(1, 0.1),
-        reason: '$hz Hz',
-      );
+      expect(_rms(RumbleFilter.apply(pcm)) / _rms(pcm), closeTo(1, 0.1), reason: '$hz Hz');
     }
   });
 

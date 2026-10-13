@@ -30,18 +30,12 @@ class _ModelMenuState extends ConsumerState<ModelMenu> {
     final notifier = ref.read(settingsProvider.notifier);
     if (value.startsWith('gemma:')) {
       final id = value.substring(6);
-      notifier.update(
-        (s) => s.copyWith(engine: EngineKind.onDevice, gemmaVariantId: id),
-      );
+      notifier.update((s) => s.copyWith(engine: EngineKind.onDevice, gemmaVariantId: id));
     } else if (value == 'gemini:auto') {
-      notifier.update(
-        (s) => s.copyWith(engine: EngineKind.gemini, geminiModel: () => null),
-      );
+      notifier.update((s) => s.copyWith(engine: EngineKind.gemini, geminiModel: () => null));
     } else if (value.startsWith('gemini:')) {
       final id = value.substring(7);
-      notifier.update(
-        (s) => s.copyWith(engine: EngineKind.gemini, geminiModel: () => id),
-      );
+      notifier.update((s) => s.copyWith(engine: EngineKind.gemini, geminiModel: () => id));
     }
     ref.invalidate(activeEngineReadinessProvider);
   }
@@ -52,11 +46,8 @@ class _ModelMenuState extends ConsumerState<ModelMenu> {
     final t = Theme.of(context).textTheme;
     final onDevice = settings.engine == EngineKind.onDevice;
 
-    PopupMenuEntry<String> header(String text) => PopupMenuItem<String>(
-      enabled: false,
-      height: 32,
-      child: Text(text, style: t.labelMedium),
-    );
+    PopupMenuEntry<String> header(String text) =>
+        PopupMenuItem<String>(enabled: false, height: 32, child: Text(text, style: t.labelMedium));
 
     final items = <PopupMenuEntry<String>>[
       header('On-device'),
@@ -65,11 +56,7 @@ class _ModelMenuState extends ConsumerState<ModelMenu> {
           value: 'gemma:${v.id}',
           checked: onDevice && settings.gemmaVariantId == v.id,
           enabled: downloads.statusOf(v) is Downloaded,
-          child: Text(
-            downloads.statusOf(v) is Downloaded
-                ? v.label
-                : '${v.label} · Not downloaded',
-          ),
+          child: Text(downloads.statusOf(v) is Downloaded ? v.label : '${v.label} · Not downloaded'),
         ),
       const PopupMenuDivider(),
       header('Gemini'),
@@ -78,66 +65,41 @@ class _ModelMenuState extends ConsumerState<ModelMenu> {
     final source = ref.read(geminiKeySourceProvider);
     final models = ref.read(geminiModelsProvider);
     if (source.hasValue && source.requireValue == KeySource.none) {
-      items.add(
-        const PopupMenuItem<String>(
-          enabled: false,
-          child: Text('Add a Gemini key in Settings'),
-        ),
-      );
+      items.add(const PopupMenuItem<String>(enabled: false, child: Text('Add a Gemini key in Settings')));
     } else if (models.isLoading || !models.hasValue) {
-      items.add(
-        const PopupMenuItem<String>(
-          enabled: false,
-          child: Row(
-            children: [
-              SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('Loading models'),
-            ],
-          ),
-        ),
-      );
+      items.add(const PopupMenuItem<String>(
+        enabled: false,
+        child: Row(children: [
+          SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          SizedBox(width: 12),
+          Text('Loading models'),
+        ]),
+      ));
     } else {
       final list = models.requireValue;
-      items.add(
-        CheckedPopupMenuItem<String>(
-          value: 'gemini:auto',
-          checked: !onDevice && settings.geminiModel == null,
-          child: const Text('Automatic (fastest working Flash)'),
-        ),
-      );
-      for (final family in [
-        GeminiFamily.flash,
-        GeminiFamily.flashLite,
-        GeminiFamily.pro,
-      ]) {
-        final group = [
-          for (final m in list)
-            if (m.family == family && !m.alias) m,
-        ];
+      items.add(CheckedPopupMenuItem<String>(
+        value: 'gemini:auto',
+        checked: !onDevice && settings.geminiModel == null,
+        child: const Text('Automatic (fastest working Flash)'),
+      ));
+      for (final family in [GeminiFamily.flash, GeminiFamily.flashLite, GeminiFamily.pro]) {
+        final group = [for (final m in list) if (m.family == family && !m.alias) m];
         if (group.isEmpty) continue;
         items.add(header(family.label));
         for (final m in group) {
-          final note = m.freeTierUnavailable
-              ? 'Not on your free tier'
-              : m.healthLabel;
-          items.add(
-            CheckedPopupMenuItem<String>(
-              value: 'gemini:${m.id}',
-              checked: !onDevice && settings.geminiModel == m.id,
-              enabled: !m.unavailable,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${m.major}.${m.minor}${m.preview ? ' preview' : ''}'),
-                  if (note != null) Text(note, style: t.bodySmall),
-                ],
-              ),
+          final note = m.freeTierUnavailable ? 'Not on your free tier' : m.healthLabel;
+          items.add(CheckedPopupMenuItem<String>(
+            value: 'gemini:${m.id}',
+            checked: !onDevice && settings.geminiModel == m.id,
+            enabled: !m.unavailable,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${m.major}.${m.minor}${m.preview ? ' preview' : ''}'),
+                if (note != null) Text(note, style: t.bodySmall),
+              ],
             ),
-          );
+          ));
         }
       }
     }

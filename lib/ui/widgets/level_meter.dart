@@ -6,12 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 /// Row of bars that fill with input level (0..1).
 class LevelMeter extends StatelessWidget {
-  const LevelMeter({
-    super.key,
-    required this.level,
-    this.bars = 16,
-    this.height = 24,
-  });
+  const LevelMeter({super.key, required this.level, this.bars = 16, this.height = 24});
 
   final double level;
   final int bars;

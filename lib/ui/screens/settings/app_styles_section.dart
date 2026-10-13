@@ -17,9 +17,8 @@ class AppStylesSection extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
 
-    void setAll(Map<String, StylePreset> next) => ref
-        .read(settingsProvider.notifier)
-        .update((s) => s.copyWith(appStyles: next));
+    void setAll(Map<String, StylePreset> next) =>
+        ref.read(settingsProvider.notifier).update((s) => s.copyWith(appStyles: next));
 
     final keys = overrides.keys.toList()..sort();
     return Column(
@@ -37,36 +36,23 @@ class AppStylesSection extends ConsumerWidget {
         if (keys.isEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              'No apps changed yet.',
-              style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-            ),
+            child: Text('No apps changed yet.', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
           ),
         for (final pkg in keys)
           ListTile(
             contentPadding: const EdgeInsets.only(left: 16, right: 4),
             title: Text(ref.watch(appLabelProvider(pkg)).value ?? pkg),
-            subtitle: Text(
-              pkg,
-              style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
-            ),
+            subtitle: Text(pkg, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 PopupMenuButton<StylePreset>(
-                  tooltip:
-                      'Change tone for ${ref.watch(appLabelProvider(pkg)).value ?? pkg}',
+                  tooltip: 'Change tone for ${ref.watch(appLabelProvider(pkg)).value ?? pkg}',
                   initialValue: overrides[pkg],
                   onSelected: (p) => setAll({...overrides, pkg: p}),
-                  itemBuilder: (_) => [
-                    for (final p in StylePreset.values)
-                      PopupMenuItem(value: p, child: Text(p.label)),
-                  ],
+                  itemBuilder: (_) => [for (final p in StylePreset.values) PopupMenuItem(value: p, child: Text(p.label))],
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

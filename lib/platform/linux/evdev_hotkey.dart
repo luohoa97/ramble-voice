@@ -24,8 +24,7 @@ const evKey = 1;
 const keyCapsLock = 58;
 
 /// Shown when no input device can be read.
-const evdevPermissionMessage =
-    'Ramble needs permission to read the Caps Lock key. '
+const evdevPermissionMessage = 'Ramble needs permission to read the Caps Lock key. '
     'Run: sudo usermod -aG input \$USER, then log out and back in. '
     'Until then, use the desktop shortcut (Ctrl+Alt+Space).';
 
@@ -34,11 +33,7 @@ const evdevPermissionCommand = r'sudo usermod -aG input $USER';
 
 /// One block of `/proc/bus/input/devices`.
 class InputDeviceInfo {
-  const InputDeviceInfo({
-    required this.name,
-    required this.eventPath,
-    required this.hasCapsLock,
-  });
+  const InputDeviceInfo({required this.name, required this.eventPath, required this.hasCapsLock});
   final String name;
 
   /// e.g. `/dev/input/event3`.
@@ -72,22 +67,13 @@ List<InputDeviceInfo> parseInputDevices(String text, {int? wordBits}) {
     }
     if (event == null || ev == null || key == null) continue;
     if (!_bitSet(ev, evKey, bits) || !_bitSet(key, keyCapsLock, bits)) continue;
-    result.add(
-      InputDeviceInfo(
-        name: name ?? 'unknown',
-        eventPath: '/dev/input/event$event',
-        hasCapsLock: true,
-      ),
-    );
+    result.add(InputDeviceInfo(name: name ?? 'unknown', eventPath: '/dev/input/event$event', hasCapsLock: true));
   }
   return result;
 }
 
 bool _bitSet(String bitmap, int bit, int wordBits) {
-  final words = bitmap
-      .split(RegExp(r'\s+'))
-      .where((w) => w.isNotEmpty)
-      .toList();
+  final words = bitmap.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
   final fromEnd = bit ~/ wordBits;
   if (fromEnd >= words.length) return false;
   final word = BigInt.tryParse(words[words.length - 1 - fromEnd], radix: 16);
@@ -102,8 +88,7 @@ bool _bitSet(String bitmap, int bit, int wordBits) {
 /// out: press (value 1) and release (value 0). Autorepeat (2) and every other
 /// event or key are dropped.
 class InputEventParser {
-  InputEventParser({int? recordSize})
-    : recordSize = recordSize ?? (ffi.sizeOf<ffi.IntPtr>() == 8 ? 24 : 16);
+  InputEventParser({int? recordSize}) : recordSize = recordSize ?? (ffi.sizeOf<ffi.IntPtr>() == 8 ? 24 : 16);
 
   final int recordSize;
   final _partial = BytesBuilder(copy: false);
@@ -257,8 +242,8 @@ class XkbCapsRemap {
   XkbCapsRemap({
     Map<String, String>? environment,
     Future<ProcessResult> Function(String exe, List<String> args)? run,
-  }) : _env = environment ?? Platform.environment,
-       _run = run ?? Process.run;
+  })  : _env = environment ?? Platform.environment,
+        _run = run ?? Process.run;
 
   static const schema = 'org.gnome.desktop.input-sources';
   static const key = 'xkb-options';
@@ -267,28 +252,19 @@ class XkbCapsRemap {
   final Map<String, String> _env;
   final Future<ProcessResult> Function(String exe, List<String> args) _run;
 
-  bool get supported => (_env['XDG_CURRENT_DESKTOP'] ?? '')
-      .toUpperCase()
-      .split(':')
-      .contains('GNOME');
+  bool get supported => (_env['XDG_CURRENT_DESKTOP'] ?? '').toUpperCase().split(':').contains('GNOME');
 
   /// `['a', 'b']` or `@as []` -> list.
-  static List<String> parse(String gvariant) => [
-    for (final m in RegExp(r"'([^']*)'").allMatches(gvariant)) m.group(1)!,
-  ];
+  static List<String> parse(String gvariant) =>
+      [for (final m in RegExp(r"'([^']*)'").allMatches(gvariant)) m.group(1)!];
 
-  static String format(List<String> options) =>
-      options.isEmpty ? '@as []' : "[${options.map((o) => "'$o'").join(', ')}]";
+  static String format(List<String> options) => options.isEmpty ? '@as []' : "[${options.map((o) => "'$o'").join(', ')}]";
 
   /// Drops every other `caps:*` entry and adds `caps:none`.
-  static List<String> withCapsNone(List<String> options) => [
-    ...options.where((o) => !o.startsWith('caps:')),
-    option,
-  ];
+  static List<String> withCapsNone(List<String> options) =>
+      [...options.where((o) => !o.startsWith('caps:')), option];
 
-  static List<String> withoutCapsNone(List<String> options) => [
-    ...options.where((o) => o != option),
-  ];
+  static List<String> withoutCapsNone(List<String> options) => [...options.where((o) => o != option)];
 
   /// Returns false when unsupported or gsettings failed.
   Future<bool> setCapsDisabled(bool disabled) async {
@@ -298,8 +274,7 @@ class XkbCapsRemap {
       if (got.exitCode != 0) return false;
       final current = parse('${got.stdout}');
       final next = disabled ? withCapsNone(current) : withoutCapsNone(current);
-      if (next.length == current.length && next.every(current.contains))
-        return true;
+      if (next.length == current.length && next.every(current.contains)) return true;
       final set = await _run('gsettings', ['set', schema, key, format(next)]);
       return set.exitCode == 0;
     } on ProcessException {

@@ -73,9 +73,7 @@ abstract final class NativeScript {
       final re = _patterns.putIfAbsent(
         e.key,
         () => RegExp(
-          r'(?<![\p{L}\p{N}])' +
-              e.key.split(' ').map(RegExp.escape).join(r'[\s-]+') +
-              r'(?![\p{L}\p{N}])',
+          r'(?<![\p{L}\p{N}])' + e.key.split(' ').map(RegExp.escape).join(r'[\s-]+') + r'(?![\p{L}\p{N}])',
           caseSensitive: false,
           unicode: true,
         ),

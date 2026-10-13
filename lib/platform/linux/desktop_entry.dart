@@ -17,10 +17,7 @@ abstract final class DesktopEntry {
 
   /// Returns true when the entry was created or updated (callers should give
   /// the portal a moment to notice the new file).
-  static Future<bool> ensure(
-    String appId, {
-    Map<String, String>? environment,
-  }) async {
+  static Future<bool> ensure(String appId, {Map<String, String>? environment}) async {
     final env = environment ?? Platform.environment;
     if ((env['FLATPAK_ID'] ?? '').isNotEmpty) return false;
     if (await _installedSystemWide(appId, env)) return false;
@@ -63,19 +60,12 @@ abstract final class DesktopEntry {
     return File(bundled).existsSync() ? bundled : appId;
   }
 
-  static Future<bool> _installedSystemWide(
-    String appId,
-    Map<String, String> env,
-  ) async {
-    final dirs =
-        (env['XDG_DATA_DIRS']?.isNotEmpty == true
-                ? env['XDG_DATA_DIRS']!
-                : '/usr/local/share:/usr/share')
-            .split(':')
-            .where((d) => d.isNotEmpty);
+  static Future<bool> _installedSystemWide(String appId, Map<String, String> env) async {
+    final dirs = (env['XDG_DATA_DIRS']?.isNotEmpty == true ? env['XDG_DATA_DIRS']! : '/usr/local/share:/usr/share')
+        .split(':')
+        .where((d) => d.isNotEmpty);
     for (final d in dirs) {
-      if (await File(p.join(d, 'applications', '$appId.desktop')).exists())
-        return true;
+      if (await File(p.join(d, 'applications', '$appId.desktop')).exists()) return true;
     }
     return false;
   }

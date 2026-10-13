@@ -100,20 +100,16 @@ abstract final class Languages {
   /// The prompt sentence for [codes]. No known language means "detect any".
   /// With [allowTranslation] (edit mode) a spoken instruction may ask for a
   /// translation.
-  static String describe(
-    Iterable<String> codes, {
-    bool allowTranslation = false,
-  }) {
+  static String describe(Iterable<String> codes, {bool allowTranslation = false}) {
     final names = [for (final l in normaliseList(codes)) byCode(l)!.name];
     // The user's languages are a hint, never a limit: other languages that
     // are actually spoken are still written as themselves.
     final subject = names.isEmpty
         ? ''
         : names.length == 1
-        ? 'The speaker usually speaks ${names.single}. '
-        : 'The speaker usually speaks ${names.join(', ')}. ';
-    const script =
-        'Write each language in its own writing system, never romanized, even a single word or '
+            ? 'The speaker usually speaks ${names.single}. '
+            : 'The speaker usually speaks ${names.join(', ')}. ';
+    const script = 'Write each language in its own writing system, never romanized, even a single word or '
         'short phrase dropped into a sentence in another language: Japanese in kana and kanji (spoken "sayonara" '
         'is さようなら, "arigatou" is ありがとう, "sugoi" is すごい), Mandarin Chinese in Simplified Chinese '
         'characters (spoken "māma" is 妈妈, "nǐ hǎo" is 你好), Cantonese in Traditional Chinese characters, Korean '
@@ -130,8 +126,9 @@ abstract final class Languages {
         '(さようなら, ありがとう, かわいい, すごい, 你好, 谢谢). ';
     final rule = allowTranslation
         ? 'Keep every word in the language it is written in; never switch a word into another language '
-              'unless the spoken instruction asks for a translation.'
+            'unless the spoken instruction asks for a translation.'
         : 'Write every word in the language it was spoken in; never translate.';
     return '$subject$script$rule';
   }
+
 }

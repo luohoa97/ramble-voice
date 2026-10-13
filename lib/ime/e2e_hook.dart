@@ -45,8 +45,7 @@ class E2eHook {
       if (s is DictationListening && s.level > _peakLevel) _peakLevel = s.level;
       if (s is DictationDone) {
         _lastText = s.outcome.text;
-        _lastEngine =
-            '${s.outcome.engine.name}${s.outcome.fellBack ? ' (fallback: ${s.outcome.fallbackReason?.message})' : ''}';
+        _lastEngine = '${s.outcome.engine.name}${s.outcome.fellBack ? ' (fallback: ${s.outcome.fallbackReason?.message})' : ''}';
       }
     });
   }
@@ -97,10 +96,7 @@ class E2eHook {
         return {'screen': await bridge.getScreenContext(1500)};
       case 'insert':
         // The same insert path a finished dictation takes.
-        final r = await container
-            .read(platformServicesProvider)
-            .inserter
-            .insert(arg ?? '');
+        final r = await container.read(platformServicesProvider).inserter.insert(arg ?? '');
         return {'method': r.method.name};
       case 'wav':
         // Plays a 16 kHz mono WAV into a normal dictation (or an edit when
@@ -130,11 +126,7 @@ class E2eHook {
     final info = bridge.current;
     return {
       'state': s.runtimeType.toString(),
-      if (s is DictationListening) ...{
-        'level': s.level,
-        'elapsedMs': s.elapsed.inMilliseconds,
-        'paused': s.paused,
-      },
+      if (s is DictationListening) ...{'level': s.level, 'elapsedMs': s.elapsed.inMilliseconds, 'paused': s.paused},
       if (s is DictationFailed) 'failure': s.message,
       if (s is DictationIdle && s.notice != null) 'notice': s.notice,
       'trail': _trail,
@@ -148,9 +140,7 @@ class E2eHook {
         'multiLine': info.multiLine,
         'password': info.isPassword,
         'action': info.action?.name,
-        'before': info.isPassword
-            ? null
-            : await bridge.getTextBeforeCursor(400),
+        'before': info.isPassword ? null : await bridge.getTextBeforeCursor(400),
         'after': info.isPassword ? null : await bridge.getTextAfterCursor(200),
         'selected': info.isPassword ? null : await bridge.getSelectedText(),
       },

@@ -19,10 +19,10 @@ abstract final class BubbleHotkeys {
   static const rightCtrl = 114;
 
   static String label(int code) => switch (code) {
-    capsLock => 'Caps Lock',
-    rightCtrl => 'Right Ctrl',
-    _ => 'Custom key ($code)',
-  };
+        capsLock => 'Caps Lock',
+        rightCtrl => 'Right Ctrl',
+        _ => 'Custom key ($code)',
+      };
 }
 
 /// Non-secret preferences. The Gemini key lives in [SecretStore].
@@ -113,8 +113,7 @@ class AppSettings {
   final List<Snippet> snippets;
 
   /// [style] plus the language and snippets: what the engines get.
-  StyleProfile get effectiveStyle =>
-      style.copyWith(languages: languages, snippets: snippets);
+  StyleProfile get effectiveStyle => style.copyWith(languages: languages, snippets: snippets);
 
   /// Android floating mic: package names of apps where the bubble never shows.
   final List<String> bubbleBlockedApps;
@@ -138,8 +137,7 @@ class AppSettings {
   /// "Finish setup" banner.
   final Set<String> completedSetup;
 
-  GemmaVariant get gemmaVariant =>
-      ModelCatalog.byId(gemmaVariantId) ?? ModelCatalog.defaultVariant;
+  GemmaVariant get gemmaVariant => ModelCatalog.byId(gemmaVariantId) ?? ModelCatalog.defaultVariant;
   Duration get maxSession => Duration(minutes: maxSessionMinutes);
 
   AppSettings copyWith({
@@ -170,116 +168,107 @@ class AppSettings {
     bool? physicalKeyHotkey,
     int? physicalKeyCode,
     bool? bubbleAutoRestore,
-  }) => AppSettings(
-    engine: engine ?? this.engine,
-    gemmaVariantId: gemmaVariantId ?? this.gemmaVariantId,
-    geminiModel: geminiModel == null ? this.geminiModel : geminiModel(),
-    fallbackToOnDevice: fallbackToOnDevice ?? this.fallbackToOnDevice,
-    style: style ?? this.style,
-    onboarded: onboarded ?? this.onboarded,
-    maxSessionMinutes: maxSessionMinutes ?? this.maxSessionMinutes,
-    haptics: haptics ?? this.haptics,
-    typeIntoFocusedApp: typeIntoFocusedApp ?? this.typeIntoFocusedApp,
-    modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
-    autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
-    thinking: thinking ?? this.thinking,
-    noiseReduction: noiseReduction ?? this.noiseReduction,
-    hotkeyTrigger: hotkeyTrigger ?? this.hotkeyTrigger,
-    hotkeyKey: hotkeyKey ?? this.hotkeyKey,
-    languages: languages ?? this.languages,
-    useContactNames: useContactNames ?? this.useContactNames,
-    useFieldContext: useFieldContext ?? this.useFieldContext,
-    screenContext: screenContext ?? this.screenContext,
-    snippets: snippets ?? this.snippets,
-    appStyles: appStyles ?? this.appStyles,
-    completedSetup: completedSetup ?? this.completedSetup,
-    bubbleBlockedApps: bubbleBlockedApps ?? this.bubbleBlockedApps,
-    bubbleSize: bubbleSize ?? this.bubbleSize,
-    physicalKeyHotkey: physicalKeyHotkey ?? this.physicalKeyHotkey,
-    physicalKeyCode: physicalKeyCode ?? this.physicalKeyCode,
-    bubbleAutoRestore: bubbleAutoRestore ?? this.bubbleAutoRestore,
-  );
+  }) =>
+      AppSettings(
+        engine: engine ?? this.engine,
+        gemmaVariantId: gemmaVariantId ?? this.gemmaVariantId,
+        geminiModel: geminiModel == null ? this.geminiModel : geminiModel(),
+        fallbackToOnDevice: fallbackToOnDevice ?? this.fallbackToOnDevice,
+        style: style ?? this.style,
+        onboarded: onboarded ?? this.onboarded,
+        maxSessionMinutes: maxSessionMinutes ?? this.maxSessionMinutes,
+        haptics: haptics ?? this.haptics,
+        typeIntoFocusedApp: typeIntoFocusedApp ?? this.typeIntoFocusedApp,
+        modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
+        autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
+        thinking: thinking ?? this.thinking,
+        noiseReduction: noiseReduction ?? this.noiseReduction,
+        hotkeyTrigger: hotkeyTrigger ?? this.hotkeyTrigger,
+        hotkeyKey: hotkeyKey ?? this.hotkeyKey,
+        languages: languages ?? this.languages,
+        useContactNames: useContactNames ?? this.useContactNames,
+        useFieldContext: useFieldContext ?? this.useFieldContext,
+        screenContext: screenContext ?? this.screenContext,
+        snippets: snippets ?? this.snippets,
+        appStyles: appStyles ?? this.appStyles,
+        completedSetup: completedSetup ?? this.completedSetup,
+        bubbleBlockedApps: bubbleBlockedApps ?? this.bubbleBlockedApps,
+        bubbleSize: bubbleSize ?? this.bubbleSize,
+        physicalKeyHotkey: physicalKeyHotkey ?? this.physicalKeyHotkey,
+        physicalKeyCode: physicalKeyCode ?? this.physicalKeyCode,
+        bubbleAutoRestore: bubbleAutoRestore ?? this.bubbleAutoRestore,
+      );
 
   Map<String, Object?> toJson() => {
-    'engine': engine.name,
-    'gemmaVariant': gemmaVariantId,
-    'geminiModel': geminiModel,
-    'fallbackToOnDevice': fallbackToOnDevice,
-    'style': style.toJson(),
-    'onboarded': onboarded,
-    'maxSessionMinutes': maxSessionMinutes,
-    'haptics': haptics,
-    'typeIntoFocusedApp': typeIntoFocusedApp,
-    'modelLicenseAccepted': modelLicenseAccepted,
-    'autoSwitchBackAfterDictation': autoSwitchBack,
-    'thinking': thinking,
-    'noiseReduction': noiseReduction,
-    'hotkeyTrigger': hotkeyTrigger,
-    'hotkeyKey': hotkeyKey,
-    'languages': languages,
-    'useContactNames': useContactNames,
-    'useFieldContext': useFieldContext,
-    'screenContext': screenContext,
-    'snippets': [for (final s in snippets) s.toJson()],
-    'appStyles': {for (final e in appStyles.entries) e.key: e.value.name},
-    'completedSetup': completedSetup.toList()..sort(),
-    'bubbleBlockedApps': bubbleBlockedApps,
-    'bubbleSize': bubbleSize.name,
-    'physicalKeyHotkey': physicalKeyHotkey,
-    'physicalKeyCode': physicalKeyCode,
-    'bubbleAutoRestore': bubbleAutoRestore,
-  };
+        'engine': engine.name,
+        'gemmaVariant': gemmaVariantId,
+        'geminiModel': geminiModel,
+        'fallbackToOnDevice': fallbackToOnDevice,
+        'style': style.toJson(),
+        'onboarded': onboarded,
+        'maxSessionMinutes': maxSessionMinutes,
+        'haptics': haptics,
+        'typeIntoFocusedApp': typeIntoFocusedApp,
+        'modelLicenseAccepted': modelLicenseAccepted,
+        'autoSwitchBackAfterDictation': autoSwitchBack,
+        'thinking': thinking,
+        'noiseReduction': noiseReduction,
+        'hotkeyTrigger': hotkeyTrigger,
+        'hotkeyKey': hotkeyKey,
+        'languages': languages,
+        'useContactNames': useContactNames,
+        'useFieldContext': useFieldContext,
+        'screenContext': screenContext,
+        'snippets': [for (final s in snippets) s.toJson()],
+        'appStyles': {for (final e in appStyles.entries) e.key: e.value.name},
+        'completedSetup': completedSetup.toList()..sort(),
+        'bubbleBlockedApps': bubbleBlockedApps,
+        'bubbleSize': bubbleSize.name,
+        'physicalKeyHotkey': physicalKeyHotkey,
+        'physicalKeyCode': physicalKeyCode,
+        'bubbleAutoRestore': bubbleAutoRestore,
+      };
 
   /// [deviceLanguages] is used when the file has no language choice yet, or
   /// still has the old automatic setting.
-  factory AppSettings.fromJson(
-    Map<String, Object?> j, {
-    List<String> deviceLanguages = const [],
-  }) => AppSettings(
-    engine: EngineKind.values.asNameMap()[j['engine']] ?? EngineKind.onDevice,
-    gemmaVariantId: j['gemmaVariant'] as String? ?? 'gemma-4-e4b',
-    geminiModel: j['geminiModel'] as String?,
-    fallbackToOnDevice: j['fallbackToOnDevice'] as bool? ?? true,
-    style: j['style'] is Map
-        ? StyleProfile.fromJson((j['style'] as Map).cast<String, Object?>())
-        : const StyleProfile(),
-    onboarded: j['onboarded'] as bool? ?? false,
-    maxSessionMinutes:
-        (j['maxSessionMinutes'] as num?)?.toInt().clamp(1, 60) ?? 10,
-    haptics: j['haptics'] as bool? ?? true,
-    typeIntoFocusedApp: j['typeIntoFocusedApp'] as bool? ?? true,
-    modelLicenseAccepted: j['modelLicenseAccepted'] as bool? ?? false,
-    // Renamed key: the old 'autoSwitchBack' defaulted to on; users now stay
-    // on Ramble until they press ABC unless they opt in.
-    autoSwitchBack: j['autoSwitchBackAfterDictation'] as bool? ?? false,
-    thinking: j['thinking'] as bool? ?? true,
-    noiseReduction: j['noiseReduction'] as bool? ?? false,
-    hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
-    hotkeyKey: j['hotkeyKey'] as String? ?? 'capslock',
-    languages: _languagesFromJson(j, deviceLanguages),
-    useContactNames: j['useContactNames'] as bool? ?? false,
-    useFieldContext: j['useFieldContext'] as bool? ?? true,
-    screenContext: j['screenContext'] as bool? ?? false,
-    snippets: [
-      for (final e in j['snippets'] is List ? j['snippets'] as List : const [])
-        if (e is Map) Snippet.fromJson(e.cast<String, Object?>()),
-    ],
-    appStyles: _appStylesFromJson(j['appStyles']),
-    completedSetup: {
-      ...((j['completedSetup'] as List?)?.whereType<String>() ??
-          const <String>[]),
-    },
-    bubbleBlockedApps: [
-      if (j['bubbleBlockedApps'] case final List<Object?> l)
-        ...l.whereType<String>(),
-    ],
-    bubbleSize:
-        BubbleSize.values.asNameMap()[j['bubbleSize']] ?? BubbleSize.medium,
-    physicalKeyHotkey: j['physicalKeyHotkey'] as bool? ?? true,
-    physicalKeyCode:
-        (j['physicalKeyCode'] as num?)?.toInt() ?? BubbleHotkeys.capsLock,
-    bubbleAutoRestore: j['bubbleAutoRestore'] as bool? ?? false,
-  );
+  factory AppSettings.fromJson(Map<String, Object?> j, {List<String> deviceLanguages = const []}) => AppSettings(
+        engine: EngineKind.values.asNameMap()[j['engine']] ?? EngineKind.onDevice,
+        gemmaVariantId: j['gemmaVariant'] as String? ?? 'gemma-4-e4b',
+        geminiModel: j['geminiModel'] as String?,
+        fallbackToOnDevice: j['fallbackToOnDevice'] as bool? ?? true,
+        style: j['style'] is Map
+            ? StyleProfile.fromJson((j['style'] as Map).cast<String, Object?>())
+            : const StyleProfile(),
+        onboarded: j['onboarded'] as bool? ?? false,
+        maxSessionMinutes: (j['maxSessionMinutes'] as num?)?.toInt().clamp(1, 60) ?? 10,
+        haptics: j['haptics'] as bool? ?? true,
+        typeIntoFocusedApp: j['typeIntoFocusedApp'] as bool? ?? true,
+        modelLicenseAccepted: j['modelLicenseAccepted'] as bool? ?? false,
+        // Renamed key: the old 'autoSwitchBack' defaulted to on; users now stay
+        // on Ramble until they press ABC unless they opt in.
+        autoSwitchBack: j['autoSwitchBackAfterDictation'] as bool? ?? false,
+        thinking: j['thinking'] as bool? ?? true,
+        noiseReduction: j['noiseReduction'] as bool? ?? false,
+        hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
+        hotkeyKey: j['hotkeyKey'] as String? ?? 'capslock',
+        languages: _languagesFromJson(j, deviceLanguages),
+        useContactNames: j['useContactNames'] as bool? ?? false,
+        useFieldContext: j['useFieldContext'] as bool? ?? true,
+        screenContext: j['screenContext'] as bool? ?? false,
+        snippets: [
+          for (final e in j['snippets'] is List ? j['snippets'] as List : const [])
+            if (e is Map) Snippet.fromJson(e.cast<String, Object?>()),
+        ],
+        appStyles: _appStylesFromJson(j['appStyles']),
+        completedSetup: {...((j['completedSetup'] as List?)?.whereType<String>() ?? const <String>[])},
+        bubbleBlockedApps: [
+          if (j['bubbleBlockedApps'] case final List<Object?> l) ...l.whereType<String>(),
+        ],
+        bubbleSize: BubbleSize.values.asNameMap()[j['bubbleSize']] ?? BubbleSize.medium,
+        physicalKeyHotkey: j['physicalKeyHotkey'] as bool? ?? true,
+        physicalKeyCode: (j['physicalKeyCode'] as num?)?.toInt() ?? BubbleHotkeys.capsLock,
+        bubbleAutoRestore: j['bubbleAutoRestore'] as bool? ?? false,
+      );
 }
 
 List<String> _languagesFromJson(Map<String, Object?> j, List<String> device) {
@@ -297,8 +286,7 @@ Map<String, StylePreset> _appStylesFromJson(Object? raw) {
   final presets = StylePreset.values.asNameMap();
   return {
     for (final e in raw.entries)
-      if (e.key is String && presets[e.value] != null)
-        e.key as String: presets[e.value]!,
+      if (e.key is String && presets[e.value] != null) e.key as String: presets[e.value]!,
   };
 }
 
@@ -313,8 +301,7 @@ class SettingsStore {
 
   Future<AppSettings> load() async {
     try {
-      if (!await file.exists())
-        return AppSettings(languages: deviceLanguages());
+      if (!await file.exists()) return AppSettings(languages: deviceLanguages());
       return AppSettings.fromJson(
         (jsonDecode(await file.readAsString()) as Map).cast<String, Object?>(),
         deviceLanguages: deviceLanguages(),
@@ -327,10 +314,7 @@ class SettingsStore {
   Future<void> save(AppSettings s) async {
     await file.parent.create(recursive: true);
     final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(s.toJson()),
-      flush: true,
-    );
+    await tmp.writeAsString(const JsonEncoder.withIndent('  ').convert(s.toJson()), flush: true);
     await tmp.rename(file.path);
   }
 }

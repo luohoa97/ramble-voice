@@ -19,8 +19,8 @@ class EvolutionContactNames implements ContactNameSource {
   /// Reads the current user's books. With [home] given, only that directory
   /// is used (for tests); otherwise `XDG_DATA_HOME` / `XDG_CACHE_HOME` apply.
   EvolutionContactNames({String? home})
-    : _data = _dir(home, 'XDG_DATA_HOME', ['.local', 'share']),
-      _cache = _dir(home, 'XDG_CACHE_HOME', ['.cache']);
+      : _data = _dir(home, 'XDG_DATA_HOME', ['.local', 'share']),
+        _cache = _dir(home, 'XDG_CACHE_HOME', ['.cache']);
 
   final String? _data;
   final String? _cache;
@@ -70,17 +70,11 @@ class EvolutionContactNames implements ContactNameSource {
     final rows = db.select(
       "SELECT full_name, given_name, family_name, file_as FROM folder_id WHERE COALESCE(is_list, 0) = 0",
     );
-    String? text(Object? v) =>
-        v is String && v.trim().isNotEmpty ? v.trim() : null;
+    String? text(Object? v) => v is String && v.trim().isNotEmpty ? v.trim() : null;
     return [
       for (final r in rows)
         text(r['full_name']) ??
-            text(
-              [
-                text(r['given_name']),
-                text(r['family_name']),
-              ].whereType<String>().join(' '),
-            ) ??
+            text([text(r['given_name']), text(r['family_name'])].whereType<String>().join(' ')) ??
             text(r['file_as']) ??
             '',
     ].where((n) => n.isNotEmpty).toList();

@@ -26,12 +26,12 @@ enum StylePreset {
   markdown(
     'Markdown',
     'Clean, well-structured Markdown for notes, documentation and AI chats. Use "# " for a title and "## " '
-        'for sections only when the dictation has several distinct parts, "- " bullets and "1. " numbered lists '
-        'for lists and steps, "- [ ] " for tasks and to-dos, **bold** only for terms the speaker stresses, single '
-        'backticks around commands, file names, code and identifiers, a fenced code block with its language for '
-        'multi-line code, "> " for quotations, and a GitHub-flavored Markdown table with a header row when the '
-        'speaker compares several items or gives rows of data. Leave a blank line between blocks. Never wrap the '
-        'whole text in a code block. Short dictation stays a plain sentence',
+    'for sections only when the dictation has several distinct parts, "- " bullets and "1. " numbered lists '
+    'for lists and steps, "- [ ] " for tasks and to-dos, **bold** only for terms the speaker stresses, single '
+    'backticks around commands, file names, code and identifiers, a fenced code block with its language for '
+    'multi-line code, "> " for quotations, and a GitHub-flavored Markdown table with a header row when the '
+    'speaker compares several items or gives rows of data. Leave a blank line between blocks. Never wrap the '
+    'whole text in a code block. Short dictation stays a plain sentence',
   );
 
   const StylePreset(this.label, this.instruction);
@@ -86,9 +86,7 @@ class StyleProfile {
   /// The `{style}` text for the cleanup prompt.
   String describe() {
     final custom = customInstructions.trim();
-    return custom.isEmpty
-        ? preset.instruction
-        : '${preset.instruction}. $custom';
+    return custom.isEmpty ? preset.instruction : '${preset.instruction}. $custom';
   }
 
   /// The `{vocab}` text for the cleanup prompt.
@@ -101,8 +99,7 @@ class StyleProfile {
   String describeLanguage() => Languages.describe(languages);
 
   /// Same, for edit mode, where an instruction may ask for a translation.
-  String describeLanguageForEdit() =>
-      Languages.describe(languages, allowTranslation: true);
+  String describeLanguageForEdit() => Languages.describe(languages, allowTranslation: true);
 
   /// Whether a specific set of languages is configured.
   bool get hasLanguages => Languages.normaliseList(languages).isNotEmpty;
@@ -129,31 +126,30 @@ class StyleProfile {
     List<String>? languages,
     List<Snippet>? snippets,
     List<String>? contactNames,
-  }) => StyleProfile(
-    preset: preset ?? this.preset,
-    polish: polish ?? this.polish,
-    customInstructions: customInstructions ?? this.customInstructions,
-    vocabulary: vocabulary ?? this.vocabulary,
-    languages: languages ?? this.languages,
-    snippets: snippets ?? this.snippets,
-    contactNames: contactNames ?? this.contactNames,
-  );
+  }) =>
+      StyleProfile(
+        preset: preset ?? this.preset,
+        polish: polish ?? this.polish,
+        customInstructions: customInstructions ?? this.customInstructions,
+        vocabulary: vocabulary ?? this.vocabulary,
+        languages: languages ?? this.languages,
+        snippets: snippets ?? this.snippets,
+        contactNames: contactNames ?? this.contactNames,
+      );
 
   Map<String, Object?> toJson() => {
-    'preset': preset.name,
-    'polish': polish.name,
-    'custom': customInstructions,
-    'vocabulary': vocabulary,
-  };
+        'preset': preset.name,
+        'polish': polish.name,
+        'custom': customInstructions,
+        'vocabulary': vocabulary,
+      };
 
   factory StyleProfile.fromJson(Map<String, Object?> json) => StyleProfile(
-    preset:
-        StylePreset.values.asNameMap()[json['preset']] ?? StylePreset.casual,
-    polish: Polish.values.asNameMap()[json['polish']] ?? Polish.light,
-    customInstructions: json['custom'] as String? ?? '',
-    vocabulary:
-        (json['vocabulary'] as List?)?.whereType<String>().toList() ?? const [],
-  );
+        preset: StylePreset.values.asNameMap()[json['preset']] ?? StylePreset.casual,
+        polish: Polish.values.asNameMap()[json['polish']] ?? Polish.light,
+        customInstructions: json['custom'] as String? ?? '',
+        vocabulary: (json['vocabulary'] as List?)?.whereType<String>().toList() ?? const [],
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -164,12 +160,7 @@ class StyleProfile {
       _sameSnippets(snippets, other.snippets);
 
   @override
-  int get hashCode => Object.hash(
-    jsonEncode(toJson()),
-    Object.hashAll(languages),
-    Object.hashAll(contactNames),
-    Object.hashAll(snippets),
-  );
+  int get hashCode => Object.hash(jsonEncode(toJson()), Object.hashAll(languages), Object.hashAll(contactNames), Object.hashAll(snippets));
 
   static bool _sameStrings(List<String> a, List<String> b) {
     if (a.length != b.length) return false;

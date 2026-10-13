@@ -12,19 +12,14 @@ void main() {
       customInstructions: 'Use British spelling.',
       vocabulary: ['Kubernetes', 'Ramble'],
     );
-    final back = StyleProfile.fromJson(
-      (jsonDecode(jsonEncode(p.toJson())) as Map).cast<String, Object?>(),
-    );
+    final back = StyleProfile.fromJson((jsonDecode(jsonEncode(p.toJson())) as Map).cast<String, Object?>());
     expect(back, p);
     expect(back.preset, StylePreset.notes);
     expect(back.vocabulary, ['Kubernetes', 'Ramble']);
   });
 
   test('fromJson tolerates missing and bad fields', () {
-    final p = StyleProfile.fromJson({
-      'preset': 'nope',
-      'vocabulary': ['a', 3, null],
-    });
+    final p = StyleProfile.fromJson({'preset': 'nope', 'vocabulary': ['a', 3, null]});
     expect(p.preset, StylePreset.casual);
     expect(p.customInstructions, '');
     expect(p.vocabulary, ['a']);
@@ -42,18 +37,13 @@ void main() {
   test('describe appends custom instructions', () {
     expect(const StyleProfile().describe(), StylePreset.casual.instruction);
     expect(
-      const StyleProfile(
-        preset: StylePreset.texting,
-        customInstructions: ' Be brief. ',
-      ).describe(),
+      const StyleProfile(preset: StylePreset.texting, customInstructions: ' Be brief. ').describe(),
       '${StylePreset.texting.instruction}. Be brief.',
     );
   });
 
   test('vocabulary is trimmed and deduplicated case-insensitively', () {
-    const p = StyleProfile(
-      vocabulary: [' Gemma ', 'gemma', 'GEMMA', '', 'Ramble'],
-    );
+    const p = StyleProfile(vocabulary: [' Gemma ', 'gemma', 'GEMMA', '', 'Ramble']);
     expect(p.normalisedVocabulary, ['Gemma', 'Ramble']);
     expect(p.describeVocabulary(), 'Gemma, Ramble');
     expect(const StyleProfile().describeVocabulary(), '(none)');

@@ -6,6 +6,4 @@ import 'system_channel.dart';
 
 /// The app name for an Android package ("com.google.android.gm" -> "Gmail").
 /// Falls back to the package name.
-final appLabelProvider = FutureProvider.family<String, String>(
-  (ref, packageName) => SystemChannel.appLabel(packageName),
-);
+final appLabelProvider = FutureProvider.family<String, String>((ref, packageName) => SystemChannel.appLabel(packageName));

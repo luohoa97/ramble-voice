@@ -21,11 +21,8 @@ class BubbleSetupPanel extends StatefulWidget {
   State<BubbleSetupPanel> createState() => _BubbleSetupPanelState();
 }
 
-class _BubbleSetupPanelState extends State<BubbleSetupPanel>
-    with WidgetsBindingObserver {
-  late final BubbleSetup _setup = BubbleSetup(
-    widget.env ?? AndroidBubbleSetupEnv(),
-  );
+class _BubbleSetupPanelState extends State<BubbleSetupPanel> with WidgetsBindingObserver {
+  late final BubbleSetup _setup = BubbleSetup(widget.env ?? AndroidBubbleSetupEnv());
   bool _doneSent = false;
 
   @override
@@ -66,17 +63,16 @@ class _BubbleSetupPanelState extends State<BubbleSetupPanel>
   };
 
   static const _bodies = {
-    BubbleSetupStep.microphone:
-        'Ramble Voice needs the microphone to hear you.',
-    BubbleSetupStep.keyboard: 'Tapping the mic switches to the Ramble keyboard to listen, then back to your own. Turn Ramble Voice on in the list.',
+    BubbleSetupStep.microphone: 'Ramble Voice needs the microphone to hear you.',
+    BubbleSetupStep.keyboard:
+        'Tapping the mic switches to the Ramble keyboard to listen, then back to your own. Turn Ramble Voice on in the list.',
     BubbleSetupStep.accessibility:
         'Choose Ramble Voice floating mic and switch it on. It shows the mic next to text fields and inserts your text. '
-        'It does not read or store screen content.',
-    BubbleSetupStep.battery:
-        'This keeps your phone from stopping the floating mic to save battery.',
+            'It does not read or store screen content.',
+    BubbleSetupStep.battery: 'This keeps your phone from stopping the floating mic to save battery.',
     BubbleSetupStep.autostart:
         'Set Ramble Voice to "Manage manually" and allow auto-launch, secondary launch and run in background '
-        '(on Xiaomi, turn on Autostart).',
+            '(on Xiaomi, turn on Autostart).',
   };
 
   static const _actions = {
@@ -102,32 +98,23 @@ class _BubbleSetupPanelState extends State<BubbleSetupPanel>
         ],
       );
     }
-    final restricted =
-        step == BubbleSetupStep.accessibility && _setup.restricted;
+    final restricted = step == BubbleSetupStep.accessibility && _setup.restricted;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Step ${_setup.number} of ${_setup.steps.length}',
-          style: t.labelMedium?.copyWith(color: c.onSurfaceVariant),
-        ),
+        Text('Step ${_setup.number} of ${_setup.steps.length}', style: t.labelMedium?.copyWith(color: c.onSurfaceVariant)),
         const SizedBox(height: 4),
-        LinearProgressIndicator(
-          value: (_setup.number - 1) / _setup.steps.length,
-        ),
+        LinearProgressIndicator(value: (_setup.number - 1) / _setup.steps.length),
         const SizedBox(height: 12),
         Semantics(
           header: true,
-          child: Text(
-            restricted ? 'Android blocked this setting' : _titles[step]!,
-            style: t.titleSmall,
-          ),
+          child: Text(restricted ? 'Android blocked this setting' : _titles[step]!, style: t.titleSmall),
         ),
         const SizedBox(height: 4),
         Text(
           restricted
               ? 'Android blocked this setting for sideloaded apps. Open App info, tap the three dots at the top right, '
-                    'choose "Allow restricted settings", then come back.'
+                  'choose "Allow restricted settings", then come back.'
               : _bodies[step]!,
           style: t.bodyMedium,
         ),
@@ -142,14 +129,10 @@ class _BubbleSetupPanelState extends State<BubbleSetupPanel>
                 icon: const Icon(Icons.info_outline_rounded),
                 label: const Text('Open App info'),
               ),
-              OutlinedButton(
-                onPressed: _setup.retryAccessibility,
-                child: const Text('Try again'),
-              ),
+              OutlinedButton(onPressed: _setup.retryAccessibility, child: const Text('Try again')),
             ] else
               FilledButton(onPressed: _setup.act, child: Text(_actions[step]!)),
-            if (step == BubbleSetupStep.battery ||
-                step == BubbleSetupStep.autostart)
+            if (step == BubbleSetupStep.battery || step == BubbleSetupStep.autostart)
               TextButton(onPressed: _setup.skip, child: const Text('Skip')),
           ],
         ),

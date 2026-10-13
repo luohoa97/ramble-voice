@@ -36,11 +36,11 @@ class GemmaEngine implements CleanupEngine {
   /// Backend actually in use after loading ("GPU" or "CPU"). LiteRT-LM falls
   /// back to CPU silently, so the UI shows this.
   String? get activeBackend => switch (_model?.activeBackend) {
-    PreferredBackend.gpu => 'GPU',
-    PreferredBackend.cpu => 'CPU',
-    PreferredBackend.npu => 'NPU',
-    null => null,
-  };
+        PreferredBackend.gpu => 'GPU',
+        PreferredBackend.cpu => 'CPU',
+        PreferredBackend.npu => 'NPU',
+        null => null,
+      };
 
   @override
   Future<EngineReadiness> readiness() async {
@@ -51,11 +51,7 @@ class GemmaEngine implements CleanupEngine {
         '${variant.label} is not downloaded yet. Download it in Settings.',
       );
     }
-    return EngineReady(
-      detail: activeBackend == null
-          ? variant.label
-          : '${variant.label} · $activeBackend',
-    );
+    return EngineReady(detail: activeBackend == null ? variant.label : '${variant.label} · $activeBackend');
   }
 
   Future<InferenceModel> _ensureModel() async {
@@ -110,13 +106,11 @@ class GemmaEngine implements CleanupEngine {
         systemInstruction: system,
         maxOutputTokens: 2048,
       );
-      await session.addQueryChunk(
-        Message.withAudio(
-          text: CleanupPrompt.userTextFor(request),
-          audioBytes: WavEncoder.encode(request.pcm),
-          isUser: true,
-        ),
-      );
+      await session.addQueryChunk(Message.withAudio(
+        text: CleanupPrompt.userTextFor(request),
+        audioBytes: WavEncoder.encode(request.pcm),
+        isUser: true,
+      ));
       return CleanupPrompt.tidyFor(request, await session.getResponse());
     } on CleanupFailure {
       rethrow;
@@ -129,21 +123,14 @@ class GemmaEngine implements CleanupEngine {
 
   CleanupFailure _mapError(Object e) {
     final s = e.toString().toLowerCase();
-    if (s.contains('out of memory') ||
-        s.contains('oom') ||
-        s.contains('bad_alloc') ||
-        s.contains('memory')) {
+    if (s.contains('out of memory') || s.contains('oom') || s.contains('bad_alloc') || s.contains('memory')) {
       return CleanupFailure(
         CleanupFailureKind.outOfMemory,
         'Not enough memory to run ${variant.label}. Close other apps or switch to Gemma 4 E2B.',
         cause: e,
       );
     }
-    return CleanupFailure(
-      CleanupFailureKind.unknown,
-      'On-device model error: $e',
-      cause: e,
-    );
+    return CleanupFailure(CleanupFailureKind.unknown, 'On-device model error: $e', cause: e);
   }
 
   @override

@@ -25,9 +25,7 @@ class _StyleEditorState extends ConsumerState<StyleEditor> {
   @override
   void initState() {
     super.initState();
-    _custom = TextEditingController(
-      text: ref.read(settingsProvider).style.customInstructions,
-    );
+    _custom = TextEditingController(text: ref.read(settingsProvider).style.customInstructions);
   }
 
   @override
@@ -38,19 +36,16 @@ class _StyleEditorState extends ConsumerState<StyleEditor> {
     super.dispose();
   }
 
-  void _update(StyleProfile Function(StyleProfile) change) => ref
-      .read(settingsProvider.notifier)
-      .update((s) => s.copyWith(style: change(s.style)));
+  void _update(StyleProfile Function(StyleProfile) change) =>
+      ref.read(settingsProvider.notifier).update((s) => s.copyWith(style: change(s.style)));
 
   void _addWord() {
     final w = _word.text.trim();
     if (w.isEmpty) return;
     _word.clear();
-    _update(
-      (s) => s.vocabulary.any((x) => x.toLowerCase() == w.toLowerCase())
-          ? s
-          : s.copyWith(vocabulary: [...s.vocabulary, w]),
-    );
+    _update((s) => s.vocabulary.any((x) => x.toLowerCase() == w.toLowerCase())
+        ? s
+        : s.copyWith(vocabulary: [...s.vocabulary, w]));
   }
 
   @override
@@ -73,21 +68,14 @@ class _StyleEditorState extends ConsumerState<StyleEditor> {
           ),
           onChanged: (v) {
             _debounce?.cancel();
-            _debounce = Timer(
-              const Duration(milliseconds: 500),
-              () => _update((s) => s.copyWith(customInstructions: v)),
-            );
+            _debounce = Timer(const Duration(milliseconds: 500), () => _update((s) => s.copyWith(customInstructions: v)));
           },
-          onTapOutside: (_) =>
-              _update((s) => s.copyWith(customInstructions: _custom.text)),
+          onTapOutside: (_) => _update((s) => s.copyWith(customInstructions: _custom.text)),
         ),
         const SizedBox(height: 24),
         Text('Vocabulary', style: t.titleMedium),
         const SizedBox(height: 2),
-        Text(
-          'Names, jargon and spellings to keep.',
-          style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-        ),
+        Text('Names, jargon and spellings to keep.', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
         if (style.vocabulary.isNotEmpty) ...[
           const SizedBox(height: 12),
           Wrap(
@@ -98,9 +86,7 @@ class _StyleEditorState extends ConsumerState<StyleEditor> {
                 InputChip(
                   label: Text(w),
                   deleteButtonTooltipMessage: 'Remove $w',
-                  onDeleted: () => _update(
-                    (s) => s.copyWith(vocabulary: [...s.vocabulary]..remove(w)),
-                  ),
+                  onDeleted: () => _update((s) => s.copyWith(vocabulary: [...s.vocabulary]..remove(w))),
                 ),
             ],
           ),
@@ -116,11 +102,7 @@ class _StyleEditorState extends ConsumerState<StyleEditor> {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: 'Add word',
-              onPressed: _addWord,
-              icon: const Icon(Icons.add_rounded),
-            ),
+            IconButton.filledTonal(tooltip: 'Add word', onPressed: _addWord, icon: const Icon(Icons.add_rounded)),
           ],
         ),
       ],
@@ -136,19 +118,9 @@ Future<void> showStyleEditor(BuildContext context) {
       title: 'Style',
       footer: Align(
         alignment: AlignmentDirectional.centerEnd,
-        child: FilledButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Done'),
-        ),
+        child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
       ),
-      children: [
-        Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: const StyleEditor(),
-        ),
-      ],
+      children: [Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom), child: const StyleEditor())],
     ),
   );
 }

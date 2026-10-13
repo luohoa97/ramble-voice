@@ -11,10 +11,7 @@ void main() {
   group('Pcm', () {
     test('durationOf and bytesFor are inverse for whole seconds', () {
       expect(Pcm.durationOf(Pcm.bytesPerSecond), const Duration(seconds: 1));
-      expect(
-        Pcm.durationOf(Pcm.bytesPerSecond * 90),
-        const Duration(seconds: 90),
-      );
+      expect(Pcm.durationOf(Pcm.bytesPerSecond * 90), const Duration(seconds: 90));
       expect(Pcm.bytesFor(const Duration(seconds: 1)), 32000);
       expect(Pcm.bytesFor(const Duration(milliseconds: 30)), 960);
       expect(Pcm.durationOf(0), Duration.zero);
@@ -30,16 +27,7 @@ void main() {
     });
 
     test('samples decodes little endian', () {
-      final bytes = Uint8List.fromList([
-        0x01,
-        0x00,
-        0xFF,
-        0xFF,
-        0x00,
-        0x80,
-        0xFF,
-        0x7F,
-      ]);
+      final bytes = Uint8List.fromList([0x01, 0x00, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0x7F]);
       expect(Pcm.samples(bytes), [1, -1, -32768, 32767]);
     });
 
@@ -55,12 +43,8 @@ void main() {
     });
 
     test('level: full scale is about 1 and louder is higher', () {
-      final loud = Pcm.level(
-        tonePcm(const Duration(milliseconds: 200), amplitude: 1.0),
-      );
-      final quiet = Pcm.level(
-        tonePcm(const Duration(milliseconds: 200), amplitude: 0.01),
-      );
+      final loud = Pcm.level(tonePcm(const Duration(milliseconds: 200), amplitude: 1.0));
+      final quiet = Pcm.level(tonePcm(const Duration(milliseconds: 200), amplitude: 0.01));
       expect(loud, closeTo(1.0, 0.06));
       expect(quiet, inInclusiveRange(0.0, 1.0));
       expect(quiet, lessThan(loud));
@@ -121,15 +105,7 @@ void main() {
       final wav = WavEncoder.encode(pcm);
       final list = Uint8List.fromList([
         ...wav.sublist(0, 36),
-        ...'LIST'.codeUnits,
-        3,
-        0,
-        0,
-        0,
-        65,
-        66,
-        67,
-        0, // odd-sized chunk plus pad byte
+        ...'LIST'.codeUnits, 3, 0, 0, 0, 65, 66, 67, 0, // odd-sized chunk plus pad byte
         ...wav.sublist(36),
       ]);
       expect(WavEncoder.decode(list), pcm);
@@ -142,43 +118,16 @@ void main() {
     }
 
     test('decode rejects wrong sample rate, channels and bit depth', () {
-      expect(
-        () => WavEncoder.decode(
-          patched((d) => d.setUint32(24, 44100, Endian.little)),
-        ),
-        throwsFormatException,
-      );
-      expect(
-        () => WavEncoder.decode(
-          patched((d) => d.setUint16(22, 2, Endian.little)),
-        ),
-        throwsFormatException,
-      );
-      expect(
-        () => WavEncoder.decode(
-          patched((d) => d.setUint16(34, 8, Endian.little)),
-        ),
-        throwsFormatException,
-      );
+      expect(() => WavEncoder.decode(patched((d) => d.setUint32(24, 44100, Endian.little))), throwsFormatException);
+      expect(() => WavEncoder.decode(patched((d) => d.setUint16(22, 2, Endian.little))), throwsFormatException);
+      expect(() => WavEncoder.decode(patched((d) => d.setUint16(34, 8, Endian.little))), throwsFormatException);
     });
 
     test('decode rejects non-WAV and truncated input', () {
-      expect(
-        () => WavEncoder.decode(Uint8List.fromList(List.filled(64, 7))),
-        throwsFormatException,
-      );
+      expect(() => WavEncoder.decode(Uint8List.fromList(List.filled(64, 7))), throwsFormatException);
       expect(() => WavEncoder.decode(Uint8List(10)), throwsFormatException);
-      final noData = Uint8List.sublistView(
-        WavEncoder.encode(Uint8List(8)),
-        0,
-        36,
-      );
-      expect(
-        () => WavEncoder.decode(
-          Uint8List.fromList([...noData, 0, 0, 0, 0, 0, 0, 0, 0]),
-        ),
-        throwsFormatException,
-      );
+      final noData = Uint8List.sublistView(WavEncoder.encode(Uint8List(8)), 0, 36);
+      expect(() => WavEncoder.decode(Uint8List.fromList([...noData, 0, 0, 0, 0, 0, 0, 0, 0])), throwsFormatException);
     });
 
     test('decode tolerates a data size larger than the file', () {

@@ -14,14 +14,10 @@ import '../../util/platform_flags.dart';
 final androidSystemProvider = Provider<AndroidSystem>((ref) => AndroidSystem());
 
 /// `Build.MANUFACTURER`, lower case.
-final manufacturerProvider = FutureProvider<String>(
-  (ref) => ref.watch(androidSystemProvider).manufacturer(),
-);
+final manufacturerProvider = FutureProvider<String>((ref) => ref.watch(androidSystemProvider).manufacturer());
 
 /// Android API level (0 when unknown).
-final androidSdkProvider = FutureProvider<int>(
-  (ref) => ref.watch(androidSystemProvider).sdkInt(),
-);
+final androidSdkProvider = FutureProvider<int>((ref) => ref.watch(androidSystemProvider).sdkInt());
 
 /// What the device can already do, for the setup guide and its banner.
 class SetupStatus {
@@ -43,9 +39,7 @@ class SetupStatus {
 }
 
 /// Checked once per read; the guide invalidates it while it is open.
-final setupStatusProvider = FutureProvider.autoDispose<SetupStatus>((
-  ref,
-) async {
+final setupStatusProvider = FutureProvider.autoDispose<SetupStatus>((ref) async {
   final services = ref.read(platformServicesProvider);
   final settings = ref.read(settingsProvider);
   final android = ref.read(isAndroidProvider);
@@ -61,9 +55,7 @@ final setupStatusProvider = FutureProvider.autoDispose<SetupStatus>((
   final mic = await guard(services.audio.hasPermission());
   final bool engine;
   if (settings.engine == EngineKind.onDevice) {
-    engine =
-        ref.read(modelDownloaderProvider).statusOf(settings.gemmaVariant)
-            is Downloaded;
+    engine = ref.read(modelDownloaderProvider).statusOf(settings.gemmaVariant) is Downloaded;
   } else {
     try {
       engine = await services.secrets.geminiKeySource() != KeySource.none;
@@ -95,8 +87,7 @@ List<String> setupStepsFor({required bool android}) => android
     : const ['welcome', 'hotkey', 'typing', 'tray', 'try'];
 
 /// Steps whose completion the device can tell us.
-bool detected(String id, SetupStatus? s) =>
-    s != null &&
+bool detected(String id, SetupStatus? s) => s != null &&
     switch (id) {
       'mic' => s.micGranted,
       'engine' => s.engineReady,
@@ -106,8 +97,7 @@ bool detected(String id, SetupStatus? s) =>
       _ => false,
     };
 
-bool stepDone(String id, SetupStatus? s, Set<String> persisted) =>
-    persisted.contains(id) || detected(id, s);
+bool stepDone(String id, SetupStatus? s, Set<String> persisted) => persisted.contains(id) || detected(id, s);
 
 int stepsLeft(List<String> steps, SetupStatus? s, Set<String> persisted) =>
     steps.where((id) => !stepDone(id, s, persisted)).length;

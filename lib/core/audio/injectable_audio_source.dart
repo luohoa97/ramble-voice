@@ -26,8 +26,7 @@ class InjectableAudioSource implements AudioSource {
   String get backendName => _inner.backendName;
 
   @override
-  Future<bool> hasPermission() async =>
-      _pending != null || await _inner.hasPermission();
+  Future<bool> hasPermission() async => _pending != null || await _inner.hasPermission();
 
   @override
   Future<bool> requestPermission() => _inner.requestPermission();

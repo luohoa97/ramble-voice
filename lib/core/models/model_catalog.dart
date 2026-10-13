@@ -32,8 +32,7 @@ class GemmaVariant {
   final int recommendedRamGb;
   final String summary;
 
-  Uri get downloadUrl =>
-      Uri.parse('https://huggingface.co/$repo/resolve/main/$file');
+  Uri get downloadUrl => Uri.parse('https://huggingface.co/$repo/resolve/main/$file');
   Uri get modelCardUrl => Uri.parse('https://huggingface.co/$repo');
 
   String get sizeLabel => '${(sizeBytes / 1e9).toStringAsFixed(1)} GB';

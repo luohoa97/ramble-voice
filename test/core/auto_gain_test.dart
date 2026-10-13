@@ -11,18 +11,12 @@ Uint8List _tone(double amplitude, {int ms = 1000}) {
   final n = Pcm.sampleRate * ms ~/ 1000;
   final b = ByteData(n * 2);
   for (var i = 0; i < n; i++) {
-    b.setInt16(
-      i * 2,
-      (amplitude * 32767 * math.sin(2 * math.pi * 220 * i / Pcm.sampleRate))
-          .round(),
-      Endian.little,
-    );
+    b.setInt16(i * 2, (amplitude * 32767 * math.sin(2 * math.pi * 220 * i / Pcm.sampleRate)).round(), Endian.little);
   }
   return b.buffer.asUint8List();
 }
 
-int _peak(Uint8List pcm) =>
-    Pcm.samples(pcm).fold(0, (m, v) => math.max(m, v.abs()));
+int _peak(Uint8List pcm) => Pcm.samples(pcm).fold(0, (m, v) => math.max(m, v.abs()));
 
 void main() {
   test('quiet speech is raised', () {

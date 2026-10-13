@@ -16,10 +16,9 @@ String hotkeySummary(HotkeyStatus? s) {
   if (s == null) return 'Shortcut status unknown';
   return switch (s.backend) {
     HotkeyBackend.none => 'No global shortcut is active',
-    _ =>
-      s.trigger == null
-          ? 'Global shortcut is active'
-          : 'Shortcut: ${s.trigger}${s.supportsRelease ? ' (hold to talk)' : ' (press to start and stop)'}',
+    _ => s.trigger == null
+        ? 'Global shortcut is active'
+        : 'Shortcut: ${s.trigger}${s.supportsRelease ? ' (hold to talk)' : ' (press to start and stop)'}',
   };
 }
 
@@ -46,10 +45,7 @@ class LinuxSection extends ConsumerWidget {
         const SizedBox(height: 16),
         Text('Global shortcut', style: t.titleMedium),
         const SizedBox(height: 4),
-        Semantics(
-          liveRegion: true,
-          child: Text(hotkeySummary(status), style: t.bodyLarge),
-        ),
+        Semantics(liveRegion: true, child: Text(hotkeySummary(status), style: t.bodyLarge)),
         if (status?.message != null) ...[
           const SizedBox(height: 8),
           _CopyBox(text: status!.message!),
@@ -61,27 +57,17 @@ class LinuxSection extends ConsumerWidget {
           children: [
             if (hotkeys != null)
               FilledButton.tonal(
-                onPressed: () async => ref
-                    .read(hotkeyStatusProvider.notifier)
-                    .set(await hotkeys.bind()),
-                child: Text(
-                  status == null || status.backend == HotkeyBackend.none
-                      ? 'Bind shortcut'
-                      : 'Bind again',
-                ),
+                onPressed: () async => ref.read(hotkeyStatusProvider.notifier).set(await hotkeys.bind()),
+                child: Text(status == null || status.backend == HotkeyBackend.none ? 'Bind shortcut' : 'Bind again'),
               ),
             if (hotkeys != null)
               OutlinedButton(
                 onPressed: () async {
                   final ok = await hotkeys.configure();
                   if (!ok && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Change the shortcut in your desktop settings.',
-                        ),
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Change the shortcut in your desktop settings.'),
+                    ));
                   }
                 },
                 child: const Text('Change shortcut'),
@@ -89,32 +75,25 @@ class LinuxSection extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Text(
-          'Compositor key bindings can run these commands:',
-          style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
-        ),
+        Text('Compositor key bindings can run these commands:', style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
         const SizedBox(height: 4),
-        const _CopyBox(
-          text: 'ramble_voice --toggle\nramble_voice --start\nramble_voice --stop',
-        ),
+        const _CopyBox(text: 'ramble_voice --toggle\nramble_voice --start\nramble_voice --stop'),
         const SizedBox(height: 20),
         Text('Text insertion', style: t.titleMedium),
         const SizedBox(height: 4),
         FutureBuilder<String>(
           future: services.inserter.describe(),
-          builder: (context, snap) =>
-              Text(snap.data ?? 'Checking', style: t.bodyLarge),
+          builder: (context, snap) => Text(
+            snap.data ?? 'Checking',
+            style: t.bodyLarge,
+          ),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Type into the focused app'),
-          subtitle: const Text(
-            'When off, shortcut dictation only copies the text to the clipboard.',
-          ),
+          subtitle: const Text('When off, shortcut dictation only copies the text to the clipboard.'),
           value: settings.typeIntoFocusedApp,
-          onChanged: (v) => ref
-              .read(settingsProvider.notifier)
-              .update((s) => s.copyWith(typeIntoFocusedApp: v)),
+          onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(typeIntoFocusedApp: v)),
         ),
         const _HostSetupBlock(),
       ],
@@ -161,20 +140,13 @@ class _CopyBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: c.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Shapes.medium),
-      ),
+      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(Shapes.medium)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
         child: Row(
           children: [
             Expanded(
-              child: SelectableText(
-                text,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(fontFamily: 'monospace'),
-              ),
+              child: SelectableText(text, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontFamily: 'monospace')),
             ),
             IconButton(
               tooltip: 'Copy',

@@ -56,9 +56,7 @@ class StyleChipRow extends StatelessWidget {
             visualDensity: density,
             showCheckmark: true,
             labelStyle: t.labelLarge?.copyWith(
-              color: selected == p
-                  ? c.onSecondaryContainer
-                  : c.onSurfaceVariant,
+              color: selected == p ? c.onSecondaryContainer : c.onSurfaceVariant,
               fontWeight: selected == p ? FontWeight.w700 : FontWeight.w500,
             ),
             onSelected: (_) => onSelected(p),
@@ -66,11 +64,7 @@ class StyleChipRow extends StatelessWidget {
         ),
       if (hasCustom && onEdit != null)
         ActionChip(
-          avatar: Icon(
-            Icons.tune_rounded,
-            size: 18,
-            color: c.onTertiaryContainer,
-          ),
+          avatar: Icon(Icons.tune_rounded, size: 18, color: c.onTertiaryContainer),
           label: const Text('Custom'),
           visualDensity: density,
           backgroundColor: c.tertiaryContainer,
@@ -101,10 +95,7 @@ class StyleChipRow extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (var i = 0; i < chips.length; i++) ...[
-                    if (i > 0) SizedBox(width: gap),
-                    chips[i],
-                  ],
+                  for (var i = 0; i < chips.length; i++) ...[if (i > 0) SizedBox(width: gap), chips[i]],
                 ],
               ),
             ),
@@ -131,13 +122,7 @@ class StyleChipRow extends StatelessWidget {
 
 /// [StyleChipRow] bound to the saved tone (the app, not the keyboard).
 class StyleChips extends ConsumerWidget {
-  const StyleChips({
-    super.key,
-    this.onEdit,
-    this.centered = true,
-    this.gutter = 16,
-    this.showEditButton = true,
-  });
+  const StyleChips({super.key, this.onEdit, this.centered = true, this.gutter = 16, this.showEditButton = true});
 
   final VoidCallback? onEdit;
   final bool centered;
@@ -154,9 +139,7 @@ class StyleChips extends ConsumerWidget {
       gutter: gutter,
       showEditButton: showEditButton,
       onEdit: onEdit,
-      onSelected: (p) => ref
-          .read(settingsProvider.notifier)
-          .update((s) => s.copyWith(style: s.style.copyWith(preset: p))),
+      onSelected: (p) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(style: s.style.copyWith(preset: p))),
     );
   }
 }

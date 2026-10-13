@@ -23,19 +23,13 @@ import 'package:ramble_voice/core/style/style_profile.dart';
 
 import '../fakes/injection_cases.dart';
 
-Future<String> _processWithRetry(
-  CleanupEngine engine,
-  CleanupRequest request,
-) async {
-  for (var attempt = 0; ; attempt++) {
+Future<String> _processWithRetry(CleanupEngine engine, CleanupRequest request) async {
+  for (var attempt = 0;; attempt++) {
     try {
       return await engine.process(request);
     } on CleanupFailure catch (f) {
       if (f.kind == CleanupFailureKind.rateLimited && attempt < 3) {
-        await Future<void>.delayed(
-          (f.retryAfter ?? const Duration(seconds: 10)) +
-              const Duration(seconds: 1),
-        );
+        await Future<void>.delayed((f.retryAfter ?? const Duration(seconds: 10)) + const Duration(seconds: 1));
         continue;
       }
       rethrow;
@@ -51,18 +45,10 @@ void _runCases(String label, CleanupEngine Function() engine) {
         final pcm = WavEncoder.decode(c.wavFile.readAsBytesSync());
         final out = await _processWithRetry(
           engine(),
-          CleanupRequest(
-            pcm: pcm,
-            style: const StyleProfile(preset: StylePreset.casual),
-          ),
+          CleanupRequest(pcm: pcm, style: const StyleProfile(preset: StylePreset.casual)),
         );
         final problems = c.judgeOutput(out);
-        expect(
-          problems,
-          isEmpty,
-          reason:
-              'spoken: "${c.spoken}"\noutput: "$out"\n${problems.join('\n')}',
-        );
+        expect(problems, isEmpty, reason: 'spoken: "${c.spoken}"\noutput: "$out"\n${problems.join('\n')}');
       }, timeout: const Timeout(Duration(minutes: 3)));
     }
   });
@@ -82,19 +68,10 @@ void main() {
   }
 
   if (gemmaPath == null || gemmaPath.isEmpty) {
-    test(
-      'Gemma injection cases',
-      () {},
-      skip: 'set RAMBLE_GEMMA_MODEL to a .litertlm file to run',
-    );
+    test('Gemma injection cases', () {}, skip: 'set RAMBLE_GEMMA_MODEL to a .litertlm file to run');
   } else {
-    final variant =
-        ModelCatalog.byId(Platform.environment['RAMBLE_GEMMA_VARIANT']) ??
-        ModelCatalog.defaultVariant;
-    final gemma = GemmaEngine(
-      variant: variant,
-      modelPath: () async => gemmaPath,
-    );
+    final variant = ModelCatalog.byId(Platform.environment['RAMBLE_GEMMA_VARIANT']) ?? ModelCatalog.defaultVariant;
+    final gemma = GemmaEngine(variant: variant, modelPath: () async => gemmaPath);
     tearDownAll(gemma.release);
     _runCases('Gemma', () => gemma);
   }

@@ -23,11 +23,10 @@ class AndroidModelDownloads implements ModelDownloads {
     MethodChannel? channel,
     Stream<dynamic>? events,
     Future<void> Function()? requestNotifications,
-  }) : _channel = channel ?? const MethodChannel('ramble/download'),
-       // ignore: prefer_initializing_formals
-       _events = events,
-       _requestNotifications =
-           requestNotifications ?? _defaultRequestNotifications;
+  })  : _channel = channel ?? const MethodChannel('ramble/download'),
+        // ignore: prefer_initializing_formals
+        _events = events,
+        _requestNotifications = requestNotifications ?? _defaultRequestNotifications;
 
   /// Resolves `<externalFilesDir>/models` from the platform side.
   static Future<AndroidModelDownloads> create({MethodChannel? channel}) async {
@@ -56,26 +55,22 @@ class AndroidModelDownloads implements ModelDownloads {
 
   @override
   File finalFile(GemmaVariant v) => File(p.join(directory.path, v.file));
-  File partFile(GemmaVariant v) =>
-      File(p.join(directory.path, '${v.file}.part'));
+  File partFile(GemmaVariant v) => File(p.join(directory.path, '${v.file}.part'));
 
   @override
   Stream<DownloadStatus> watch(GemmaVariant v) {
     _attach(v);
-    return _controllers
-        .putIfAbsent(v.id, () => StreamController<DownloadStatus>.broadcast())
-        .stream;
+    return _controllers.putIfAbsent(v.id, () => StreamController<DownloadStatus>.broadcast()).stream;
   }
 
   @override
-  DownloadStatus statusOf(GemmaVariant v) =>
-      _status[v.id] ?? const NotDownloaded();
+  DownloadStatus statusOf(GemmaVariant v) => _status[v.id] ?? const NotDownloaded();
 
   @override
   bool isActive(GemmaVariant v) => switch (statusOf(v)) {
-    Downloading() || Verifying() => true,
-    _ => false,
-  };
+        Downloading() || Verifying() => true,
+        _ => false,
+      };
 
   void _set(GemmaVariant v, DownloadStatus s) {
     _status[v.id] = s;
@@ -86,8 +81,7 @@ class AndroidModelDownloads implements ModelDownloads {
   void _attach(GemmaVariant v) {
     _known[v.file] = v;
     if (_eventSub != null) return;
-    final events = _events ??= const EventChannel('ramble/download/progress')
-        .receiveBroadcastStream();
+    final events = _events ??= const EventChannel('ramble/download/progress').receiveBroadcastStream();
     _eventSub = events.listen(_onEvent, onError: (Object _) {});
   }
 
@@ -108,11 +102,7 @@ class AndroidModelDownloads implements ModelDownloads {
       'paused' => Paused(bytes, total),
       'verifying' => const Verifying(),
       'done' => Downloaded(finalFile(v).path),
-      'failed' => DownloadFailed(
-        r['error'] as String? ?? 'The download failed.',
-        received: bytes,
-        total: v.sizeBytes,
-      ),
+      'failed' => DownloadFailed(r['error'] as String? ?? 'The download failed.', received: bytes, total: v.sizeBytes),
       'idle' => const NotDownloaded(),
       _ => null,
     };
@@ -128,9 +118,7 @@ class AndroidModelDownloads implements ModelDownloads {
     }
     Map<dynamic, dynamic>? report;
     try {
-      report = await _channel.invokeMapMethod<dynamic, dynamic>('status', {
-        'fileName': v.file,
-      });
+      report = await _channel.invokeMapMethod<dynamic, dynamic>('status', {'fileName': v.file});
     } on PlatformException {
       report = null;
     }
@@ -140,9 +128,7 @@ class AndroidModelDownloads implements ModelDownloads {
     if (s is Downloaded) s = null;
     if (s == null || s is NotDownloaded) {
       final part = partFile(v);
-      s = await part.exists()
-          ? Paused(await part.length(), v.sizeBytes)
-          : const NotDownloaded();
+      s = await part.exists() ? Paused(await part.length(), v.sizeBytes) : const NotDownloaded();
     }
     _set(v, s);
     return s;
@@ -172,14 +158,7 @@ class AndroidModelDownloads implements ModelDownloads {
         'title': 'Downloading ${v.label}',
       });
     } on PlatformException catch (e) {
-      _set(
-        v,
-        DownloadFailed(
-          e.message ?? 'Could not start the download.',
-          received: have,
-          total: v.sizeBytes,
-        ),
-      );
+      _set(v, DownloadFailed(e.message ?? 'Could not start the download.', received: have, total: v.sizeBytes));
     }
     return statusOf(v);
   }

@@ -23,39 +23,30 @@ void main() {
   final expected = env['RAMBLE_EXPECT'];
   final models = (env['RAMBLE_MODELS'] ?? 'gemini-3.5-flash').split(',');
   for (final model in models) {
-    test(
-      'native script $model',
-      () async {
-        final engine = GeminiEngine(
-          apiKey: () async => key,
-          client: GeminiClient(),
-          preferredModel: model,
-          thinkOnCleanup: Platform.environment['RAMBLE_THINK'] != '0',
-        );
-        final out = await engine.process(
-          CleanupRequest(
-            pcm: env['RAMBLE_GAIN'] == '0'
-                ? WavEncoder.decode(File(wavPath!).readAsBytesSync())
-                : AutoGain.normalize(
-                    WavEncoder.decode(File(wavPath!).readAsBytesSync()),
-                  ),
-            style: const StyleProfile(languages: ['en', 'zh', 'ja']),
-            mode: env['RAMBLE_EDIT'] == null
-                ? CleanupMode.clean
-                : CleanupMode.edit,
-            sourceText: env['RAMBLE_EDIT'],
-            contextBefore: env['RAMBLE_BEFORE'],
-            contextAfter: env['RAMBLE_AFTER'],
-          ),
-        );
-        // ignore: avoid_print
-        print('PROBE $model: $out');
-        expect(RegExp(expected!).hasMatch(out), isTrue, reason: out);
-      },
-      skip: key == null || wavPath == null || expected == null
-          ? 'needs GEMINI_API_KEY, RAMBLE_WAV and RAMBLE_EXPECT'
-          : false,
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('native script $model', () async {
+      final engine = GeminiEngine(
+        apiKey: () async => key,
+        client: GeminiClient(),
+        preferredModel: model,
+        thinkOnCleanup: Platform.environment['RAMBLE_THINK'] != '0',
+      );
+      final out = await engine.process(CleanupRequest(
+        pcm: env['RAMBLE_GAIN'] == '0'
+            ? WavEncoder.decode(File(wavPath!).readAsBytesSync())
+            : AutoGain.normalize(WavEncoder.decode(File(wavPath!).readAsBytesSync())),
+        style: const StyleProfile(languages: ['en', 'zh', 'ja']),
+        mode: env['RAMBLE_EDIT'] == null ? CleanupMode.clean : CleanupMode.edit,
+        sourceText: env['RAMBLE_EDIT'],
+        contextBefore: env['RAMBLE_BEFORE'],
+        contextAfter: env['RAMBLE_AFTER'],
+      ));
+      // ignore: avoid_print
+      print('PROBE $model: $out');
+      expect(RegExp(expected!).hasMatch(out), isTrue, reason: out);
+    },
+        skip: key == null || wavPath == null || expected == null
+            ? 'needs GEMINI_API_KEY, RAMBLE_WAV and RAMBLE_EXPECT'
+            : false,
+        timeout: const Timeout(Duration(minutes: 3)));
   }
 }

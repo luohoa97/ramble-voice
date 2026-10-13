@@ -14,11 +14,7 @@ const geminiModelNote =
 /// Every audio-capable Gemini model, grouped by tier (Pro, Flash, Flash-Lite),
 /// newest first. The first row is the automatic choice.
 class GeminiModelPicker extends ConsumerWidget {
-  const GeminiModelPicker({
-    super.key,
-    required this.selected,
-    required this.hasKey,
-  });
+  const GeminiModelPicker({super.key, required this.selected, required this.hasKey});
 
   final String? selected;
   final bool hasKey;
@@ -28,15 +24,11 @@ class GeminiModelPicker extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
     if (!hasKey) {
-      return Text(
-        'Add a key to choose a model.',
-        style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-      );
+      return Text('Add a key to choose a model.', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant));
     }
     final models = ref.watch(geminiModelsProvider);
     return models.when(
-      loading: () =>
-          const LinearProgressIndicator(semanticsLabel: 'Loading models'),
+      loading: () => const LinearProgressIndicator(semanticsLabel: 'Loading models'),
       error: (e, _) => Text(
         e is CleanupFailure ? e.message : 'The model list could not be loaded.',
         style: t.bodyMedium?.copyWith(color: c.error),
@@ -45,9 +37,7 @@ class GeminiModelPicker extends ConsumerWidget {
         final current = list.any((m) => m.id == selected) ? selected : null;
         final defaultId = GeminiModelSelector.defaultModel(list)?.id;
         void pick(String? id) {
-          ref
-              .read(settingsProvider.notifier)
-              .update((s) => s.copyWith(geminiModel: () => id));
+          ref.read(settingsProvider.notifier).update((s) => s.copyWith(geminiModel: () => id));
           ref.invalidate(activeEngineReadinessProvider);
         }
 
@@ -56,10 +46,7 @@ class GeminiModelPicker extends ConsumerWidget {
           children: [
             Text('Gemini model', style: t.titleSmall),
             const SizedBox(height: 4),
-            Text(
-              geminiModelNote,
-              style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-            ),
+            Text(geminiModelNote, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
             const SizedBox(height: 8),
             _ModelRow(
               title: 'Automatic (fastest working Flash)',
@@ -71,21 +58,15 @@ class GeminiModelPicker extends ConsumerWidget {
               if (list.any((m) => m.family == family && !m.alias))
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-                  child: Text(
-                    family.label,
-                    style: t.labelLarge?.copyWith(color: c.onSurfaceVariant),
-                  ),
+                  child: Text(family.label, style: t.labelLarge?.copyWith(color: c.onSurfaceVariant)),
                 ),
               for (final m in list.where((m) => m.family == family && !m.alias))
                 _ModelRow(
-                  title:
-                      '${family.label} ${m.major}.${m.minor}${m.preview ? ' preview' : ''}',
+                  title: '${family.label} ${m.major}.${m.minor}${m.preview ? ' preview' : ''}',
                   subtitle: m.id,
                   selected: current == m.id,
                   isDefault: m.id == defaultId,
-                  warning: m.freeTierUnavailable
-                      ? 'Not on your free tier'
-                      : m.unavailableReason,
+                  warning: m.freeTierUnavailable ? 'Not on your free tier' : m.unavailableReason,
                   health: m.healthLabel,
                   onTap: () => pick(m.id),
                 ),
@@ -134,9 +115,7 @@ class _ModelRow extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  selected
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_unchecked_rounded,
+                  selected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
                   color: selected ? c.primary : c.outline,
                 ),
                 const SizedBox(width: 16),
@@ -151,44 +130,18 @@ class _ModelRow extends StatelessWidget {
                           Text(title, style: t.bodyLarge),
                           if (isDefault)
                             DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: c.primaryContainer,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                              decoration: BoxDecoration(color: c.primaryContainer, borderRadius: BorderRadius.circular(8)),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                child: Text(
-                                  'Default',
-                                  style: t.labelSmall?.copyWith(
-                                    color: c.onPrimaryContainer,
-                                  ),
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                child: Text('Default', style: t.labelSmall?.copyWith(color: c.onPrimaryContainer)),
                               ),
                             ),
                         ],
                       ),
                       if (subtitle != null)
-                        Text(
-                          subtitle!,
-                          style: t.bodySmall?.copyWith(
-                            color: c.onSurfaceVariant,
-                          ),
-                        ),
-                      if (health != null)
-                        Text(
-                          health!,
-                          style: t.bodySmall?.copyWith(
-                            color: c.onSurfaceVariant,
-                          ),
-                        ),
-                      if (warning != null)
-                        Text(
-                          warning!,
-                          style: t.bodySmall?.copyWith(color: c.error),
-                        ),
+                        Text(subtitle!, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
+                      if (health != null) Text(health!, style: t.bodySmall?.copyWith(color: c.onSurfaceVariant)),
+                      if (warning != null) Text(warning!, style: t.bodySmall?.copyWith(color: c.error)),
                     ],
                   ),
                 ),

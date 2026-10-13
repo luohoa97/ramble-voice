@@ -11,14 +11,10 @@ import '../platform_services.dart';
 import 'evdev_hotkey.dart';
 
 class LinuxHotkeyService implements HotkeyService {
-  LinuxHotkeyService(
-    this._portal, {
-    EvdevHotkey? evdev,
-    XkbCapsRemap? xkb,
-    String hotkeyKey = 'capslock',
-  }) : _evdev = evdev ?? EvdevHotkey(),
-       _xkb = xkb ?? XkbCapsRemap(),
-       _key = hotkeyKey {
+  LinuxHotkeyService(this._portal, {EvdevHotkey? evdev, XkbCapsRemap? xkb, String hotkeyKey = 'capslock'})
+      : _evdev = evdev ?? EvdevHotkey(),
+        _xkb = xkb ?? XkbCapsRemap(),
+        _key = hotkeyKey {
     _subs.add(_portal.events.listen(_events.add));
     _subs.add(_evdev.events.listen(_events.add));
   }
@@ -42,14 +38,10 @@ class LinuxHotkeyService implements HotkeyService {
   Stream<String> get cliCommands => _portal.cliCommands;
 
   @override
-  Future<HotkeyStatus> bind({String preferredTrigger = 'CTRL+ALT+space'}) =>
-      bindWithKey(_key, preferredTrigger: preferredTrigger);
+  Future<HotkeyStatus> bind({String preferredTrigger = 'CTRL+ALT+space'}) => bindWithKey(_key, preferredTrigger: preferredTrigger);
 
   /// Applies the "Dictation key" setting and returns the resulting status.
-  Future<HotkeyStatus> bindWithKey(
-    String key, {
-    String? preferredTrigger,
-  }) async {
+  Future<HotkeyStatus> bindWithKey(String key, {String? preferredTrigger}) async {
     _key = key;
     _trigger = preferredTrigger ?? _trigger;
 
@@ -68,12 +60,7 @@ class LinuxHotkeyService implements HotkeyService {
     // The portal shortcut stays bound in both modes.
     final portalStatus = await _portal.bind(preferredTrigger: _trigger);
     if (evdev == null) return portalStatus;
-    if (evdev.readable)
-      return const HotkeyStatus(
-        HotkeyBackend.evdev,
-        trigger: 'Caps Lock',
-        supportsRelease: true,
-      );
+    if (evdev.readable) return const HotkeyStatus(HotkeyBackend.evdev, trigger: 'Caps Lock', supportsRelease: true);
     return HotkeyStatus(
       portalStatus.backend,
       trigger: portalStatus.trigger,
@@ -81,7 +68,7 @@ class LinuxHotkeyService implements HotkeyService {
       message: evdev.permissionDenied
           ? evdevPermissionMessage
           : 'No keyboard with a Caps Lock key was found. Use the desktop shortcut'
-                '${portalStatus.trigger == null ? '' : ' (${portalStatus.trigger})'}.',
+              '${portalStatus.trigger == null ? '' : ' (${portalStatus.trigger})'}.',
     );
   }
 

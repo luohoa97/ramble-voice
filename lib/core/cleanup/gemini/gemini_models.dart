@@ -92,19 +92,19 @@ class GeminiModelInfo {
     GeminiHealth? health,
     Duration? latency,
   }) => GeminiModelInfo(
-    id: id,
-    major: major,
-    minor: minor,
-    preview: preview,
-    family: family,
-    alias: alias,
-    displayName: displayName,
-    inputTokenLimit: inputTokenLimit,
-    freeTierUnavailable: freeTierUnavailable ?? this.freeTierUnavailable,
-    unavailableReason: unavailableReason ?? this.unavailableReason,
-    health: health ?? this.health,
-    latency: latency ?? this.latency,
-  );
+        id: id,
+        major: major,
+        minor: minor,
+        preview: preview,
+        family: family,
+        alias: alias,
+        displayName: displayName,
+        inputTokenLimit: inputTokenLimit,
+        freeTierUnavailable: freeTierUnavailable ?? this.freeTierUnavailable,
+        unavailableReason: unavailableReason ?? this.unavailableReason,
+        health: health ?? this.health,
+        latency: latency ?? this.latency,
+      );
 
   @override
   String toString() => id;
@@ -118,9 +118,7 @@ abstract final class GeminiModelSelector {
   );
 
   /// `gemini-flash-latest` and friends.
-  static final RegExp _aliasPattern = RegExp(
-    r'^gemini-(flash-lite|flash|pro)-latest$',
-  );
+  static final RegExp _aliasPattern = RegExp(r'^gemini-(flash-lite|flash|pro)-latest$');
 
   /// Variants that are not text-from-audio models.
   static final RegExp _excluded = RegExp(
@@ -129,10 +127,10 @@ abstract final class GeminiModelSelector {
   );
 
   static GeminiFamily _family(String s) => switch (s) {
-    'pro' => GeminiFamily.pro,
-    'flash' => GeminiFamily.flash,
-    _ => GeminiFamily.flashLite,
-  };
+        'pro' => GeminiFamily.pro,
+        'flash' => GeminiFamily.flash,
+        _ => GeminiFamily.flashLite,
+      };
 
   /// Parses `GET /v1beta/models` entries (`{"name": "models/…", …}`) into every
   /// usable model, best first: Pro, then Flash, then Flash-Lite; inside a
@@ -141,42 +139,35 @@ abstract final class GeminiModelSelector {
     final out = <GeminiModelInfo>[];
     for (final m in models) {
       final name = (m['name'] as String? ?? '').replaceFirst('models/', '');
-      final methods =
-          (m['supportedGenerationMethods'] as List?)?.cast<String>() ??
-          const [];
-      if (!methods.contains('generateContent') || _excluded.hasMatch(name))
-        continue;
+      final methods = (m['supportedGenerationMethods'] as List?)?.cast<String>() ?? const [];
+      if (!methods.contains('generateContent') || _excluded.hasMatch(name)) continue;
       final displayName = m['displayName'] as String?;
       final limit = (m['inputTokenLimit'] as num?)?.toInt();
       final alias = _aliasPattern.firstMatch(name);
       if (alias != null) {
-        out.add(
-          GeminiModelInfo(
-            id: name,
-            major: 0,
-            minor: 0,
-            preview: false,
-            family: _family(alias.group(1)!),
-            alias: true,
-            displayName: displayName,
-            inputTokenLimit: limit,
-          ),
-        );
+        out.add(GeminiModelInfo(
+          id: name,
+          major: 0,
+          minor: 0,
+          preview: false,
+          family: _family(alias.group(1)!),
+          alias: true,
+          displayName: displayName,
+          inputTokenLimit: limit,
+        ));
         continue;
       }
       final match = _pattern.firstMatch(name);
       if (match == null) continue;
-      out.add(
-        GeminiModelInfo(
-          id: name,
-          major: int.parse(match.group(1)!),
-          minor: int.tryParse(match.group(2) ?? '') ?? 0,
-          preview: (match.group(4) ?? '').startsWith('-preview'),
-          family: _family(match.group(3)!),
-          displayName: displayName,
-          inputTokenLimit: limit,
-        ),
-      );
+      out.add(GeminiModelInfo(
+        id: name,
+        major: int.parse(match.group(1)!),
+        minor: int.tryParse(match.group(2) ?? '') ?? 0,
+        preview: (match.group(4) ?? '').startsWith('-preview'),
+        family: _family(match.group(3)!),
+        displayName: displayName,
+        inputTokenLimit: limit,
+      ));
     }
     out.sort(_compare);
     return out;
@@ -191,17 +182,9 @@ abstract final class GeminiModelSelector {
     return a.id.length.compareTo(b.id.length);
   }
 
-  static GeminiModelInfo? _newest(
-    Iterable<GeminiModelInfo> sorted,
-    GeminiFamily family, {
-    bool stableOnly = true,
-  }) {
+  static GeminiModelInfo? _newest(Iterable<GeminiModelInfo> sorted, GeminiFamily family, {bool stableOnly = true}) {
     for (final m in sorted) {
-      if (m.family == family &&
-          !m.alias &&
-          !m.unavailable &&
-          !(stableOnly && m.preview))
-        return m;
+      if (m.family == family && !m.alias && !m.unavailable && !(stableOnly && m.preview)) return m;
     }
     return null;
   }
@@ -216,10 +199,7 @@ abstract final class GeminiModelSelector {
     // Flash-Lite rather than to an older Flash.
     for (final stableOnly in [true, false]) {
       for (final m in sorted) {
-        if (m.family != GeminiFamily.flash ||
-            m.alias ||
-            (stableOnly && m.preview))
-          continue;
+        if (m.family != GeminiFamily.flash || m.alias || (stableOnly && m.preview)) continue;
         if (!m.unavailable) return m;
         break;
       }
@@ -232,10 +212,7 @@ abstract final class GeminiModelSelector {
   }
 
   /// The model to use: the user's pick if it is listed, else [defaultModel].
-  static GeminiModelInfo? choose(
-    List<GeminiModelInfo> sorted, {
-    String? preferred,
-  }) {
+  static GeminiModelInfo? choose(List<GeminiModelInfo> sorted, {String? preferred}) {
     if (preferred != null) {
       for (final m in sorted) {
         if (m.id == preferred) return m;
@@ -246,18 +223,13 @@ abstract final class GeminiModelSelector {
 
   /// The stable Flash models worth probing and trying, newest first.
   static List<GeminiModelInfo> stableFlash(List<GeminiModelInfo> sorted) => [
-    for (final m in sorted)
-      if (m.family == GeminiFamily.flash &&
-          !m.alias &&
-          !m.preview &&
-          !m.unavailable)
-        m,
-  ];
+        for (final m in sorted)
+          if (m.family == GeminiFamily.flash && !m.alias && !m.preview && !m.unavailable) m,
+      ];
 
   /// The newest stable Flash-Lite (or preview if there is no stable one).
   static GeminiModelInfo? liteBackup(List<GeminiModelInfo> sorted) =>
-      _newest(sorted, GeminiFamily.flashLite) ??
-      _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
+      _newest(sorted, GeminiFamily.flashLite) ?? _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
 
   /// Automatic order once a health probe has run: Flash models that answered
   /// quickly, newest to oldest; then Flash models that answered slowly; then
@@ -277,31 +249,25 @@ abstract final class GeminiModelSelector {
 
   /// Models to try in order: [first], then the newest stable Flash-Lite as the
   /// fast, cheap backup. The pipeline's on-device fallback comes after this.
-  static List<GeminiModelInfo> chain(
-    List<GeminiModelInfo> sorted,
-    GeminiModelInfo first,
-  ) {
+  static List<GeminiModelInfo> chain(List<GeminiModelInfo> sorted, GeminiModelInfo first) {
     final start = first.unavailable ? (defaultModel(sorted) ?? first) : first;
     // Then up to two older stable models of the same family and generation,
     // so a stalled newest model (a busy 3.8 Flash) falls back to 3.7, 3.6;
     // never to an older generation.
     final siblings = sorted
-        .where(
-          (m) =>
-              start.family != GeminiFamily.flashLite &&
-              m.family == start.family &&
-              m.major == start.major &&
-              m.id != start.id &&
-              !m.alias &&
-              !m.preview &&
-              !m.unavailable,
-        )
+        .where((m) =>
+            start.family != GeminiFamily.flashLite &&
+            m.family == start.family &&
+            m.major == start.major &&
+            m.id != start.id &&
+            !m.alias &&
+            !m.preview &&
+            !m.unavailable)
         .take(2);
-    final backup =
-        _newest(sorted, GeminiFamily.flashLite) ??
-        _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
+    final backup = _newest(sorted, GeminiFamily.flashLite) ?? _newest(sorted, GeminiFamily.flashLite, stableOnly: false);
     final out = <GeminiModelInfo>[start, ...siblings];
     if (backup != null && out.every((m) => m.id != backup.id)) out.add(backup);
     return out;
   }
+
 }

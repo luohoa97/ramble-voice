@@ -14,8 +14,7 @@ Future<bool> openUrl(String url) async {
       return true;
     }
     if (Platform.isAndroid) {
-      final ok = await const MethodChannel('ramble/system')
-          .invokeMethod<bool>('openUrl', url);
+      final ok = await const MethodChannel('ramble/system').invokeMethod<bool>('openUrl', url);
       return ok ?? true;
     }
   } catch (_) {}

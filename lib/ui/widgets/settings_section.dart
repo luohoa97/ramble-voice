@@ -5,12 +5,7 @@ import 'package:material_ui/material_ui.dart';
 /// A flat settings group: a small accent header, then rows. No card, no
 /// border; grouping comes from spacing and the header alone.
 class SettingsSection extends StatelessWidget {
-  const SettingsSection({
-    super.key,
-    required this.title,
-    required this.children,
-    this.subtitle,
-  });
+  const SettingsSection({super.key, required this.title, required this.children, this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -29,19 +24,13 @@ class SettingsSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Semantics(
               header: true,
-              child: Text(
-                title,
-                style: t.titleSmall?.copyWith(color: c.primary),
-              ),
+              child: Text(title, style: t.titleSmall?.copyWith(color: c.primary)),
             ),
           ),
           if (subtitle != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                subtitle!,
-                style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-              ),
+              child: Text(subtitle!, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
             ),
           ...children,
         ],
@@ -66,12 +55,7 @@ class ScreenTitle extends StatelessWidget {
       child: Row(
         children: [
           if (leading != null) leading! else const SizedBox(width: 8),
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(title, style: t.headlineMedium),
-            ),
-          ),
+          Expanded(child: Semantics(header: true, child: Text(title, style: t.headlineMedium))),
           ?trailing,
         ],
       ),

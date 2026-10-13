@@ -49,11 +49,7 @@ class EditStarting extends EditState {
 }
 
 class EditListening extends EditState {
-  const EditListening({
-    required this.elapsed,
-    required this.level,
-    required this.limit,
-  });
+  const EditListening({required this.elapsed, required this.level, required this.limit});
   final Duration elapsed;
 
   /// Latest input level, 0..1.
@@ -71,13 +67,7 @@ class EditDone extends EditState {
 }
 
 class EditFailed extends EditState {
-  const EditFailed({
-    required this.message,
-    this.kind,
-    this.audioError,
-    this.canRetry = false,
-    this.retryAfter,
-  });
+  const EditFailed({required this.message, this.kind, this.audioError, this.canRetry = false, this.retryAfter});
   final String message;
   final CleanupFailureKind? kind;
   final AudioSourceError? audioError;
@@ -134,10 +124,7 @@ class EditController {
   EditState get state => _state;
   Stream<EditState> get states => _states.stream;
 
-  bool get isBusy =>
-      _state is EditStarting ||
-      _state is EditListening ||
-      _state is EditProcessing;
+  bool get isBusy => _state is EditStarting || _state is EditListening || _state is EditProcessing;
 
   /// The text being edited, while an edit is in progress or just finished.
   String? get sourceText => _source;
@@ -152,11 +139,7 @@ class EditController {
   /// Starts listening for the editing instruction to apply to [sourceText].
   /// [contextBefore] and [contextAfter] are the text around it when it is a
   /// selection; they guide the edit but are never changed.
-  Future<void> startEdit(
-    String sourceText, {
-    String? contextBefore,
-    String? contextAfter,
-  }) async {
+  Future<void> startEdit(String sourceText, {String? contextBefore, String? contextAfter}) async {
     if (isBusy) return;
     if (isBlocked?.call() ?? false) {
       _emit(const EditIdle(notice: 'Finish the dictation first.'));
@@ -167,12 +150,7 @@ class EditController {
       return;
     }
     if (sourceText.length > maxSourceLength) {
-      _emit(
-        const EditFailed(
-          message:
-              'That text is too long to edit by voice. Select a shorter part.',
-        ),
-      );
+      _emit(const EditFailed(message: 'That text is too long to edit by voice. Select a shorter part.'));
       return;
     }
     _source = sourceText;
@@ -193,17 +171,13 @@ class EditController {
       return;
     } catch (_) {
       _buffer = null;
-      _emit(
-        const EditFailed(
-          message: 'The microphone could not start.',
-          audioError: AudioSourceError.deviceUnavailable,
-        ),
-      );
+      _emit(const EditFailed(
+        message: 'The microphone could not start.',
+        audioError: AudioSourceError.deviceUnavailable,
+      ));
       return;
     }
-    _emit(
-      EditListening(elapsed: Duration.zero, level: 0, limit: maxInstruction),
-    );
+    _emit(EditListening(elapsed: Duration.zero, level: 0, limit: maxInstruction));
     _sub = _capture!.pcm.listen(
       _onPcm,
       onDone: () => _captureDone?.complete(),
@@ -259,13 +233,7 @@ class EditController {
     buffer.add(block);
     if (_state is! EditListening) return;
     final elapsed = Pcm.durationOf(buffer.length);
-    _emit(
-      EditListening(
-        elapsed: elapsed,
-        level: Pcm.level(block),
-        limit: maxInstruction,
-      ),
-    );
+    _emit(EditListening(elapsed: elapsed, level: Pcm.level(block), limit: maxInstruction));
     if (elapsed >= maxInstruction) unawaited(stop());
   }
 
@@ -284,34 +252,21 @@ class EditController {
         contextAfter: _contextAfter,
       );
       _heldPcm = null;
-      _emit(
-        EditDone(
-          EditOutcome(
-            original: source,
-            revised: result.text,
-            engine: result.engine,
-            duration: Pcm.durationOf(pcm.length),
-            fallbackReason: result.fallbackReason,
-          ),
-        ),
-      );
+      _emit(EditDone(EditOutcome(
+        original: source,
+        revised: result.text,
+        engine: result.engine,
+        duration: Pcm.durationOf(pcm.length),
+        fallbackReason: result.fallbackReason,
+      )));
     } on CleanupFailure catch (f) {
-      _emit(
-        EditFailed(
-          message: f.message,
-          kind: f.kind,
-          canRetry: f.kind.retryable,
-          retryAfter: f.retryAfter,
-        ),
-      );
+      _emit(EditFailed(message: f.message, kind: f.kind, canRetry: f.kind.retryable, retryAfter: f.retryAfter));
     } catch (_) {
-      _emit(
-        const EditFailed(
-          message: 'The edit failed unexpectedly.',
-          kind: CleanupFailureKind.unknown,
-          canRetry: true,
-        ),
-      );
+      _emit(const EditFailed(
+        message: 'The edit failed unexpectedly.',
+        kind: CleanupFailureKind.unknown,
+        canRetry: true,
+      ));
     }
   }
 
@@ -321,10 +276,7 @@ class EditController {
     if (capture != null) {
       try {
         await capture.stop();
-        await _captureDone?.future.timeout(
-          const Duration(seconds: 2),
-          onTimeout: () {},
-        );
+        await _captureDone?.future.timeout(const Duration(seconds: 2), onTimeout: () {});
       } catch (_) {}
     }
     await _sub?.cancel();
@@ -332,12 +284,10 @@ class EditController {
   }
 
   static String _audioMessage(AudioSourceError e) => switch (e) {
-    AudioSourceError.permissionDenied =>
-      'Microphone access is off. Allow it to edit by voice.',
-    AudioSourceError.deviceUnavailable => 'No microphone is available.',
-    AudioSourceError.backendMissing =>
-      'Audio capture is not available on this system.',
-  };
+        AudioSourceError.permissionDenied => 'Microphone access is off. Allow it to edit by voice.',
+        AudioSourceError.deviceUnavailable => 'No microphone is available.',
+        AudioSourceError.backendMissing => 'Audio capture is not available on this system.',
+      };
 
   Future<void> dispose() async {
     await cancel();

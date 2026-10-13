@@ -21,17 +21,13 @@ class AudioSpan {
 
   @override
   bool operator ==(Object other) =>
-      other is AudioSpan &&
-      other.start == start &&
-      other.end == end &&
-      other.overlap == overlap;
+      other is AudioSpan && other.start == start && other.end == end && other.overlap == overlap;
 
   @override
   int get hashCode => Object.hash(start, end, overlap);
 
   @override
-  String toString() =>
-      'AudioSpan($start, $end${overlap == 0 ? '' : ', overlap: $overlap'})';
+  String toString() => 'AudioSpan($start, $end${overlap == 0 ? '' : ', overlap: $overlap'})';
 }
 
 /// Splits long recordings into pieces no longer than an engine's per-request
@@ -72,18 +68,12 @@ class SilenceChunker {
     // which only costs a few repeated seconds.)
     final sorted = [...energy]..sort();
     final quiet = sorted.isEmpty ? 0.0 : sorted[sorted.length ~/ 2] * 0.25 + 1;
-    final overlapBytes =
-        math.min(Pcm.bytesFor(overlapOnHardCut), maxBytes ~/ 4) ~/
-        frameBytes *
-        frameBytes;
+    final overlapBytes = math.min(Pcm.bytesFor(overlapOnHardCut), maxBytes ~/ 4) ~/ frameBytes * frameBytes;
     var start = 0;
     var overlap = 0;
     while (total - start > maxBytes) {
       final limitFrame = (start + maxBytes) ~/ frameBytes;
-      final firstFrame = math.max(
-        start ~/ frameBytes + 1,
-        limitFrame - windowFrames,
-      );
+      final firstFrame = math.max(start ~/ frameBytes + 1, limitFrame - windowFrames);
       var best = limitFrame;
       var bestScore = double.infinity;
       for (var f = firstFrame; f <= limitFrame; f++) {
@@ -138,23 +128,11 @@ abstract final class TextStitcher {
   /// [next] without the words at its start that repeat the end of [previous]
   /// (overlapping chunks hear the same words twice). Compares words without
   /// case or punctuation; up to [maxWords].
-  static String dropRepeatedHead(
-    String previous,
-    String next, {
-    int maxWords = 12,
-  }) {
-    final prev = previous
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
+  static String dropRepeatedHead(String previous, String next, {int maxWords = 12}) {
+    final prev = previous.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     final nextWords = RegExp(r'\S+').allMatches(next).toList();
-    String norm(String w) =>
-        w.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
-    for (
-      var k = math.min(maxWords, math.min(prev.length, nextWords.length));
-      k > 0;
-      k--
-    ) {
+    String norm(String w) => w.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    for (var k = math.min(maxWords, math.min(prev.length, nextWords.length)); k > 0; k--) {
       var same = true;
       for (var i = 0; i < k; i++) {
         final a = norm(prev[prev.length - k + i]);
@@ -176,10 +154,7 @@ abstract final class TextStitcher {
   }
 
   static String join(Iterable<String> parts) {
-    final cleaned = parts
-        .map((p) => p.trim())
-        .where((p) => p.isNotEmpty)
-        .toList();
+    final cleaned = parts.map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
     if (cleaned.isEmpty) return '';
     final buffer = StringBuffer(cleaned.first);
     for (final part in cleaned.skip(1)) {

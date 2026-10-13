@@ -44,51 +44,37 @@ Future<void> main() async {
   installErrorLog(support);
   final paths = AppPaths(support: support);
   final settings = await SettingsStore(paths.settingsFile).load();
-  final PlatformServices services = Platform.isLinux
-      ? await createLinuxServices()
-      : await createAndroidServices();
+  final PlatformServices services = Platform.isLinux ? await createLinuxServices() : await createAndroidServices();
 
   // Android downloads run in the system DownloadManager so they survive the
   // app being backgrounded, swiped away or the device rebooting.
-  final ModelDownloads? androidDownloads = Platform.isAndroid
-      ? await AndroidModelDownloads.create()
-      : null;
+  final ModelDownloads? androidDownloads = Platform.isAndroid ? await AndroidModelDownloads.create() : null;
 
-  final container = ProviderContainer(
-    overrides: [
-      if (androidDownloads != null)
-        modelDownloaderProvider.overrideWithValue(androidDownloads),
-      appPathsProvider.overrideWithValue(paths),
-      initialSettingsProvider.overrideWithValue(settings),
-      platformServicesProvider.overrideWithValue(services),
-    ],
-  );
+  final container = ProviderContainer(overrides: [
+    if (androidDownloads != null) modelDownloaderProvider.overrideWithValue(androidDownloads),
+    appPathsProvider.overrideWithValue(paths),
+    initialSettingsProvider.overrideWithValue(settings),
+    platformServicesProvider.overrideWithValue(services),
+  ]);
 
   // Pick up downloads that finished while the app was closed.
   final downloads = container.read(modelDownloaderProvider);
   for (final v in ModelCatalog.all) {
-    unawaited(
-      downloads.refresh(v).catchError((Object e) {
-        debugPrint('Model refresh failed: $e');
-        return downloads.statusOf(v);
-      }),
-    );
+    unawaited(downloads.refresh(v).catchError((Object e) {
+      debugPrint('Model refresh failed: $e');
+      return downloads.statusOf(v);
+    }));
   }
 
   if (Platform.isLinux) {
     final integration = LinuxIntegration(container);
     // Do not block first paint on portal negotiation.
-    integration.start().catchError(
-      (Object e) => debugPrint('Linux integration failed: $e'),
-    );
+    integration.start().catchError((Object e) => debugPrint('Linux integration failed: $e'));
   }
 
   // The microphone follows the noise-reduction setting.
   final mic = services.audio;
-  if (mic is AndroidAudioSource)
-    mic.noiseReduction = () => container.read(settingsProvider).noiseReduction;
+  if (mic is AndroidAudioSource) mic.noiseReduction = () => container.read(settingsProvider).noiseReduction;
 
-  runApp(
-    UncontrolledProviderScope(container: container, child: const RambleApp()),
-  );
+  runApp(UncontrolledProviderScope(container: container, child: const RambleApp()));
 }

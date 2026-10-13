@@ -61,6 +61,5 @@ extension AppStyles on AppSettings {
       styleFor(packageName, global: style.preset, overrides: appStyles);
 
   /// [style] with the tone resolved for [packageName].
-  StyleProfile styleProfileFor(String? packageName) =>
-      effectiveStyle.copyWith(preset: styleForApp(packageName));
+  StyleProfile styleProfileFor(String? packageName) => effectiveStyle.copyWith(preset: styleForApp(packageName));
 }

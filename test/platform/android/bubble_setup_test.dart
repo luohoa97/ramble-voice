@@ -50,10 +50,7 @@ void main() {
       ..battery = true;
     final setup = BubbleSetup(env);
     await setup.start();
-    expect(setup.steps, [
-      BubbleSetupStep.keyboard,
-      BubbleSetupStep.accessibility,
-    ]);
+    expect(setup.steps, [BubbleSetupStep.keyboard, BubbleSetupStep.accessibility]);
     expect(setup.number, 1);
   });
 
@@ -112,23 +109,20 @@ void main() {
     expect(setup.finished, isTrue);
   });
 
-  test(
-    'no restricted hint before Android 13 or before the user tried',
-    () async {
-      final env = _Env()
-        ..mic = true
-        ..keyboard = true
-        ..battery = true;
-      final setup = BubbleSetup(env);
-      await setup.start();
-      await setup.refresh();
-      expect(setup.restricted, isFalse);
-      env.sdk = 32;
-      await setup.act();
-      await setup.refresh();
-      expect(setup.restricted, isFalse);
-    },
-  );
+  test('no restricted hint before Android 13 or before the user tried', () async {
+    final env = _Env()
+      ..mic = true
+      ..keyboard = true
+      ..battery = true;
+    final setup = BubbleSetup(env);
+    await setup.start();
+    await setup.refresh();
+    expect(setup.restricted, isFalse);
+    env.sdk = 32;
+    await setup.act();
+    await setup.refresh();
+    expect(setup.restricted, isFalse);
+  });
 
   test('skip moves past an unverifiable step', () async {
     final env = _Env()

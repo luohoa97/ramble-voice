@@ -4,8 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:material_3_expressive/material_3_expressive.dart'
-    show M3ELoadingIndicator, M3ESpring;
+import 'package:material_3_expressive/material_3_expressive.dart' show M3ELoadingIndicator, M3ESpring;
 import 'package:material_new_shapes/material_new_shapes.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -44,19 +43,17 @@ class MicButton extends StatefulWidget {
   final bool autofocus;
 
   static String labelFor(DictationState s) => switch (s) {
-    DictationStarting() => 'Starting microphone',
-    DictationListening() => 'Stop and clean up',
-    DictationProcessing() => 'Cleaning up',
-    DictationIdle() ||
-    DictationDone() ||
-    DictationFailed() => 'Start dictation',
-  };
+        DictationStarting() => 'Starting microphone',
+        DictationListening() => 'Stop and clean up',
+        DictationProcessing() => 'Cleaning up',
+        DictationIdle() || DictationDone() || DictationFailed() => 'Start dictation',
+      };
 
   static String hintFor(DictationState s) => switch (s) {
-    DictationListening() => 'Stops recording and cleans up the text',
-    DictationProcessing() || DictationStarting() => '',
-    _ => 'Starts recording. Touch and hold to talk while held',
-  };
+        DictationListening() => 'Stops recording and cleans up the text',
+        DictationProcessing() || DictationStarting() => '',
+        _ => 'Starts recording. Touch and hold to talk while held',
+      };
 
   @override
   State<MicButton> createState() => _MicButtonState();
@@ -65,30 +62,29 @@ class MicButton extends StatefulWidget {
 enum _Visual { idle, listening, processing, done, error }
 
 _Visual _visualOf(DictationState s) => switch (s) {
-  DictationIdle() || DictationStarting() => _Visual.idle,
-  DictationListening() => _Visual.listening,
-  DictationProcessing() => _Visual.processing,
-  DictationDone() => _Visual.done,
-  DictationFailed() => _Visual.error,
-};
+      DictationIdle() || DictationStarting() => _Visual.idle,
+      DictationListening() => _Visual.listening,
+      DictationProcessing() => _Visual.processing,
+      DictationDone() => _Visual.done,
+      DictationFailed() => _Visual.error,
+    };
 
 RoundedPolygon _polygonOf(_Visual v) => switch (v) {
-  _Visual.idle => MaterialShapes.cookie9Sided,
-  _Visual.listening => MaterialShapes.sunny,
-  _Visual.processing => MaterialShapes.circle,
-  _Visual.done => MaterialShapes.cookie9Sided,
-  _Visual.error => MaterialShapes.pentagon,
-};
+      _Visual.idle => MaterialShapes.cookie9Sided,
+      _Visual.listening => MaterialShapes.sunny,
+      _Visual.processing => MaterialShapes.circle,
+      _Visual.done => MaterialShapes.cookie9Sided,
+      _Visual.error => MaterialShapes.pentagon,
+    };
 
 final _morphCache = <(RoundedPolygon, RoundedPolygon), Morph>{};
-Morph _morph(RoundedPolygon a, RoundedPolygon b) =>
-    _morphCache.putIfAbsent((a, b), () => Morph(a, b));
+Morph _morph(RoundedPolygon a, RoundedPolygon b) => _morphCache.putIfAbsent((a, b), () => Morph(a, b));
 
 /// Damped spring toward 1, mass 1.
 class _Spring {
   _Spring(M3ESpring s)
-    : _k = s.stiffness,
-      _c = 2 * s.damping * math.sqrt(s.stiffness);
+      : _k = s.stiffness,
+        _c = 2 * s.damping * math.sqrt(s.stiffness);
   final double _k;
   final double _c;
   double x = 1;
@@ -116,8 +112,7 @@ class _Spring {
   }
 }
 
-class _MicButtonState extends State<MicButton>
-    with SingleTickerProviderStateMixin {
+class _MicButtonState extends State<MicButton> with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final _repaint = ValueNotifier<int>(0);
   final _spring = _Spring(Motion.spatial);
@@ -173,8 +168,7 @@ class _MicButtonState extends State<MicButton>
   }
 
   void _syncTicker() {
-    final need =
-        !_spring.settled ||
+    final need = !_spring.settled ||
         (_level - _targetLevel).abs() > 0.002 ||
         (_visual == _Visual.listening && !_reduceMotion) ||
         _angle.abs() > 0.01;
@@ -187,9 +181,7 @@ class _MicButtonState extends State<MicButton>
   }
 
   void _onTick(Duration now) {
-    final dt = _last == Duration.zero
-        ? 1 / 60
-        : math.min((now - _last).inMicroseconds / 1e6, 0.05);
+    final dt = _last == Duration.zero ? 1 / 60 : math.min((now - _last).inMicroseconds / 1e6, 0.05);
     _last = now;
     if (_reduceMotion) {
       _spring.x = 1;
@@ -226,10 +218,7 @@ class _MicButtonState extends State<MicButton>
     super.dispose();
   }
 
-  bool get _interactive =>
-      widget.enabled &&
-      widget.state is! DictationProcessing &&
-      widget.state is! DictationStarting;
+  bool get _interactive => widget.enabled && widget.state is! DictationProcessing && widget.state is! DictationStarting;
 
   void _activate() {
     if (_interactive) widget.onTap();
@@ -249,23 +238,20 @@ class _MicButtonState extends State<MicButton>
   }
 
   ({Color fill, Color on}) _colors(ColorScheme c) => switch (_visual) {
-    _Visual.idle => (fill: c.primaryContainer, on: c.onPrimaryContainer),
-    _Visual.listening => (fill: c.primary, on: c.onPrimary),
-    _Visual.processing => (
-      fill: c.secondaryContainer,
-      on: c.onSecondaryContainer,
-    ),
-    _Visual.done => (fill: c.tertiaryContainer, on: c.onTertiaryContainer),
-    _Visual.error => (fill: c.errorContainer, on: c.onErrorContainer),
-  };
+        _Visual.idle => (fill: c.primaryContainer, on: c.onPrimaryContainer),
+        _Visual.listening => (fill: c.primary, on: c.onPrimary),
+        _Visual.processing => (fill: c.secondaryContainer, on: c.onSecondaryContainer),
+        _Visual.done => (fill: c.tertiaryContainer, on: c.onTertiaryContainer),
+        _Visual.error => (fill: c.errorContainer, on: c.onErrorContainer),
+      };
 
   IconData get _icon => switch (_visual) {
-    _Visual.idle => Icons.mic_rounded,
-    _Visual.listening => Icons.stop_rounded,
-    _Visual.processing => Icons.hourglass_empty_rounded,
-    _Visual.done => Icons.check_rounded,
-    _Visual.error => Icons.mic_off_rounded,
-  };
+        _Visual.idle => Icons.mic_rounded,
+        _Visual.listening => Icons.stop_rounded,
+        _Visual.processing => Icons.hourglass_empty_rounded,
+        _Visual.done => Icons.check_rounded,
+        _Visual.error => Icons.mic_off_rounded,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -285,12 +271,7 @@ class _MicButtonState extends State<MicButton>
         semanticLabel: 'Cleaning up',
       );
     } else {
-      center = Icon(
-        _icon,
-        key: ValueKey(_icon),
-        size: size * 0.32,
-        color: colors.on,
-      );
+      center = Icon(_icon, key: ValueKey(_icon), size: size * 0.32, color: colors.on);
     }
 
     final body = TweenAnimationBuilder<Color?>(
@@ -330,20 +311,16 @@ class _MicButtonState extends State<MicButton>
         child: FocusableActionDetector(
           enabled: widget.enabled,
           autofocus: widget.autofocus,
-          mouseCursor: _interactive
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
+          mouseCursor: _interactive ? SystemMouseCursors.click : SystemMouseCursors.basic,
           shortcuts: const {
             SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
             SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
           },
           actions: {
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) {
-                _activate();
-                return null;
-              },
-            ),
+            ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) {
+              _activate();
+              return null;
+            }),
           },
           onShowFocusHighlight: (v) {
             _focused = v;
@@ -355,10 +332,7 @@ class _MicButtonState extends State<MicButton>
             onLongPressStart: (_) => _holdStart(),
             onLongPressEnd: (_) => _holdEnd(),
             onLongPressCancel: _holdEnd,
-            child: Opacity(
-              opacity: dim ? 0.5 : 1,
-              child: SizedBox.square(dimension: size, child: body),
-            ),
+            child: Opacity(opacity: dim ? 0.5 : 1, child: SizedBox.square(dimension: size, child: body)),
           ),
         ),
       ),
@@ -391,11 +365,7 @@ class _MicPainter extends CustomPainter {
 
     if (owner._visual == _Visual.listening || level > 0.01) {
       final r = (base / 2) * (1.08 + 0.3 * level);
-      canvas.drawCircle(
-        c,
-        r,
-        Paint()..color = ring.withValues(alpha: 0.10 + 0.12 * level),
-      );
+      canvas.drawCircle(c, r, Paint()..color = ring.withValues(alpha: 0.10 + 0.12 * level));
       canvas.drawCircle(
         c,
         r,
@@ -407,11 +377,7 @@ class _MicPainter extends CustomPainter {
     }
 
     final morph = _morph(owner._from, owner._to);
-    final path = morph.toPath(
-      progress: owner._spring.x,
-      rotationPivotX: 0.5,
-      rotationPivotY: 0.5,
-    );
+    final path = morph.toPath(progress: owner._spring.x, rotationPivotX: 0.5, rotationPivotY: 0.5);
     final scale = base * (1 + 0.1 * level);
     canvas
       ..save()
@@ -419,12 +385,7 @@ class _MicPainter extends CustomPainter {
       ..rotate(owner._angle)
       ..scale(scale)
       ..translate(-0.5, -0.5)
-      ..drawPath(
-        path,
-        Paint()
-          ..color = fill
-          ..isAntiAlias = true,
-      )
+      ..drawPath(path, Paint()..color = fill..isAntiAlias = true)
       ..restore();
 
     if (focused) {
@@ -440,9 +401,5 @@ class _MicPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MicPainter old) =>
-      old.fill != fill ||
-      old.ring != ring ||
-      old.focus != focus ||
-      old.focused != focused;
+  bool shouldRepaint(_MicPainter old) => old.fill != fill || old.ring != ring || old.focus != focus || old.focused != focused;
 }

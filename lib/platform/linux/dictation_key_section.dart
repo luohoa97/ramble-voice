@@ -10,12 +10,7 @@ import 'evdev_hotkey.dart';
 /// [value] (`capslock` | `portal`) and re-binds in [onChanged], then passes
 /// the new [status].
 class DictationKeySection extends StatelessWidget {
-  const DictationKeySection({
-    super.key,
-    required this.value,
-    required this.status,
-    required this.onChanged,
-  });
+  const DictationKeySection({super.key, required this.value, required this.status, required this.onChanged});
 
   final String value;
   final HotkeyStatus? status;
@@ -24,12 +19,10 @@ class DictationKeySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = status;
-    final needsPermission =
-        value == 'capslock' && s != null && s.backend != HotkeyBackend.evdev;
+    final needsPermission = value == 'capslock' && s != null && s.backend != HotkeyBackend.evdev;
     final text = switch (s) {
       null => 'Checking...',
-      _ when s.backend == HotkeyBackend.evdev =>
-        'Caps Lock is active. Hold it to talk.',
+      _ when s.backend == HotkeyBackend.evdev => 'Caps Lock is active. Hold it to talk.',
       _ when s.message != null => s.message!,
       _ when s.trigger != null => 'Shortcut: ${s.trigger}',
       _ => 'No key is active',
@@ -41,10 +34,7 @@ class DictationKeySection extends StatelessWidget {
         const SizedBox(height: 8),
         SegmentedButton<String>(
           segments: const [
-            ButtonSegment(
-              value: 'capslock',
-              label: Text('Caps Lock (hold to talk)'),
-            ),
+            ButtonSegment(value: 'capslock', label: Text('Caps Lock (hold to talk)')),
             ButtonSegment(value: 'portal', label: Text('Desktop shortcut')),
           ],
           selected: {value},
@@ -58,9 +48,7 @@ class DictationKeySection extends StatelessWidget {
             child: TextButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text(evdevPermissionCommand),
-              onPressed: () => Clipboard.setData(
-                const ClipboardData(text: evdevPermissionCommand),
-              ),
+              onPressed: () => Clipboard.setData(const ClipboardData(text: evdevPermissionCommand)),
             ),
           ),
       ],

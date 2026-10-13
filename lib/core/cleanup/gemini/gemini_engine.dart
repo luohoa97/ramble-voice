@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../audio/pcm.dart';
@@ -13,6 +14,7 @@ enum GeminiThinking {
   minimal('minimal'),
   low('low'),
   medium('medium'),
+  high('high'),
 
   /// No thinkingConfig at all (the model rejected it).
   none('');
@@ -164,7 +166,7 @@ class GeminiEngine implements CleanupEngine {
   /// or not responding, so a bad pick falls back quickly.
   final Duration pickedModelTimeout;
 
-  /// Lets the model reason ("medium" thinking) before writing the
+  /// Lets the model reason ("high" thinking) before writing the
   /// cleaned text: better at intent, lists, quoting and commands, a little
   /// slower. One request either way: the model hears the audio and reasons
   /// about it together.
@@ -319,13 +321,13 @@ class GeminiEngine implements CleanupEngine {
     Duration? timeout,
     bool think = false,
   }) async {
-    var thinkRejected = false;
+    var thinkRejected = 0;
     while (true) {
       var mode = cache.thinkingFor(model.id);
       // A little reasoning for the cleanup pass (intent, lists, quoting),
       // unless the model refused thinking levels.
       if (think && mode == GeminiThinking.minimal) {
-        mode = thinkRejected ? GeminiThinking.low : GeminiThinking.medium;
+        mode = _thinkLadder[math.min(thinkRejected, _thinkLadder.length - 1)];
       }
       try {
         return await client.generateFromAudio(
@@ -337,15 +339,15 @@ class GeminiEngine implements CleanupEngine {
           minimalThinking: mode != GeminiThinking.none,
           thinkingLevel: mode.level,
           // Thinking tokens count against the output limit.
-          maxOutputTokens: mode == GeminiThinking.medium || mode == GeminiThinking.low ? maxOutputTokens * 4 : maxOutputTokens,
+          maxOutputTokens: _thinkLadder.contains(mode) ? maxOutputTokens * 4 : maxOutputTokens,
           timeout: timeout ?? requestTimeout(wav.length),
         );
       } on CleanupFailure catch (f) {
         final next = _nextThinking(mode, f);
         if (next == null) rethrow;
-        // Medium refused: try low before giving up on thinking levels.
-        if (think && mode == GeminiThinking.medium && !thinkRejected) {
-          thinkRejected = true;
+        // A level refused: step down (high, medium, low) before giving up on thinking.
+        if (think && thinkRejected < _thinkLadder.length - 1 && _thinkLadder.contains(mode)) {
+          thinkRejected++;
           continue;
         }
         cache.rememberThinking(model.id, next);
@@ -364,9 +366,11 @@ class GeminiEngine implements CleanupEngine {
     return GeminiThinking.none;
   }
 
+  static const _thinkLadder = [GeminiThinking.high, GeminiThinking.medium, GeminiThinking.low];
+
   /// Base wait plus the clip's own length: long clips legitimately take longer.
   static Duration requestTimeout(int wavBytes) =>
-      const Duration(seconds: 30) + Pcm.durationOf(wavBytes);
+      const Duration(seconds: 45) + Pcm.durationOf(wavBytes);
 
   /// Failures that mean "this model, not this audio": try the next model.
   static bool _tryNextModel(CleanupFailure f) => switch (f.kind) {

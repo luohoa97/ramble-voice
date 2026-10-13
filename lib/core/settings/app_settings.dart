@@ -40,6 +40,7 @@ class AppSettings {
     this.modelLicenseAccepted = false,
     this.autoSwitchBack = false,
     this.thinking = true,
+    this.noiseReduction = false,
     this.hotkeyTrigger = 'CTRL+ALT+space',
     this.hotkeyKey = 'capslock',
     this.languages = const [],
@@ -79,6 +80,9 @@ class AppSettings {
 
   /// Gemini reasons briefly about what the speaker meant before writing.
   final bool thinking;
+
+  /// Android: the phone's voice noise reduction on the microphone.
+  final bool noiseReduction;
 
   /// Linux: preferred global shortcut (portal trigger syntax, e.g.
   /// `CTRL+ALT+space`, or `Menu` when Caps Lock is mapped to Menu).
@@ -144,6 +148,7 @@ class AppSettings {
     bool? modelLicenseAccepted,
     bool? autoSwitchBack,
     bool? thinking,
+    bool? noiseReduction,
     String? hotkeyTrigger,
     String? hotkeyKey,
     List<String>? languages,
@@ -171,6 +176,7 @@ class AppSettings {
         modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
         autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
         thinking: thinking ?? this.thinking,
+        noiseReduction: noiseReduction ?? this.noiseReduction,
         hotkeyTrigger: hotkeyTrigger ?? this.hotkeyTrigger,
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
         languages: languages ?? this.languages,
@@ -199,6 +205,7 @@ class AppSettings {
         'modelLicenseAccepted': modelLicenseAccepted,
         'autoSwitchBackAfterDictation': autoSwitchBack,
         'thinking': thinking,
+        'noiseReduction': noiseReduction,
         'hotkeyTrigger': hotkeyTrigger,
         'hotkeyKey': hotkeyKey,
         'languages': languages,
@@ -233,6 +240,7 @@ class AppSettings {
         // on Ramble until they press ABC unless they opt in.
         autoSwitchBack: j['autoSwitchBackAfterDictation'] as bool? ?? false,
         thinking: j['thinking'] as bool? ?? true,
+        noiseReduction: j['noiseReduction'] as bool? ?? false,
         hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
         hotkeyKey: j['hotkeyKey'] as String? ?? 'capslock',
         languages: _languagesFromJson(j, deviceLanguages),

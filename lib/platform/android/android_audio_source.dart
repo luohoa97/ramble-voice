@@ -26,6 +26,11 @@ class AndroidAudioSource implements AudioSource {
   final EventChannel _pcm;
   final Future<bool> Function() _requestMicrophone;
 
+  /// Whether to use the phone's own voice noise reduction (the call-audio
+  /// path with its noise suppressor). Set from the settings at startup.
+  bool Function() noiseReduction = _off;
+  static bool _off() => false;
+
   static Future<bool> _defaultRequest() async => (await Permission.microphone.request()).isGranted;
 
   @override
@@ -72,7 +77,7 @@ class AndroidAudioSource implements AudioSource {
 
     var started = false;
     try {
-      started = await _control.invokeMethod<bool>('start') ?? false;
+      started = await _control.invokeMethod<bool>('start', {'noiseReduction': noiseReduction()}) ?? false;
     } on PlatformException {
       started = false;
     }

@@ -54,6 +54,14 @@ class RecordingSection extends ConsumerWidget {
             value: s.haptics,
             onChanged: (v) => ref.read(settingsProvider.notifier).update((x) => x.copyWith(haptics: v)),
           ),
+        if (android)
+          SwitchListTile(
+            contentPadding: const EdgeInsets.only(left: 16, right: 8),
+            title: const Text('Phone noise reduction'),
+            subtitle: const Text('Uses the phone\'s call noise filter on the microphone. Try it on buses and in loud places.'),
+            value: s.noiseReduction,
+            onChanged: (v) => ref.read(settingsProvider.notifier).update((x) => x.copyWith(noiseReduction: v)),
+          ),
       ],
     );
   }

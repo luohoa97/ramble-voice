@@ -55,7 +55,7 @@ class AudioCaptureHandler(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "hasPermission" -> result.success(hasPermission())
-            "start" -> result.success(startCapture())
+            "start" -> result.success(startCapture(call.argument<Boolean>("noiseReduction") == true))
             "stop" -> {
                 stopCapture()
                 result.success(null)
@@ -77,7 +77,15 @@ class AudioCaptureHandler(
         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
 
-    private fun startCapture(): Boolean {
+    private var suppressor: android.media.audiofx.NoiseSuppressor? = null
+
+    /**
+     * [noiseReduction]: the call-audio path (VOICE_COMMUNICATION) plus the
+     * platform noise suppressor, which cleans steady noise such as a bus
+     * engine. Off: VOICE_RECOGNITION, the unprocessed path tuned for
+     * speech recognition.
+     */
+    private fun startCapture(noiseReduction: Boolean = false): Boolean {
         if (running) return true
         if (!hasPermission() || sink == null) return false
         // A previous capture may still be draining its last block.
@@ -93,7 +101,10 @@ class AudioCaptureHandler(
 
         val record = try {
             AudioRecord.Builder()
-                .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                .setAudioSource(
+                    if (noiseReduction) MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                    else MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                )
                 .setAudioFormat(
                     AudioFormat.Builder()
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
@@ -112,6 +123,16 @@ class AudioCaptureHandler(
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             record.release()
             return false
+        }
+        suppressor?.release()
+        suppressor = if (noiseReduction && android.media.audiofx.NoiseSuppressor.isAvailable()) {
+            try {
+                android.media.audiofx.NoiseSuppressor.create(record.audioSessionId)?.apply { enabled = true }
+            } catch (_: RuntimeException) {
+                null
+            }
+        } else {
+            null
         }
         try {
             record.startRecording()
@@ -149,6 +170,8 @@ class AudioCaptureHandler(
             } catch (_: IllegalStateException) {
             }
             record.release()
+            suppressor?.release()
+            suppressor = null
             running = false
             // Posted after the last block so the stream closes only once drained.
             main.post {

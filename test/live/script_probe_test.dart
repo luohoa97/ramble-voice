@@ -24,7 +24,12 @@ void main() {
   final models = (env['RAMBLE_MODELS'] ?? 'gemini-3.5-flash').split(',');
   for (final model in models) {
     test('native script $model', () async {
-      final engine = GeminiEngine(apiKey: () async => key, client: GeminiClient(), preferredModel: model);
+      final engine = GeminiEngine(
+        apiKey: () async => key,
+        client: GeminiClient(),
+        preferredModel: model,
+        thinkOnCleanup: Platform.environment['RAMBLE_THINK'] != '0',
+      );
       final out = await engine.process(CleanupRequest(
         pcm: env['RAMBLE_GAIN'] == '0'
             ? WavEncoder.decode(File(wavPath!).readAsBytesSync())

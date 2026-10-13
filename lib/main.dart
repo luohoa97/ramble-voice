@@ -72,5 +72,9 @@ Future<void> main() async {
     integration.start().catchError((Object e) => debugPrint('Linux integration failed: $e'));
   }
 
+  // The microphone follows the noise-reduction setting.
+  final mic = services.audio;
+  if (mic is AndroidAudioSource) mic.noiseReduction = () => container.read(settingsProvider).noiseReduction;
+
   runApp(UncontrolledProviderScope(container: container, child: const RambleApp()));
 }

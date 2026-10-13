@@ -79,6 +79,8 @@ Future<void> bubbleMain() async {
     ],
   );
 
+  (services.audio as AndroidAudioSource).noiseReduction = () => container.read(settingsProvider).noiseReduction;
+
   final controller = container.read(dictationControllerProvider);
   BubbleStateRelay(controller.states, bridge);
 

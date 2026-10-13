@@ -132,6 +132,10 @@ Future<void> imeMain() async {
 
   E2eHook(container: container, bridge: bridge, audio: audio).attach();
 
+  // The microphone follows the noise-reduction setting.
+  final mic = base.audio;
+  if (mic is AndroidAudioSource) mic.noiseReduction = () => container.read(settingsProvider).noiseReduction;
+
   runApp(
     UncontrolledProviderScope(container: container, child: const ImeApp()),
   );

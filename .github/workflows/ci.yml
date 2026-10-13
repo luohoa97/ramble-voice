@@ -40,6 +40,26 @@ jobs:
       - name: Test
         run: flutter test
 
+  android-lint:
+    name: Android API levels (lint NewApi)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # Every call newer than minSdk must be version-gated (a missed one
+      # crashes older phones); lint fails the build on NewApi.
+      - name: Lint
+        run: flutter build apk --config-only && cd android && ./gradlew :app:lintDebug
+
   spdx:
     name: SPDX headers
     runs-on: ubuntu-24.04

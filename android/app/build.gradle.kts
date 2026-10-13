@@ -73,6 +73,9 @@ android {
     lint {
         // Release lint downloads data and is slow in CI; run it separately if wanted.
         checkReleaseBuilds = false
+        // Calls newer than minSdk must be version-gated; a missed one crashes older phones.
+        error += "NewApi"
+        checkOnly += "NewApi"
     }
 }
 

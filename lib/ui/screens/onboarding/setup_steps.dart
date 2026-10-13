@@ -441,7 +441,7 @@ class TipsStepBody extends StatelessWidget {
         _Tip(
           icon: Icons.tune_rounded,
           title: 'Switch tone with one tap',
-          text: 'The chip at the top of the keyboard sets Casual, Professional, Texting or Notes for each app.',
+          text: 'The tone menu at the bottom of the keyboard sets Casual, Professional, Texting, Notes or Markdown for each app.',
         ),
         _Tip(
           icon: Icons.edit_note_rounded,

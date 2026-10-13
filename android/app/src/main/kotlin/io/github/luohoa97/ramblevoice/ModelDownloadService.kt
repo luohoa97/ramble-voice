@@ -336,8 +336,11 @@ class ModelDownloadService : Service() {
                         .setProgress(percent)
                         .setProgressIndeterminate(indeterminate),
                 )
-                .setRequestPromotedOngoing(true)
-            if (!indeterminate) builder.setShortCriticalText("$percent%")
+            // Live Update promotion and the status chip arrived in Android 16 QPR2 (36.1).
+            if (Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1) {
+                builder.setRequestPromotedOngoing(true)
+                if (!indeterminate) builder.setShortCriticalText("$percent%")
+            }
         } else {
             builder.setProgress(100, percent, indeterminate)
         }

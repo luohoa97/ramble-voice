@@ -21,4 +21,4 @@
 
 <p><b>Private</b>: no account, no backend, no telemetry. History and a usage log stay on your device.</p>
 
-<p>Free and open source under the GPL-3.0-or-later. Gemma model weights are provided under Google's Gemma terms, which you accept before downloading.</p>
+<p>Free and open source under the GPL-3.0-or-later. Gemma model weights are Apache-2.0, from Google via Hugging Face.</p>

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Draft fdroiddata metadata (https://gitlab.com/fdroid/fdroiddata). Not yet
+# Draft fdroiddata metadata (see docs/fdroid.md) (https://gitlab.com/fdroid/fdroiddata). Not yet
 # submitted. Blocker for the main F-Droid repository: flutter_edge_ai_litertlm
 # downloads prebuilt LiteRT-LM native libraries at build time, which F-Droid
 # does not accept; they would have to be built from source (or the on-device

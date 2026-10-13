@@ -39,6 +39,7 @@ class ImeHandler(
         when (call.method) {
             "commitText" -> {
                 val text = call.arguments as? String ?: call.argument<String>("text") ?: ""
+                watchCorrections(text)
                 if (!text.contains('\n') || !isMultiLine()) {
                     result.success(service.currentInputConnection?.commitText(text, 1) ?: false)
                 } else {
@@ -126,6 +127,21 @@ class ImeHandler(
      * Chat boxes whose Enter sends the message are excluded: a dictated line
      * break must never send anything.
      */
+    /**
+     * After a dictation lands, watch the field for the user's corrections
+     * (any keyboard), via the floating mic's accessibility service when it runs.
+     */
+    private fun watchCorrections(inserted: String) {
+        val svc = io.github.luohoa97.ramblevoice.bubble.RambleBubbleService.instance ?: return
+        val pkg = service.currentInputEditorInfo?.packageName
+        main.postDelayed({
+            try {
+                CorrectionWatch.start(service, pkg, svc.focusedFieldText(), inserted.trim())
+            } catch (_: Throwable) {
+            }
+        }, 1500)
+    }
+
     private fun isMultiLine(): Boolean {
         val info = service.currentInputEditorInfo ?: return false
         val type = info.inputType

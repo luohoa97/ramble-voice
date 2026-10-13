@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.luohoa97.ramblevoice.bubble
 
+import io.github.luohoa97.ramblevoice.CorrectionWatch
 import io.github.luohoa97.ramblevoice.CrashLog
 import android.accessibilityservice.AccessibilityService
 import android.animation.ValueAnimator
@@ -83,6 +84,7 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (!::prefs.isInitialized) return
+        trackCorrections(event)
         // Coalesce the burst of events one focus change produces.
         main.removeCallbacks(evaluateRunnable)
         main.postDelayed(evaluateRunnable, EVALUATE_DELAY_MS)
@@ -533,7 +535,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
             reply(false)
             return
         }
-        inserter.insert(node, text, reply)
+        val pkg = node.packageName?.toString()
+        inserter.insert(node, text) { ok ->
+            reply(ok)
+            if (ok) main.postDelayed({ CorrectionWatch.start(this, pkg, focusedFieldText(), text.trim()) }, 800)
+        }
     }
 
     /** The field to insert into: the one focused right now, else the one the bubble was attached to. */
@@ -573,6 +579,36 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         params = null
         focusNode = null
         host.dispose()
+    }
+
+    /** Feeds [CorrectionWatch]: the watched field's text as it is edited, and leaving it. */
+    private fun trackCorrections(event: AccessibilityEvent) {
+        val watched = CorrectionWatch.watchedPackage ?: return
+        val pkg = event.packageName?.toString()
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED, AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED -> {
+                val source = event.source ?: return
+                if (!source.isPassword && source.isEditable) CorrectionWatch.onText(this, pkg, source.text?.toString())
+            }
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                // Another app (not a keyboard, not us) took over: the edit is over.
+                if (pkg != null && pkg != watched && pkg != packageName && !isKeyboardPackage(pkg)) {
+                    CorrectionWatch.finish(this)
+                }
+            }
+        }
+    }
+
+    private fun isKeyboardPackage(pkg: String): Boolean {
+        val imm = getSystemService(android.view.inputmethod.InputMethodManager::class.java) ?: return false
+        return imm.enabledInputMethodList.any { it.packageName == pkg }
+    }
+
+    /** The focused field's whole text (null for passwords or when unreadable). */
+    fun focusedFieldText(): String? {
+        val focus = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return null
+        if (focus.isPassword || !focus.isEditable) return null
+        return focus.text?.toString()
     }
 
     /**

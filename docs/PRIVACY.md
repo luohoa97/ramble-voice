@@ -47,8 +47,10 @@ and the app never executes commands.
 
 Ramble keeps a small usage log in its private folder: for each dictation, the
 engine and model, how long the recording and the cleanup took, the tone, any
-fallback or failure, and Gemini prompt-cache token counts. It never contains
-what you said. It is not sent anywhere. Settings > Privacy can turn it off,
+fallback or failure, and Gemini prompt-cache token counts. It does not contain
+what you said, with one exception: when the floating mic is on and you correct
+text Ramble just typed (in any keyboard), the log keeps the few words Ramble
+wrote and what you changed them to, so mistranscriptions can be diagnosed. It is not sent anywhere. Settings > Privacy can turn it off,
 share it (for a bug report or to help improve Ramble), and "Delete all
 history" clears it.
 

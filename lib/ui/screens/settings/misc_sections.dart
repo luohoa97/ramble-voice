@@ -151,8 +151,8 @@ class PrivacySection extends ConsumerWidget {
           contentPadding: const EdgeInsets.only(left: 16, right: 8),
           title: const Text('Usage log on this device'),
           subtitle: const Text(
-            'Keeps a record of engines, models, timings and failures (never your words) to help fix problems. '
-            'It stays on this device unless you share it.',
+            'Keeps a record of engines, models, timings and failures, and the words you correct after Ramble types '
+            '(when the floating mic is on), to help fix problems. It stays on this device unless you share it.',
           ),
           value: ref.watch(settingsProvider.select((s) => s.usageLog)),
           onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(usageLog: v)),

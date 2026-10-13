@@ -1,0 +1,24 @@
+<p>Speak the way you talk to a friend, with pauses, false starts and filler words, and Ramble Voice writes clean text in your style, in any app.</p>
+
+<p>A voice-native language model hears your audio directly, so it understands what you mean: it removes "um" and "uh", keeps only your corrected version when you change your mind, formats lists, commands, emails and Markdown, and writes every language in its own script.</p>
+
+<p><b>Two engines, your choice</b></p>
+<ul>
+<li><b>On-device</b> (default): Gemma 4 runs on your phone. Private, free and offline. The model (2.6 or 3.7 GB) is downloaded once from Hugging Face.</li>
+<li><b>Gemini cloud</b> (optional): smarter cleanup with your own free Gemini API key. Your audio is sent to Google only in this mode.</li>
+</ul>
+
+<p><b>Dictate anywhere</b></p>
+<ul>
+<li>The Ramble keyboard: hold to talk or tap to toggle, pause, discard, undo, and edit by voice ("make it shorter", "make it mocking case").</li>
+<li>A floating mic next to Gboard, so you keep your typing keyboard.</li>
+<li>Number, PIN and password fields go straight to your typing keyboard.</li>
+<li>Tones per app (Casual, Professional, Texting, Notes, Markdown), your names and spellings, snippets and languages.</li>
+<li>Optional conversation context, so replies fit the chat you are answering.</li>
+</ul>
+
+<p><b>Safe by design</b>: Ramble only ever writes text. Instructions you dictate are written down, never carried out.</p>
+
+<p><b>Private</b>: no account, no backend, no telemetry. History and a usage log stay on your device.</p>
+
+<p>Free and open source under the GPL-3.0-or-later. Gemma model weights are provided under Google's Gemma terms, which you accept before downloading.</p>

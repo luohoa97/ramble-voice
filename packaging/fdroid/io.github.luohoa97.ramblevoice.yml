@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Draft fdroiddata metadata (https://gitlab.com/fdroid/fdroiddata). Not yet
+# submitted. Blocker for the main F-Droid repository: flutter_edge_ai_litertlm
+# downloads prebuilt LiteRT-LM native libraries at build time, which F-Droid
+# does not accept; they would have to be built from source (or the on-device
+# engine left out of the F-Droid build). IzzyOnDroid can ship the signed
+# GitHub release APK as is.
+Categories:
+  - Writing
+  - Connectivity
+License: GPL-3.0-or-later
+AuthorName: Neil Luo
+SourceCode: https://github.com/luohoa97/ramble-voice
+IssueTracker: https://github.com/luohoa97/ramble-voice/issues
+
+AutoName: Ramble Voice
+
+RepoType: git
+Repo: https://github.com/luohoa97/ramble-voice.git
+
+Builds:
+  - versionName: 1.0.0
+    versionCode: 100
+    commit: v1.0.0
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@3.47.7
+    rm:
+      - linux
+    prebuild:
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get
+    build:
+      - $$flutter$$/bin/flutter build apk --release --target-platform android-arm64
+
+AntiFeatures:
+  NonFreeNet:
+    en-US: Optional cleanup with Google Gemini (your own API key) sends audio to Google.
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+CurrentVersion: 1.0.0
+CurrentVersionCode: 100

@@ -8,7 +8,7 @@ Only GNOME 50 on Wayland, x86_64, is verified.
 
 ## Android
 
-Android 16 or newer (API 36), arm64-v8a. A keyboard (InputMethodService) with a
+Android 12 or newer (API 31), arm64-v8a; Android 16 features are used where available. A keyboard (InputMethodService) with a
 Flutter UI: hold-to-talk, processing state, text inserted with `commitText`, and
 a switch back to the previous keyboard. GPU acceleration through OpenCL
 (Snapdragon and Adreno work).

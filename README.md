@@ -1,7 +1,7 @@
 # Ramble Voice
 
 Speak a messy ramble. A voice-native language model hears the audio and returns
-clean text, written in your style. Runs on Android 16+ and Linux.
+clean text, written in your style. Runs on Android 12+ and Linux.
 
 Ramble Voice is text-only: it never executes commands, and spoken instructions
 are transcribed, not obeyed. There is no backend, no telemetry and no analytics.
@@ -12,15 +12,17 @@ License: GPL-3.0-or-later. Repository: <https://github.com/luohoa97/ramble-voice
 
 ## Screenshots
 
-These are placeholders. The image files do not exist yet.
+Android (Oppo Find X2 Neo, Android 12).
 
-| Home | Listening | Settings |
+| Record | Cleaned result | History |
 |---|---|---|
-| ![Home](docs/screenshots/home.png) | ![Listening](docs/screenshots/listening.png) | ![Settings](docs/screenshots/settings.png) |
+| <img src="docs/screenshots/home.png" width="240" alt="Record screen with the mic and tone chips"> | <img src="docs/screenshots/result.png" width="240" alt="A rambled list cleaned into a numbered list"> | <img src="docs/screenshots/history.png" width="240" alt="History of dictations"> |
 
-| Android keyboard | Linux overlay |
-|---|---|
-| ![Keyboard](docs/screenshots/keyboard.png) | ![Overlay](docs/screenshots/overlay.png) |
+| Floating mic next to Gboard | Ramble keyboard, listening | Ramble keyboard |
+|---|---|---|
+| <img src="docs/screenshots/floating-mic.png" width="240" alt="Floating mic on the screen edge next to Gboard"> | <img src="docs/screenshots/keyboard-listening.png" width="240" alt="Ramble keyboard while listening, with pause and discard"> | <img src="docs/screenshots/keyboard.png" width="240" alt="Ramble keyboard with ABC, edit by voice and the mic"> |
+
+<img src="docs/screenshots/settings.png" width="240" alt="Settings: on-device or Gemini cloud engine">
 
 ## Features
 
@@ -41,7 +43,7 @@ These are placeholders. The image files do not exist yet.
 
 ## Platform support
 
-Android: Android 16 or newer (API 36), arm64-v8a only.
+Android: Android 12 or newer (API 31), arm64-v8a only. Newer features (Android 16 Live Update download progress, the Android 14 threshold haptic) are used where the phone supports them.
 
 Linux uses a custom GTK4 runner. Legend: "verified" means tested on real
 hardware by the maintainer. "Expected" means it should work from how the

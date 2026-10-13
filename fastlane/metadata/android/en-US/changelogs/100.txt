@@ -1,0 +1,7 @@
+Ramble Voice 1.0.0, the first stable release.
+- Natural dictation: rambling, pauses, restarts and noise understood; the model reasons about what you mean.
+- Ramble keyboard and floating mic; numbers and passwords go to your typing keyboard.
+- Lists, commands, Markdown, all languages in their own script.
+- Field-aware text (search boxes, emails, chats) and optional conversation context.
+- Long recordings stitched without losing words.
+- On-device Gemma 4 or your own Gemini key. Android 12 and newer.

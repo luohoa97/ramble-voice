@@ -238,12 +238,12 @@ void main() {
       expect(system, isNot(CleanupPrompt.build(style)));
     });
 
-    test('thinking: cleanup asks for low thinking in the same single request', () async {
+    test('thinking: cleanup asks for medium thinking in the same single request', () async {
       final server = FakeGeminiServer(onGenerate: (r, b) => textResponse('Hello.'));
       final e = GeminiEngine(apiKey: () async => 'KEY', client: GeminiClient(httpClient: server.client), thinkOnCleanup: true);
       expect(await e.process(_request()), 'Hello.');
       final body = FakeGeminiServer.bodyOf(server.generateCalls.single);
-      expect(jsonEncode(body['generationConfig']).toLowerCase(), contains('low'));
+      expect(jsonEncode(body['generationConfig']).toLowerCase(), contains('medium'));
     });
 
     test('output is tidied', () async {

@@ -141,8 +141,8 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
       case DictationDone(:final outcome):
         _haptic('done');
         final typed = ref.read(lastInsertProvider)?.method == InsertMethod.typed;
-        if (typed && outcome.text.isNotEmpty) {
-          setState(() => _undoText = outcome.text);
+        if (typed && outcome.insertText.isNotEmpty) {
+          setState(() => _undoText = outcome.insertText);
           _undoTimer?.cancel();
           _undoTimer = Timer(_undoWindow, _clearUndo);
         }

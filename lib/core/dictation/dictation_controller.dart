@@ -8,6 +8,7 @@ import '../audio/pcm.dart';
 import '../cleanup/cleanup_engine.dart';
 import '../cleanup/cleanup_pipeline.dart';
 import '../style/style_profile.dart';
+import 'field_join.dart';
 import 'recording_vault.dart';
 
 class DictationOutcome {
@@ -18,10 +19,17 @@ class DictationOutcome {
     required this.duration,
     required this.createdAt,
     this.fallbackReason,
-  });
+    String? insertText,
+  }) : insertText = insertText ?? text;
 
   final String recordingId;
+
+  /// The cleaned text (history, copy, share).
   final String text;
+
+  /// [text] fitted to the field around the cursor: the leading line break or
+  /// space, list markers (see [FieldJoin]). What the keyboard types.
+  final String insertText;
   final EngineKind engine;
   final Duration duration;
   final DateTime createdAt;
@@ -417,7 +425,10 @@ class DictationController {
       if (cancelled()) return;
       final outcome = DictationOutcome(
         recordingId: id,
-        text: result.text,
+        text: result.text.trim(),
+        insertText: context == null
+            ? result.text.trim()
+            : FieldJoin.fit(context.before, result.text, context.after),
         engine: result.engine,
         duration: Pcm.durationOf(pcm.length),
         createdAt: _startedAt ?? _clock(),

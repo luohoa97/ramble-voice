@@ -12,6 +12,7 @@ import 'gemini_models.dart';
 enum GeminiThinking {
   minimal('minimal'),
   low('low'),
+  medium('medium'),
 
   /// No thinkingConfig at all (the model rejected it).
   none('');
@@ -163,7 +164,7 @@ class GeminiEngine implements CleanupEngine {
   /// or not responding, so a bad pick falls back quickly.
   final Duration pickedModelTimeout;
 
-  /// Lets the model reason briefly ("low" thinking) before writing the
+  /// Lets the model reason ("medium" thinking) before writing the
   /// cleaned text: better at intent, lists, quoting and commands, a little
   /// slower. One request either way: the model hears the audio and reasons
   /// about it together.
@@ -323,7 +324,9 @@ class GeminiEngine implements CleanupEngine {
       var mode = cache.thinkingFor(model.id);
       // A little reasoning for the cleanup pass (intent, lists, quoting),
       // unless the model refused thinking levels.
-      if (think && !thinkRejected && mode == GeminiThinking.minimal) mode = GeminiThinking.low;
+      if (think && mode == GeminiThinking.minimal) {
+        mode = thinkRejected ? GeminiThinking.low : GeminiThinking.medium;
+      }
       try {
         return await client.generateFromAudio(
           apiKey: key,
@@ -333,13 +336,15 @@ class GeminiEngine implements CleanupEngine {
           wav: wav,
           minimalThinking: mode != GeminiThinking.none,
           thinkingLevel: mode.level,
-          maxOutputTokens: maxOutputTokens,
+          // Thinking tokens count against the output limit.
+          maxOutputTokens: mode == GeminiThinking.medium || mode == GeminiThinking.low ? maxOutputTokens * 4 : maxOutputTokens,
           timeout: timeout ?? requestTimeout(wav.length),
         );
       } on CleanupFailure catch (f) {
         final next = _nextThinking(mode, f);
         if (next == null) rethrow;
-        if (think && mode == GeminiThinking.low && !thinkRejected) {
+        // Medium refused: try low before giving up on thinking levels.
+        if (think && mode == GeminiThinking.medium && !thinkRejected) {
           thinkRejected = true;
           continue;
         }

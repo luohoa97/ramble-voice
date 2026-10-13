@@ -86,7 +86,7 @@ Future<void> imeMain() async {
       dictationOriginProvider.overrideWith(_KeyboardOrigin.new),
       outcomeHookProvider.overrideWith((ref) {
         return (outcome) async {
-          final result = await services.inserter.insert(outcome.text);
+          final result = await services.inserter.insert(outcome.insertText);
           ref.read(lastInsertProvider.notifier).set(result);
           if (result.method == InsertMethod.typed) {
             ref

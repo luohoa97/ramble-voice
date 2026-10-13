@@ -196,10 +196,13 @@ class CleanupPipeline {
         contextAfter: lastChunk ? contextAfter : null,
       )));
     }
-    final text = TextStitcher.join(parts);
-    if (text.isEmpty) {
+    final joined = TextStitcher.join(parts);
+    if (joined.isEmpty) {
       throw const CleanupFailure(CleanupFailureKind.emptyResult, 'No speech was recognised.');
     }
+    // A leading line break means "start on a new line" in the field; keep it.
+    final lead = parts.isEmpty ? '' : RegExp(r'^\n+').firstMatch(parts.first)?.group(0) ?? '';
+    final text = '$lead$joined';
     return PipelineResult(text: text, engine: engine.kind, chunks: spans.length);
   }
 }

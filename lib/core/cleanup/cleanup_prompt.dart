@@ -93,7 +93,7 @@ abstract final class CleanupPrompt {
       'The speech "yeah yeah yeah if you use one of these scam courses you\'ll get scammed so yeah have fun" becomes '
       '"“Yeah, yeah, yeah.” If you use one of these scam courses, you\'ll get scammed. Have fun." (the mocking echo is quoted) '
       'The speech "shopping list one get potatoes two asparagus three uh milk" becomes '
-      '"Shopping list:\\n1. Get potatoes\\n2. Asparagus\\n3. Milk"';
+      '"Shopping list:\n1. Get potatoes\n2. Asparagus\n3. Milk"';
 
   /// Used for "show original": a faithful transcript, same safety rule.
   static const String verbatimTemplate =
@@ -122,7 +122,18 @@ abstract final class CleanupPrompt {
       'natural continuation: continue mid-sentence in lowercase when the cursor is mid-sentence, start a new '
       'sentence when the previous one ended, add a leading space only if the text before the cursor does not end '
       "with whitespace or an opening bracket or quote, do not duplicate punctuation, and match the field's "
-      'language and tone.';
+      'language and tone. '
+      'Continue the formatting the field already uses. When the line the cursor is on, or the line just before '
+      'it, is a list item (it starts with a marker such as "- ", "* ", "• ", "1. ", "a) " or "- [ ] "), the '
+      'dictation is more of that list: write each new item on its own line starting with the same marker '
+      '(numbers counting on from the last one, unchecked boxes for tasks) and the same indentation, starting '
+      'with a line break when the cursor is at the end of a filled item, and without a marker when the cursor '
+      'sits right after an empty marker. Only leave the list when the speaker clearly moves on (for example '
+      '"new paragraph" or a different topic). Likewise match Markdown headings, tables, and checklists that are '
+      'already in the field. Before writing, think about where the cursor is and what the speaker means: more '
+      'items for the list, a continuation of the sentence, or a new paragraph that clearly does not belong in '
+      'the list. When the new text belongs on a new line or in a new paragraph, begin your output with that '
+      'line break or blank line.';
 
   /// Added for [Polish.full], before the final sentence.
   static const String polishFull =
@@ -256,9 +267,14 @@ abstract final class CleanupPrompt {
   static String _head(String s, int n) => s.length <= n ? s : s.substring(0, n);
 
   /// Tidies the model output for [request]'s mode.
-  static String tidyFor(CleanupRequest request, String raw) => request.mode == CleanupMode.edit
-      ? tidyEditOutput(raw)
-      : NativeScript.apply(tidyOutput(raw), request.style.languages);
+  static String tidyFor(CleanupRequest request, String raw) {
+    if (request.mode == CleanupMode.edit) return tidyEditOutput(raw);
+    final text = NativeScript.apply(tidyOutput(raw), request.style.languages);
+    // With field context a leading line break is the model's decision to
+    // start a new line or paragraph: keep it (at most a blank line).
+    final lead = request.hasContext && text.isNotEmpty ? RegExp(r'^[ \t]*(\n+)').firstMatch(raw)?.group(1) ?? '' : '';
+    return '${lead.length > 2 ? '\n\n' : lead}$text';
+  }
 
   /// Normalises edit output: removes a `<text>` wrapper the model may echo,
   /// then the usual quote/fence tidying, then restores escaped tags.

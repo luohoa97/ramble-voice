@@ -132,7 +132,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         // Our own keyboard is up: it has its own mic, so the bubble steps aside.
         // The flag can go stale if the keyboard is torn down without a hide
         // callback, so only trust it while Ramble is the current keyboard.
-        if (ImeLaunch.imeShowing && defaultKeyboardPackage() == packageName) {
+        val ownKeyboard = defaultKeyboardPackage() == packageName
+        if (ownKeyboard && (ImeLaunch.imeShowing || keyboardVisible()) && !sessionActive()) {
+            // Also when the flag missed a show (a note app's format panel
+            // re-showing the keyboard without a new input view).
+            noteDecision(null, "hide: Ramble keyboard is up")
             removeBubble()
             return
         }
@@ -198,9 +202,11 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     private var lastNote = ""
 
     /** One line per change in the bubble's decision, to the local crash log. */
-    private fun noteDecision(candidate: AccessibilityNodeInfo?) {
+    private fun noteDecision(candidate: AccessibilityNodeInfo?, reason: String? = null) {
         val ime = (imeHeight(windows) / density).toInt()
-        val note = if (candidate != null) {
+        val note = if (reason != null) {
+            reason
+        } else if (candidate != null) {
             "show for ${candidate.packageName} (keyboard ${ime}dp)"
         } else if (ime < MIN_IME_HEIGHT_DP) {
             "hide: no keyboard (${ime}dp)"

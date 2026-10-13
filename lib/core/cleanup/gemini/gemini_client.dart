@@ -83,6 +83,7 @@ class GeminiClient {
       () => _http.post(uri, headers: _headers(apiKey), body: jsonEncode(body)), timeout: timeout,
     );
     final usage = json['usageMetadata'];
+    lastModel = model;
     if (usage is Map) {
       lastUsage = (
         prompt: (usage['promptTokenCount'] as num?)?.toInt() ?? 0,
@@ -95,6 +96,9 @@ class GeminiClient {
   /// Token counts of the last answer: how much of the prompt was read from
   /// Gemini's prompt cache (shown by the end-to-end test hook).
   static ({int prompt, int cached})? lastUsage;
+
+  /// The model that gave the last answer.
+  static String? lastModel;
 
   static String extractText(Map<String, Object?> json) {
     final feedback = json['promptFeedback'] as Map<String, Object?>?;

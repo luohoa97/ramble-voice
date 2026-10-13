@@ -13,6 +13,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/diagnostics/usage_log.dart';
 import '../core/cleanup/cleanup_engine.dart';
 import '../core/cleanup/cleanup_pipeline.dart';
 import '../core/cleanup/gemini/gemini_client.dart';
@@ -40,6 +41,7 @@ class AppPaths {
   final Directory support;
 
   File get settingsFile => File(p.join(support.path, 'settings.json'));
+  File get usageLogFile => File(p.join(support.path, 'usage.jsonl'));
   File get historyDbFile => File(p.join(support.path, 'history.sqlite'));
   Directory get recordings => Directory(p.join(support.path, 'recordings'));
   Directory get models => Directory(p.join(support.path, 'models'));
@@ -56,9 +58,16 @@ class SettingsNotifier extends Notifier<AppSettings> {
   @override
   AppSettings build() => ref.watch(initialSettingsProvider);
 
-  Future<void> update(AppSettings Function(AppSettings) change) async {
+  /// Saves run one after another in call order, so the file always ends up
+  /// with the latest state (two overlapping saves could otherwise land in the
+  /// wrong order and undo a change, e.g. finishing setup).
+  Future<void> _saving = Future<void>.value();
+
+  Future<void> update(AppSettings Function(AppSettings) change) {
     state = change(state);
-    await ref.read(settingsStoreProvider).save(state);
+    final snapshot = state;
+    final store = ref.read(settingsStoreProvider);
+    return _saving = _saving.then((_) => store.save(snapshot), onError: (_) => store.save(snapshot));
   }
 }
 
@@ -197,6 +206,14 @@ final outcomeHookProvider = Provider<Future<void> Function(DictationOutcome)?>((
 /// there is no cursor to read (overridden by the keyboard entrypoint).
 final fieldContextReaderProvider = Provider<Future<FieldContext?> Function({bool screen})?>((ref) => null);
 
+/// The on-device usage log (see [UsageLog]).
+final usageLogProvider = Provider<UsageLog>((ref) => UsageLog(ref.watch(appPathsProvider).usageLogFile));
+
+Future<void> _logUsage(Ref ref, String type, Map<String, Object?> fields) async {
+  if (!ref.read(settingsProvider).usageLog) return;
+  await ref.read(usageLogProvider).record(type, fields);
+}
+
 final dictationControllerProvider = Provider<DictationController>((ref) {
   final services = ref.watch(platformServicesProvider);
   final controller = DictationController(
@@ -224,6 +241,22 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
             fellBack: Value(outcome.fellBack),
             stylePreset: Value(ref.read(effectiveStyleProvider).preset.name),
           ));
+      final usage = outcome.engine == EngineKind.gemini ? GeminiClient.lastUsage : null;
+      unawaited(_logUsage(ref, 'dictation', {
+        'origin': ref.read(dictationOriginProvider).name,
+        'app': ref.read(currentPackageProvider),
+        'engine': outcome.engine.name,
+        if (outcome.engine == EngineKind.gemini) 'model': GeminiClient.lastModel,
+        if (outcome.engine == EngineKind.onDevice) 'model': s.gemmaVariantId,
+        'audioMs': outcome.duration.inMilliseconds,
+        'latencyMs': DateTime.now().difference(outcome.createdAt.add(outcome.duration)).inMilliseconds,
+        'chars': outcome.text.length,
+        'style': ref.read(effectiveStyleProvider).preset.name,
+        'polish': s.style.polish.name,
+        if (outcome.fellBack) 'fallbackReason': outcome.fallbackReason?.kind.name,
+        if (usage != null) 'promptTokens': usage.prompt,
+        if (usage != null) 'cachedTokens': usage.cached,
+      }));
       final hook = ref.read(outcomeHookProvider);
       if (hook != null) await hook(outcome);
       if (ref.read(dictationOriginProvider) == DictationOrigin.hotkey) {
@@ -253,6 +286,12 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
   final failures = controller.states.listen((s) {
     if (s is DictationFailed) {
       appErrorLog?.call('dictation failed (${s.kind?.name ?? s.audioError?.name})', s.message, null);
+      unawaited(_logUsage(ref, 'failure', {
+        'origin': ref.read(dictationOriginProvider).name,
+        'app': ref.read(currentPackageProvider),
+        'kind': s.kind?.name ?? s.audioError?.name,
+        'message': s.message,
+      }));
     }
   });
   ref.onDispose(failures.cancel);

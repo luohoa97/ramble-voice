@@ -42,3 +42,26 @@ and the app never executes commands.
 - Linux: portal prompts for global shortcuts and for input injection
   (RemoteDesktop). The Flatpak requests network, Wayland/X11, GPU, audio,
   the secret service and tray D-Bus names.
+
+## Usage log (on this device only)
+
+Ramble keeps a small usage log in its private folder: for each dictation, the
+engine and model, how long the recording and the cleanup took, the tone, any
+fallback or failure, and Gemini prompt-cache token counts. It never contains
+what you said. It is not sent anywhere. Settings > Privacy can turn it off,
+share it (for a bug report or to help improve Ramble), and "Delete all
+history" clears it.
+
+## Diagnostics over adb (off by default)
+
+For testing on your own phone, Settings > Privacy > Diagnostics over adb lets
+a computer you connected with USB or wireless debugging read your dictation
+history through Ramble's test hook. The hook only answers the adb shell
+(it requires a system permission ordinary apps cannot hold).
+
+## Conversation context (off by default)
+
+When turned on, the floating mic's accessibility service reads the text shown
+in the app you are dictating into (for example the messages you are replying
+to) at the moment you start a dictation, and sends it with the recording. In
+Gemini mode that text goes to Google. Nothing is stored.

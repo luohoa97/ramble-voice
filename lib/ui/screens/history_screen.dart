@@ -24,6 +24,7 @@ IconData engineIcon(HistoryEntry e) => e.engine == EngineKind.gemini.name ? Icon
 /// Deletes every history row and every stored recording.
 Future<void> deleteEverything(WidgetRef ref) async {
   await ref.read(historyDbProvider).deleteAll();
+  await ref.read(usageLogProvider).clear();
   final dir = ref.read(appPathsProvider).recordings;
   try {
     if (await dir.exists()) await dir.delete(recursive: true);

@@ -146,6 +146,51 @@ class PrivacySection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: const EdgeInsets.only(left: 16, right: 8),
+          title: const Text('Usage log on this device'),
+          subtitle: const Text(
+            'Keeps a record of engines, models, timings and failures (never your words) to help fix problems. '
+            'It stays on this device unless you share it.',
+          ),
+          value: ref.watch(settingsProvider.select((s) => s.usageLog)),
+          onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(usageLog: v)),
+        ),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: const Icon(Icons.ios_share_rounded),
+          title: const Text('Share usage log'),
+          subtitle: const Text('Attach it to a bug report or contribution'),
+          onTap: () async {
+            final text = await ref.read(usageLogProvider).readAll();
+            if (text.isEmpty) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The usage log is empty')));
+              }
+              return;
+            }
+            final share = ref.read(platformServicesProvider).share;
+            if (share != null) {
+              await share(text);
+            } else {
+              await ref.read(platformServicesProvider).inserter.copy(text);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usage log copied')));
+              }
+            }
+          },
+        ),
+        if (ref.watch(isAndroidProvider))
+          SwitchListTile(
+            contentPadding: const EdgeInsets.only(left: 16, right: 8),
+            title: const Text('Diagnostics over adb'),
+            subtitle: const Text(
+              'Lets a computer connected with USB or wireless debugging read your dictation history, to diagnose '
+              'problems on your own phone. Leave off unless you are testing.',
+            ),
+            value: ref.watch(settingsProvider.select((s) => s.adbDiagnostics)),
+            onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(adbDiagnostics: v)),
+          ),
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           leading: Icon(Icons.delete_outline_rounded, color: c.error),

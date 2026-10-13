@@ -47,6 +47,8 @@ class AppSettings {
     this.useContactNames = false,
     this.useFieldContext = true,
     this.screenContext = false,
+    this.usageLog = true,
+    this.adbDiagnostics = false,
     this.snippets = const [],
     this.appStyles = const {},
     this.completedSetup = const {},
@@ -109,6 +111,12 @@ class AppSettings {
   /// replied to) with each dictation. Off unless the user turns it on.
   final bool screenContext;
 
+  /// Keep the on-device usage log (engines, timings, failures; never text).
+  final bool usageLog;
+
+  /// Let the adb test tool read dictation history (for diagnosing on your own phone).
+  final bool adbDiagnostics;
+
   /// Spoken shortcuts expanded during cleanup.
   final List<Snippet> snippets;
 
@@ -160,6 +168,8 @@ class AppSettings {
     bool? useContactNames,
     bool? useFieldContext,
     bool? screenContext,
+    bool? usageLog,
+    bool? adbDiagnostics,
     List<Snippet>? snippets,
     Map<String, StylePreset>? appStyles,
     Set<String>? completedSetup,
@@ -189,6 +199,8 @@ class AppSettings {
         useContactNames: useContactNames ?? this.useContactNames,
         useFieldContext: useFieldContext ?? this.useFieldContext,
         screenContext: screenContext ?? this.screenContext,
+        usageLog: usageLog ?? this.usageLog,
+        adbDiagnostics: adbDiagnostics ?? this.adbDiagnostics,
         snippets: snippets ?? this.snippets,
         appStyles: appStyles ?? this.appStyles,
         completedSetup: completedSetup ?? this.completedSetup,
@@ -219,6 +231,8 @@ class AppSettings {
         'useContactNames': useContactNames,
         'useFieldContext': useFieldContext,
         'screenContext': screenContext,
+        'usageLog': usageLog,
+        'adbDiagnostics': adbDiagnostics,
         'snippets': [for (final s in snippets) s.toJson()],
         'appStyles': {for (final e in appStyles.entries) e.key: e.value.name},
         'completedSetup': completedSetup.toList()..sort(),
@@ -255,6 +269,8 @@ class AppSettings {
         useContactNames: j['useContactNames'] as bool? ?? false,
         useFieldContext: j['useFieldContext'] as bool? ?? true,
         screenContext: j['screenContext'] as bool? ?? false,
+        usageLog: j['usageLog'] as bool? ?? true,
+        adbDiagnostics: j['adbDiagnostics'] as bool? ?? false,
         snippets: [
           for (final e in j['snippets'] is List ? j['snippets'] as List : const [])
             if (e is Map) Snippet.fromJson(e.cast<String, Object?>()),
@@ -311,9 +327,13 @@ class SettingsStore {
     }
   }
 
+  static var _seq = 0;
+
   Future<void> save(AppSettings s) async {
     await file.parent.create(recursive: true);
-    final tmp = File('${file.path}.tmp');
+    // A temp file of its own: the app, keyboard and floating mic engines may
+    // save at the same moment, and must never write into each other's file.
+    final tmp = File('${file.path}.${pid}_${DateTime.now().microsecondsSinceEpoch}_${_seq++}.tmp');
     await tmp.writeAsString(const JsonEncoder.withIndent('  ').convert(s.toJson()), flush: true);
     await tmp.rename(file.path);
   }

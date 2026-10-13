@@ -95,6 +95,33 @@ class E2eHook {
       case 'screen':
         // What conversation context would send (the setting is not checked here).
         return {'screen': await bridge.getScreenContext(1500)};
+      case 'errors':
+        // The app's own error log (crash reports and failures, not dictation).
+        final log = File('${container.read(appPathsProvider).support.path}/logs/dart.log');
+        final text = await log.exists() ? await log.readAsString() : '';
+        return {'errors': text.length > 6000 ? text.substring(text.length - 6000) : text};
+      case 'usage':
+        return {'usage': await container.read(usageLogProvider).recent(int.tryParse(arg ?? '') ?? 30)};
+      case 'history':
+        // Dictated text: only when the owner turned on adb diagnostics.
+        if (!container.read(settingsProvider).adbDiagnostics) {
+          throw StateError('Turn on Settings > Privacy > Diagnostics over adb first');
+        }
+        final entries = await container.read(historyDbProvider).watch().first;
+        return {
+          'history': [
+            for (final e in entries.take(int.tryParse(arg ?? '') ?? 20))
+              {
+                'at': e.createdAt.toIso8601String(),
+                'ms': e.durationMs,
+                'engine': e.engine,
+                'fellBack': e.fellBack,
+                'style': e.stylePreset,
+                'text': e.cleaned,
+                if (e.verbatim != null) 'original': e.verbatim,
+              },
+          ],
+        };
       case 'insert':
         // The same insert path a finished dictation takes.
         final r = await container.read(platformServicesProvider).inserter.insert(arg ?? '');

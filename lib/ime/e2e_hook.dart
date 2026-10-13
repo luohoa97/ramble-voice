@@ -31,6 +31,7 @@ class E2eHook {
   /// Recent dictation states, oldest first, for the test to inspect.
   final _trail = <String>[];
   String? _lastText;
+  String? _lastEngine;
   double _peakLevel = 0;
 
   void attach() {
@@ -42,7 +43,10 @@ class E2eHook {
         if (_trail.length > 20) _trail.removeAt(0);
       }
       if (s is DictationListening && s.level > _peakLevel) _peakLevel = s.level;
-      if (s is DictationDone) _lastText = s.outcome.text;
+      if (s is DictationDone) {
+        _lastText = s.outcome.text;
+        _lastEngine = '${s.outcome.engine.name}${s.outcome.fellBack ? ' (fallback: ${s.outcome.fallbackReason?.message})' : ''}';
+      }
     });
   }
 
@@ -125,6 +129,7 @@ class E2eHook {
       'trail': _trail,
       'peakLevel': _peakLevel,
       'lastText': _lastText,
+      'lastEngine': _lastEngine,
       'edit': e.phase.name,
       if (e.message != null) 'editMessage': e.message,
       'field': {

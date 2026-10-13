@@ -151,6 +151,19 @@ abstract final class CleanupPrompt {
       'the list. When the new text belongs on a new line or in a new paragraph, begin your output with that '
       'line break or blank line.';
 
+  /// Added for a later part of a long recording that was split in pieces.
+  static String partRule(CleanupRequest request) {
+    final repeated = request.repeated.inMilliseconds / 1000;
+    return 'This audio is part ${request.part} of one long recording that was split only because of its length. '
+        'The text written for the earlier parts is the end of the <before> text: continue it seamlessly, as if '
+        'there had been no split, in the same sentence, grammar, capitalization, list, language and style. Do not '
+        'start a new sentence or paragraph, capitalize, or add a greeting unless the speech itself does.'
+        '${repeated > 0 ? ' The first ${repeated.toStringAsFixed(1)} seconds of this audio repeat the end of the '
+            'previous part, where the split cut through a word; the words heard there may be missing from the end '
+            'of <before>. Write every word that comes after the end of <before>, including those, and never repeat '
+            'words that <before> already ends with.' : ''}';
+  }
+
   /// Added for [Polish.full], before the final sentence.
   static const String polishFull =
       'Polish fully: rewrite freely so the result reads as clear, natural, well-written text. Fix grammar, '
@@ -158,8 +171,9 @@ abstract final class CleanupPrompt {
       'whenever that reads better; never leave a sentence awkward just because that is how it was said. '
       "Keep the speaker's meaning, every fact and name, and their voice.";
 
-  static String build(StyleProfile profile, {bool withContext = false}) {
+  static String build(StyleProfile profile, {bool withContext = false, String? part}) {
     final extras = [
+      ?part,
       if (profile.polish == Polish.full) polishFull,
       if (withContext) contextRule,
       profile.describeLanguage(),
@@ -258,7 +272,11 @@ abstract final class CleanupPrompt {
   /// The system prompt for [request], by mode. Engines use this so a mode can
   /// never get another mode's prompt.
   static String systemFor(CleanupRequest request) => switch (request.mode) {
-        CleanupMode.clean => build(request.style, withContext: request.hasContext),
+        CleanupMode.clean => build(
+            request.style,
+            withContext: request.hasContext,
+            part: request.part == null ? null : partRule(request),
+          ),
         CleanupMode.verbatim => buildVerbatim(request.style),
         CleanupMode.edit => buildEdit(request.style, withContext: request.hasContext),
       };

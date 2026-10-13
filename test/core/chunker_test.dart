@@ -80,17 +80,40 @@ void main() {
       for (final s in spans) {
         expect(s.duration, lessThanOrEqualTo(chunker.maxChunk));
       }
-      expect(spans.fold<int>(0, (a, s) => a + s.length), pcm.length);
+      expect(spans.fold<int>(0, (a, s) => a + s.length - s.overlap), pcm.length);
     });
 
     test('works with a tiny limit', () {
       final small = SilenceChunker(maxChunk: Duration(seconds: 4), searchWindow: Duration(seconds: 1));
       final pcm = _speech(seconds: 30, talk: 2, gapSeconds: 0.5);
       final spans = small.plan(pcm);
-      expect(spans.fold<int>(0, (a, s) => a + s.length), pcm.length);
+      expect(spans.fold<int>(0, (a, s) => a + s.length - s.overlap), pcm.length);
       for (final s in spans) {
         expect(s.duration, lessThanOrEqualTo(small.maxChunk));
       }
+    });
+
+    test('a cut inside speech makes the next chunk repeat its end; a pause does not', () {
+      final chunker = SilenceChunker(maxChunk: Duration(seconds: 10), searchWindow: Duration(seconds: 3));
+      // Continuous speech: no pause to cut at.
+      final talk = tonePcm(const Duration(seconds: 25));
+      final hard = chunker.plan(talk);
+      expect(hard.first.overlap, 0);
+      // About two seconds, whole 30 ms frames.
+      expect(Pcm.durationOf(hard[1].overlap).inMilliseconds, closeTo(2000, 30));
+      expect(hard[1].start, hard[0].end - hard[1].overlap);
+      expect(hard.fold<int>(0, (a, s) => a + s.length - s.overlap), talk.length);
+      // Speech with pauses: clean cuts, no overlap.
+      final paused = chunker.plan(_speech(seconds: 25, talk: 2, gapSeconds: 0.5));
+      expect(paused.every((s) => s.overlap == 0), isTrue);
+    });
+
+    test('TextStitcher.dropRepeatedHead removes words heard twice', () {
+      expect(TextStitcher.dropRepeatedHead('We should meet on', 'meet on Tuesday at three.'), 'Tuesday at three.');
+      expect(TextStitcher.dropRepeatedHead('We should meet on', 'Meet, on Tuesday.'), 'Tuesday.');
+      expect(TextStitcher.dropRepeatedHead('We should meet', 'on Tuesday.'), 'on Tuesday.');
+      expect(TextStitcher.dropLastWord('We should mee'), 'We should');
+      expect(TextStitcher.dropLastWord('Word'), '');
     });
 
     test('AudioSpan equality and duration', () {

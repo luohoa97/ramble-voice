@@ -34,6 +34,8 @@ class CleanupRequest {
     this.sourceText,
     this.contextBefore,
     this.contextAfter,
+    this.part,
+    this.repeated = Duration.zero,
   }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
 
 
@@ -52,6 +54,15 @@ class CleanupRequest {
 
   /// Text after the cursor (at most [contextAfterLimit] characters).
   final String? contextAfter;
+
+  /// 2-based index when this audio is a later part of one long recording
+  /// that was split for the engine; null for a whole recording or the first
+  /// part. The text written for the earlier parts ends [contextBefore].
+  final int? part;
+
+  /// How much audio at the start repeats the end of the previous part
+  /// (the cut fell inside speech).
+  final Duration repeated;
 
   static const contextBeforeLimit = 500;
   static const contextAfterLimit = 100;

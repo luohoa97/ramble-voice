@@ -184,17 +184,27 @@ class CleanupPipeline {
         fellBack: fellBack,
       ));
       final span = spans[i];
+      final lastChunk = i == spans.length - 1;
+      // When the cut fell inside speech, the last word written may be a
+      // fragment: it is dropped and heard again in this chunk's overlap.
+      if (span.overlap > 0 && parts.isNotEmpty) {
+        parts[parts.length - 1] = TextStitcher.dropLastWord(parts.last);
+      }
       // The first chunk continues the field's text; each later chunk continues
       // what was just written, so the chunks stitch like one dictation.
-      final lastChunk = i == spans.length - 1;
       final before = i == 0 ? contextBefore : _continuation(contextBefore, parts);
-      parts.add(await engine.process(CleanupRequest(
+      var text = await engine.process(CleanupRequest(
         pcm: Uint8List.sublistView(pcm, span.start, span.end),
         style: style,
         mode: mode,
         contextBefore: before,
         contextAfter: lastChunk ? contextAfter : null,
-      )));
+        part: i == 0 ? null : i + 1,
+        repeated: Pcm.durationOf(span.overlap),
+      ));
+      // Words of the overlap the model wrote again.
+      if (span.overlap > 0 && parts.isNotEmpty) text = TextStitcher.dropRepeatedHead(TextStitcher.join(parts), text);
+      parts.add(text);
     }
     final joined = TextStitcher.join(parts);
     if (joined.isEmpty) {

@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../../core/models/model_catalog.dart';
+
 import '../platform_services.dart';
 
 /// `ramble/system`: share sheet, accent colour, haptics and keyboard settings.
@@ -126,6 +128,36 @@ extension BubbleSystem on AndroidSystem {
 
   /// Lets the floating mic show inside Ramble itself (the setup "Try it" box).
   Future<void> allowBubbleInApp(bool allow) => _call('allowBubbleInApp', allow);
+
+  /// Chip, memory and NPU support (see [DeviceInfo]); null when unknown.
+  Future<DeviceInfo?> deviceInfo() async {
+    try {
+      final m = await _channel.invokeMethod<Map<Object?, Object?>>('deviceInfo');
+      return m == null ? null : DeviceInfo.fromMap(m);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Downloads Qualcomm's NPU runtime (after the user accepted its licence).
+  /// Throws a [PlatformException] with the reason when it fails.
+  Future<void> installNpuRuntime({void Function(int bytes, int total)? onProgress}) async {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'npuProgress') {
+        final a = (call.arguments as Map).cast<String, Object?>();
+        onProgress?.call((a['bytes'] as num).toInt(), (a['total'] as num).toInt());
+      }
+    });
+    try {
+      await _channel.invokeMethod<bool>('npuInstall');
+    } finally {
+      _channel.setMethodCallHandler(null);
+    }
+  }
+
+  Future<void> removeNpuRuntime() => _call('npuRemove');
 
   /// `Build.VERSION.SDK_INT`, 0 when unknown.
   Future<int> sdkInt() async {

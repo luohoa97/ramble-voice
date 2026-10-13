@@ -86,8 +86,11 @@ void main() {
     await tester.pump();
     expect(find.text('Gemma 4 E4B'), findsOneWidget);
     expect(find.text('Gemma 4 E2B'), findsOneWidget);
+    // Desktops also get the 12B model (no NPU builds off Android).
+    expect(find.text('Gemma 4 12B'), findsOneWidget);
+    expect(find.text('Gemma 4 E2B · NPU'), findsNothing);
     expect(find.text('Recommended'), findsOneWidget);
-    expect(find.text('Download'), findsNWidgets(2));
+    expect(find.text('Download'), findsNWidgets(3));
   });
 
   testWidgets('downloading row offers pause and cancel when the downloader can pause', (tester) async {

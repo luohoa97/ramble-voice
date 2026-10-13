@@ -15,7 +15,10 @@ import '../cleanup_prompt.dart';
 /// One fresh session per request, so no audio or text carries over between
 /// dictations.
 class GemmaEngine implements CleanupEngine {
-  GemmaEngine({required this.variant, required this.modelPath, this.think = false});
+  GemmaEngine({required this.variant, required this.modelPath, this.think = false, this.npuReady});
+
+  /// Whether Qualcomm's NPU runtime is downloaded (NPU variants need it).
+  final Future<bool> Function()? npuReady;
 
   /// Gemma 4 reasons before answering (its thinking mode): better at intent,
   /// lists and quoting, slower. The reasoning is stripped from the result.
@@ -55,6 +58,12 @@ class GemmaEngine implements CleanupEngine {
         '${variant.label} is not downloaded yet. Download it in Settings.',
       );
     }
+    if (variant.usesNpu && !(await npuReady?.call() ?? false)) {
+      return const EngineNotReady(
+        CleanupFailureKind.modelNotDownloaded,
+        'The NPU model needs the Qualcomm NPU runtime. Download it in Settings.',
+      );
+    }
     return EngineReady(detail: activeBackend == null ? variant.label : '${variant.label} · $activeBackend');
   }
 
@@ -87,7 +96,7 @@ class GemmaEngine implements CleanupEngine {
       final model = await FlutterEdgeAi.getActiveModel(
         maxTokens: 4096,
         supportAudio: true,
-        preferredBackend: PreferredBackend.gpu,
+        preferredBackend: variant.usesNpu ? PreferredBackend.npu : PreferredBackend.gpu,
         // Gemma 4's audio encoder only runs on the CPU ("Audio backend
         // constraint mismatch. Model requires one of [cpu]"); asking for the
         // GPU failed engine creation on every backend.

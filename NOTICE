@@ -176,3 +176,16 @@ read the file in the package for the authoritative text.
 - xml 7.1.0: MIT
 - yaml 3.1.4: MIT
 - yaml_edit 2.2.4: BSD-3-Clause
+
+LiteRT Qualcomm dispatch library
+--------------------------------
+android/app/src/main/jniLibs/arm64-v8a/libLiteRtDispatch_Qualcomm.so is
+LiteRT's open-source Qualcomm NPU dispatch library (Google, Apache License
+2.0), as built for flutter_edge_ai_litertlm (LiteRT-LM native-v0.18.0-e).
+
+Qualcomm QNN runtime (not included)
+-----------------------------------
+Ramble Voice does not ship Qualcomm's QNN runtime. On a supported Snapdragon
+phone the user may choose to download com.qualcomm.qti:qnn-runtime:2.50.0
+from Maven Central, after accepting Qualcomm's AI Stack license, to run the
+NPU model. It is proprietary Qualcomm software and is not covered by the GPL.

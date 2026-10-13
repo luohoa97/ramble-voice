@@ -30,6 +30,7 @@ import '../core/settings/app_settings.dart';
 import '../core/style/app_styles.dart';
 import '../core/style/style_profile.dart';
 import '../core/style/contact_names.dart';
+import '../platform/android/android_system.dart';
 import '../platform/android/android_contact_names.dart';
 import '../platform/linux/contact_names.dart';
 import '../platform/platform_services.dart';
@@ -145,12 +146,27 @@ final geminiEngineProvider = Provider<GeminiEngine>((ref) {
   );
 });
 
+/// The phone's chip, memory and NPU support; null on desktops.
+final deviceInfoProvider = FutureProvider<DeviceInfo?>((ref) async {
+  if (!Platform.isAndroid) return null;
+  return AndroidSystem().deviceInfo();
+});
+
+/// On-device models this device can run (NPU builds only on their chip, big
+/// models only with enough memory).
+final availableVariantsProvider = Provider<List<GemmaVariant>>((ref) {
+  final device = ref.watch(deviceInfoProvider);
+  if (Platform.isAndroid && !device.hasValue) return [ModelCatalog.e4b, ModelCatalog.e2b];
+  return ModelCatalog.availableOn(device.value);
+});
+
 final gemmaEngineProvider = Provider<GemmaEngine>((ref) {
   final variant = ref.watch(settingsProvider.select((s) => s.gemmaVariant));
   final downloader = ref.watch(modelDownloaderProvider);
   final engine = GemmaEngine(
     variant: variant,
     think: ref.watch(settingsProvider.select((s) => s.thinking)),
+    npuReady: () async => (await AndroidSystem().deviceInfo())?.npuRuntime ?? false,
     modelPath: () async {
       final f = downloader.finalFile(variant);
       return await f.exists() && await f.length() == variant.sizeBytes ? f.path : null;

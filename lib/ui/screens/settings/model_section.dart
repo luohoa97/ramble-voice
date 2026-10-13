@@ -2,11 +2,14 @@
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/models/model_catalog.dart';
+import '../../../platform/android/android_system.dart';
+import '../onboarding/setup_status.dart';
 import '../../../core/models/model_downloader.dart';
 import '../../../core/models/model_downloads.dart';
 import '../../util/format.dart';
@@ -68,7 +71,8 @@ class ModelChoices extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final v in ModelCatalog.all) ModelRow(variant: v),
+        for (final v in ref.watch(availableVariantsProvider)) ModelRow(variant: v),
+        if (ref.watch(availableVariantsProvider).any((v) => v.usesNpu)) const NpuRuntimeTile(),
         if (showPath)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -256,6 +260,17 @@ class _ModelRowState extends ConsumerState<ModelRow> {
                               child: Text('Recommended', style: t.labelSmall?.copyWith(color: c.onPrimaryContainer)),
                             ),
                           ),
+                        if (v.experimental)
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: c.tertiaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              child: Text('Experimental', style: t.labelSmall?.copyWith(color: c.onTertiaryContainer)),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -302,3 +317,84 @@ class _ModelRowState extends ConsumerState<ModelRow> {
     );
   }
 }
+
+/// Qualcomm's NPU runtime for the NPU model: downloaded on request from
+/// Maven Central (never in the app), after accepting Qualcomm's licence.
+class NpuRuntimeTile extends ConsumerStatefulWidget {
+  const NpuRuntimeTile({super.key});
+
+  @override
+  ConsumerState<NpuRuntimeTile> createState() => _NpuRuntimeTileState();
+}
+
+class _NpuRuntimeTileState extends ConsumerState<NpuRuntimeTile> {
+  double? _progress;
+  String? _error;
+
+  Future<void> _install() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.memory_rounded),
+        title: const Text('Download the Qualcomm NPU runtime?'),
+        content: const Text(
+          "The NPU model runs on Qualcomm's QNN runtime (about 71 MB, version 2.50.0). It is proprietary software "
+          'from Qualcomm under its AI Stack license, not part of Ramble Voice: Ramble downloads it from Maven '
+          "Central, checks it, and keeps it on this device. By downloading it you accept Qualcomm's license.",
+        ),
+        actions: [
+          TextButton(onPressed: () => openUrl(npuRuntimeLicenseUrl), child: const Text('License')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Accept and download')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      _progress = 0;
+      _error = null;
+    });
+    try {
+      await ref.read(androidSystemProvider).installNpuRuntime(onProgress: (got, total) {
+        if (mounted && total > 0) setState(() => _progress = got / total);
+      });
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = e is PlatformException ? (e.message ?? e.code) : '$e');
+    }
+    if (mounted) setState(() => _progress = null);
+    ref.invalidate(deviceInfoProvider);
+    ref.invalidate(activeEngineReadinessProvider);
+  }
+
+  Future<void> _remove() async {
+    await ref.read(androidSystemProvider).removeNpuRuntime();
+    ref.invalidate(deviceInfoProvider);
+    ref.invalidate(activeEngineReadinessProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final installed = ref.watch(deviceInfoProvider).value?.npuRuntime ?? false;
+    final busy = _progress != null;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: const Icon(Icons.memory_rounded),
+      title: const Text('Qualcomm NPU runtime'),
+      subtitle: Text(
+        _error ??
+            (busy
+                ? 'Downloading ${(_progress! * 100).round()}%'
+                : installed
+                    ? 'Installed. The NPU model can run.'
+                    : 'Needed by the NPU model. About 71 MB, from Qualcomm.'),
+      ),
+      trailing: busy
+          ? SizedBox.square(dimension: 24, child: CircularProgressIndicator(value: _progress == 0 ? null : _progress))
+          : installed
+              ? TextButton(onPressed: _remove, child: const Text('Remove'))
+              : FilledButton.tonal(onPressed: _install, child: const Text('Download')),
+    );
+  }
+}
+
+const npuRuntimeLicenseUrl = 'https://central.sonatype.com/artifact/com.qualcomm.qti/qnn-runtime/2.50.0';

@@ -8,7 +8,6 @@ import 'package:material_ui/material_ui.dart';
 import '../app/providers.dart';
 import '../core/cleanup/cleanup_engine.dart';
 import '../core/cleanup/gemini/gemini_models.dart';
-import '../core/models/model_catalog.dart';
 import '../core/models/model_downloader.dart';
 import '../core/settings/app_settings.dart';
 import '../ui/screens/settings/gemini_section.dart';
@@ -68,7 +67,7 @@ class _ModelPanelState extends ConsumerState<ModelPanel> {
 
   Future<void> _refreshDownloads() async {
     final downloads = ref.read(modelDownloaderProvider);
-    for (final v in ModelCatalog.all) {
+    for (final v in ref.read(availableVariantsProvider)) {
       await downloads.refresh(v);
     }
     if (mounted) setState(() {});
@@ -122,7 +121,7 @@ class _ModelPanelState extends ConsumerState<ModelPanel> {
 
     final rows = <Widget>[
       header('On-device'),
-      for (final v in ModelCatalog.all)
+      for (final v in ref.watch(availableVariantsProvider))
         row(
           'gemma:${v.id}',
           v.label,

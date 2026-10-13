@@ -14,7 +14,18 @@ class GemmaVariant {
     required this.sha256,
     required this.recommendedRamGb,
     required this.summary,
+    this.npuSoc,
+    this.experimental = false,
   });
+
+  /// Set for a build compiled for one chip's NPU (Qualcomm `SM8750`, ...):
+  /// offered only on that chip, and run on its NPU with Qualcomm's runtime.
+  final String? npuSoc;
+
+  /// Works, but not verified on a phone by us: shown with a label.
+  final bool experimental;
+
+  bool get usesNpu => npuSoc != null;
 
   final String id;
   final String label;
@@ -36,6 +47,31 @@ class GemmaVariant {
   Uri get modelCardUrl => Uri.parse('https://huggingface.co/$repo');
 
   String get sizeLabel => '${(sizeBytes / 1e9).toStringAsFixed(1)} GB';
+}
+
+/// What the phone offers for on-device models (Android; null on desktops).
+class DeviceInfo {
+  const DeviceInfo({this.soc, this.ramBytes = 0, this.fastRpc = false, this.npuRuntime = false});
+
+  factory DeviceInfo.fromMap(Map<Object?, Object?> m) => DeviceInfo(
+        soc: m['soc'] as String?,
+        ramBytes: (m['ramBytes'] as num?)?.toInt() ?? 0,
+        fastRpc: m['fastRpc'] as bool? ?? false,
+        npuRuntime: m['npuRuntime'] as bool? ?? false,
+      );
+
+  /// `Build.SOC_MODEL`, e.g. `SM8650`.
+  final String? soc;
+  final int ramBytes;
+
+  /// Qualcomm's NPU driver is present.
+  final bool fastRpc;
+
+  /// Qualcomm's QNN runtime has been downloaded.
+  final bool npuRuntime;
+
+  /// Total memory in GB, rounded (a "12 GB" phone reports a little less).
+  int get ramGb => (ramBytes / (1 << 30)).round();
 }
 
 abstract final class ModelCatalog {
@@ -61,7 +97,48 @@ abstract final class ModelCatalog {
     summary: 'Lighter and faster. For devices with less memory.',
   );
 
-  static const all = [e4b, e2b];
+  /// The 12B model: much more capable, text, vision and audio. Google lists
+  /// it for desktops (about 7.8 GB of GPU memory); phones need 12 GB+ RAM.
+  static const e12b = GemmaVariant(
+    id: 'gemma-4-12b',
+    label: 'Gemma 4 12B',
+    repo: 'litert-community/gemma-4-12B-it-litert-lm',
+    file: 'gemma-4-12B-it.litertlm',
+    sizeBytes: 6883278368,
+    sha256: '58fd31b778ca2c21c80d634fb34fc5a89d11d563a38dfd3cbf1b40dbf252a8b6',
+    recommendedRamGb: 12,
+    summary: 'Most accurate. For desktops and phones with 12 GB of memory or more.',
+    experimental: true,
+  );
+
+  /// E2B compiled for the Snapdragon 8 Elite (SM8750) NPU.
+  static const e2bNpuSm8750 = GemmaVariant(
+    id: 'gemma-4-e2b-npu-sm8750',
+    label: 'Gemma 4 E2B · NPU',
+    repo: 'litert-community/gemma-4-E2B-it-litert-lm',
+    file: 'gemma-4-E2B-it_qualcomm_sm8750.litertlm',
+    sizeBytes: 3016294400,
+    sha256: '41dd675fbe735b6029012b5576a5716bac614fd8156de0128db4c9dff3cebd4e',
+    recommendedRamGb: 6,
+    summary: 'Runs on the Snapdragon 8 Elite NPU: fast and cool. Needs the Qualcomm runtime.',
+    npuSoc: 'SM8750',
+    experimental: true,
+  );
+
+  static const all = [e4b, e2b, e12b, e2bNpuSm8750];
+
+  /// The variants this device can run: NPU builds only on their chip (with
+  /// Qualcomm FastRPC), big models only with enough memory. Desktops (no
+  /// [device]) get every non-NPU variant.
+  static List<GemmaVariant> availableOn(DeviceInfo? device) => [
+        for (final v in all)
+          if (device == null
+              ? !v.usesNpu
+              : v.usesNpu
+                  ? device.fastRpc && device.soc?.toUpperCase() == v.npuSoc
+                  : device.ramGb >= (v.recommendedRamGb >= 12 ? v.recommendedRamGb - 1 : 0))
+            v,
+      ];
   static const defaultVariant = e4b;
 
   static GemmaVariant? byId(String? id) {

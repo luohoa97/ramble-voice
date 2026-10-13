@@ -128,6 +128,29 @@ class SystemHandler(
                 }
             }
             "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+            "deviceInfo" -> result.success(NpuRuntime.deviceInfo(context))
+            "npuInstall" -> {
+                val main = android.os.Handler(android.os.Looper.getMainLooper())
+                Thread {
+                    var last = 0L
+                    try {
+                        NpuRuntime.install(context) { got, total ->
+                            val now = android.os.SystemClock.uptimeMillis()
+                            if (now - last > 250) {
+                                last = now
+                                main.post { channel.invokeMethod("npuProgress", mapOf("bytes" to got, "total" to total)) }
+                            }
+                        }
+                        main.post { result.success(true) }
+                    } catch (e: Exception) {
+                        main.post { result.error("NPU_INSTALL", e.message ?: e.toString(), null) }
+                    }
+                }.start()
+            }
+            "npuRemove" -> {
+                NpuRuntime.remove(context)
+                result.success(null)
+            }
             "allowBubbleInApp" -> {
                 ImeLaunch.allowInOwnApp = call.arguments as? Boolean ?: false
                 ImeLaunch.onImeShowingChanged?.invoke()

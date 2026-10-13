@@ -42,7 +42,7 @@ class RambleApplication : Application() {
         val options = FlutterEngineGroup.Options(context)
             .setDartEntrypoint(DartExecutor.DartEntrypoint(appBundlePath(), "main"))
         if (initialRoute != null) options.setInitialRoute(initialRoute)
-        return group.createAndRunEngine(options)
+        return group.createAndRunEngine(options).also { NpuRuntime.attach(context, it) }
     }
 
     /** Engine running `imeMain()` from lib/main_ime.dart, for [RambleImeService]. */
@@ -52,7 +52,7 @@ class RambleApplication : Application() {
             .setDartEntrypoint(
                 DartExecutor.DartEntrypoint(bundle, IME_LIBRARY, IME_ENTRYPOINT),
             )
-        return group.createAndRunEngine(options)
+        return group.createAndRunEngine(options).also { NpuRuntime.attach(context, it) }
     }
 
     /** Headless engine running `bubbleMain()` from lib/main_bubble.dart, for the floating mic. */
@@ -62,7 +62,7 @@ class RambleApplication : Application() {
             .setDartEntrypoint(
                 DartExecutor.DartEntrypoint(bundle, BUBBLE_LIBRARY, BUBBLE_ENTRYPOINT),
             )
-        return group.createAndRunEngine(options)
+        return group.createAndRunEngine(options).also { NpuRuntime.attach(context, it) }
     }
 
     companion object {

@@ -108,6 +108,22 @@ def ui_fields():
     return fields
 
 
+def tap_text(text, exact=False):
+    """Taps the first on-screen element whose text or description matches."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ramble_ui.xml", check=False, timeout=30)
+    xml = adb("shell", "cat", "/sdcard/ramble_ui.xml", check=False)
+    adb("shell", "rm", "-f", "/sdcard/ramble_ui.xml", check=False)
+    for node in re.finditer(r"<node [^>]*>", xml):
+        attr = dict(re.findall(r'(\w[\w-]*)="([^"]*)"', node.group(0)))
+        label = (attr.get("text") or "") + "\n" + (attr.get("content-desc") or "")
+        hit = any(part.strip() == text for part in label.split("\n")) if exact else text.lower() in label.lower()
+        if hit:
+            x1, y1, x2, y2 = map(int, re.findall(r"\d+", attr["bounds"]))
+            adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+            return {"tapped": label.strip(), "at": [(x1 + x2) // 2, (y1 + y2) // 2]}
+    return {"error": f"nothing on screen matches {text!r}"}
+
+
 def logs(which="dart", lines=60):
     name = {"dart": "dart.log", "native": "native.log"}.get(which, "dart.log")
     out = adb("shell", "tail", "-n", str(int(lines)), f"{FILES}/logs/{name}", check=False)
@@ -151,6 +167,13 @@ TOOLS = {
         "schema": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}},
                    "required": ["x", "y"]},
         "run": lambda a: adb("shell", "input", "tap", str(a["x"]), str(a["y"])) or "ok",
+    },
+    "tap_text": {
+        "description": "Tap the first on-screen element whose text or accessibility label contains `text` "
+                       "(exact=true: a whole line must equal it).",
+        "schema": {"type": "object", "properties": {"text": {"type": "string"}, "exact": {"type": "boolean"}},
+                   "required": ["text"]},
+        "run": lambda a: tap_text(a["text"], a.get("exact", False)),
     },
     "launch": {
         "description": "Open an app by package name.",
@@ -218,6 +241,8 @@ def cli(argv):
         print(json.dumps(play_wav(rest[0], edit="--edit" in rest), ensure_ascii=False, indent=1))
     elif name in ("fields", "wait_done"):
         print(json.dumps(TOOLS[name]["run"]({}), ensure_ascii=False, indent=1))
+    elif name == "tap_text":
+        print(json.dumps(tap_text(rest[0], exact="--exact" in rest), ensure_ascii=False))
     elif name == "logs":
         print(logs(*(rest[:1] or ["dart"]), *(rest[1:2] or [60])))
     else:

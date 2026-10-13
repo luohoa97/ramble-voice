@@ -38,21 +38,29 @@ GoRouter buildRouter({required ValueListenable<bool> onboarded}) {
             path: '/history',
             pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const HistoryRoutePage()),
           ),
+          // Category pages are siblings of the list, not stacked on it: one
+          // settings page at a time, Back returns to the list.
           GoRoute(
             path: '/settings',
             pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen()),
-            routes: [
-              // Deep link target of the keyboard's "Download a model".
-              GoRoute(
-                path: 'models',
-                pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen(anchor: 'engine')),
-              ),
-              // Deep link target of the keyboard's style edit button.
-              GoRoute(
-                path: 'style',
-                pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen(anchor: 'style')),
-              ),
-            ],
+          ),
+          // Deep link targets of the keyboard ("Download a model", the style edit button).
+          GoRoute(
+            path: '/settings/models',
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const SettingsScreen(category: SettingsCategory.engine)),
+          ),
+          GoRoute(
+            path: '/settings/style',
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const SettingsScreen(category: SettingsCategory.writing)),
+          ),
+          GoRoute(
+            path: '/settings/:category',
+            pageBuilder: (_, s) => NoTransitionPage(
+              key: s.pageKey,
+              child: SettingsScreen(category: SettingsCategory.byId(s.pathParameters['category'])),
+            ),
           ),
         ],
       ),

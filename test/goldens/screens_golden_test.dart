@@ -146,10 +146,11 @@ void main() {
 
   // ---- Settings ----
   for (final d in [phone, desktop]) {
-    routeScene('settings_ondevice_download', d, '/settings', Scene(downloads: {'gemma-4-e4b': downloading(0.41)}));
-    routeScene('settings_ondevice_ready', d, '/settings', Scene(downloads: {'gemma-4-e4b': downloaded}));
-    routeScene('settings_gemini', d, '/settings', const Scene(settings: _gemini, keySource: KeySource.secureStorage));
-    routeScene('settings_gemini_nokey', d, '/settings', const Scene(settings: _gemini));
+    routeScene('settings_categories', d, '/settings', Scene());
+    routeScene('settings_ondevice_download', d, '/settings/engine', Scene(downloads: {'gemma-4-e4b': downloading(0.41)}));
+    routeScene('settings_ondevice_ready', d, '/settings/engine', Scene(downloads: {'gemma-4-e4b': downloaded}));
+    routeScene('settings_gemini', d, '/settings/engine', const Scene(settings: _gemini, keySource: KeySource.secureStorage));
+    routeScene('settings_gemini_nokey', d, '/settings/engine', const Scene(settings: _gemini));
   }
   routeScene(
     'settings_lower',

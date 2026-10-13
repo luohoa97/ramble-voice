@@ -62,9 +62,13 @@ class StyleProfile {
     this.languages = const [],
     this.snippets = const [],
     this.contactNames = const [],
+    this.textSpeak = false,
   });
 
   final StylePreset preset;
+
+  /// Texting tone only: write common chat abbreviations (ngl, tbh, idk, gng).
+  final bool textSpeak;
   final Polish polish;
   final String customInstructions;
 
@@ -86,7 +90,12 @@ class StyleProfile {
   /// The `{style}` text for the cleanup prompt.
   String describe() {
     final custom = customInstructions.trim();
-    return custom.isEmpty ? preset.instruction : '${preset.instruction}. $custom';
+    final base = preset == StylePreset.texting && textSpeak
+        ? '${preset.instruction}. Write the usual chat abbreviations and slang spellings where people type them '
+            '(not gonna lie becomes ngl, to be honest tbh, I don\'t know idk, gang gng, be right back brb, '
+            'oh my god omg, laughing out loud lol), lowercase'
+        : preset.instruction;
+    return custom.isEmpty ? base : '$base. $custom';
   }
 
   /// The `{vocab}` text for the cleanup prompt.
@@ -126,6 +135,7 @@ class StyleProfile {
     List<String>? languages,
     List<Snippet>? snippets,
     List<String>? contactNames,
+    bool? textSpeak,
   }) =>
       StyleProfile(
         preset: preset ?? this.preset,
@@ -135,6 +145,7 @@ class StyleProfile {
         languages: languages ?? this.languages,
         snippets: snippets ?? this.snippets,
         contactNames: contactNames ?? this.contactNames,
+        textSpeak: textSpeak ?? this.textSpeak,
       );
 
   Map<String, Object?> toJson() => {
@@ -142,6 +153,7 @@ class StyleProfile {
         'polish': polish.name,
         'custom': customInstructions,
         'vocabulary': vocabulary,
+        'textSpeak': textSpeak,
       };
 
   factory StyleProfile.fromJson(Map<String, Object?> json) => StyleProfile(
@@ -149,6 +161,7 @@ class StyleProfile {
         polish: Polish.values.asNameMap()[json['polish']] ?? Polish.light,
         customInstructions: json['custom'] as String? ?? '',
         vocabulary: (json['vocabulary'] as List?)?.whereType<String>().toList() ?? const [],
+        textSpeak: json['textSpeak'] as bool? ?? false,
       );
 
   @override

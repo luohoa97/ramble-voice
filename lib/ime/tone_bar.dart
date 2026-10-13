@@ -7,6 +7,7 @@ import '../app/providers.dart';
 import '../core/style/app_styles.dart';
 import '../core/style/style_profile.dart';
 import '../ui/screens/settings/polish_section.dart';
+import '../ui/screens/settings/style_section.dart';
 import '../ui/util/app_label.dart';
 import 'model_menu.dart';
 
@@ -122,6 +123,7 @@ class TonePanel extends ConsumerWidget {
                 ),
             ],
           ),
+          if (effective == StylePreset.texting) const TextSpeakSwitch(dense: true),
           const SizedBox(height: 12),
           const PolishChoice(),
           const SizedBox(height: 4),

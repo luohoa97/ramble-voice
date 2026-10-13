@@ -124,3 +124,24 @@ Future<void> showStyleEditor(BuildContext context) {
     ),
   );
 }
+
+/// Texting tone: write chat abbreviations (ngl, tbh, gng). Off by default,
+/// because it changes your words.
+class TextSpeakSwitch extends ConsumerWidget {
+  const TextSpeakSwitch({super.key, this.dense = false});
+
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(settingsProvider.select((s) => s.style.textSpeak));
+    return SwitchListTile(
+      dense: dense,
+      contentPadding: EdgeInsets.symmetric(horizontal: dense ? 0 : 16),
+      value: on,
+      title: const Text('Text speak in Texting'),
+      subtitle: const Text('ngl, tbh, idk, gng and other chat abbreviations, lowercase'),
+      onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(style: s.style.copyWith(textSpeak: v))),
+    );
+  }
+}

@@ -21,138 +21,155 @@ import 'settings/misc_sections.dart';
 import 'settings/snippets_section.dart';
 import 'settings/style_section.dart';
 
-class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key, this.anchor});
+/// A settings category: one page of related sections.
+enum SettingsCategory {
+  engine('engine', 'Engine and models', 'On-device Gemma or Gemini, models, NPU', Icons.memory_rounded),
+  writing('writing', 'Writing style', 'Tone, per-app tones, polish, languages, names, shortcuts', Icons.edit_note_rounded),
+  dictation('dictation', 'Keyboard and floating mic', 'Context, recording, keyboard, floating mic', Icons.keyboard_rounded),
+  desktop('desktop', 'Desktop', 'Shortcut, typing into apps, tray', Icons.desktop_windows_rounded),
+  privacy('privacy', 'Privacy', 'What leaves the device, usage log, history', Icons.lock_outline_rounded),
+  about('about', 'Help and about', 'Setup guide, licenses, version', Icons.info_outline_rounded);
 
-  /// Section to scroll to on open: `engine` or `style`.
-  final String? anchor;
+  const SettingsCategory(this.id, this.title, this.summary, this.icon);
+  final String id;
+  final String title;
+  final String summary;
+  final IconData icon;
 
-  @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+  static SettingsCategory? byId(String? id) => values.where((c) => c.id == id).firstOrNull;
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _anchors = {'engine': GlobalKey(), 'style': GlobalKey()};
+/// Settings: a list of categories (Material 3 settings pattern), each opening
+/// a page of its own instead of one long, crammed scroll.
+class SettingsScreen extends ConsumerWidget {
+  const SettingsScreen({super.key, this.category});
+
+  /// The category page to show; null shows the list of categories.
+  final SettingsCategory? category;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _anchors[widget.anchor]?.currentContext;
-      if (ctx != null) Scrollable.ensureVisible(ctx, duration: Duration.zero);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isLinux = ref.watch(isLinuxProvider);
     final isAndroid = ref.watch(isAndroidProvider);
     final wide = MediaQuery.sizeOf(context).width >= kTwoPaneWidth;
+    final c = category;
 
-    final sections = <Widget>[
-      KeyedSubtree(
-        key: _anchors['engine'],
-        child: const SettingsSection(
-          title: 'Engine',
-          children: [EnginePicker(showPath: true)],
-        ),
-      ),
-      KeyedSubtree(
-        key: _anchors['style'],
-        child: const SettingsSection(
-          title: 'Style',
-          subtitle: 'The tone is applied to every dictation. Switch it any time on the record screen.',
-          children: [
-            StyleChips(centered: false),
-            SizedBox(height: Space.x3),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: Space.gutter),
-              child: StyleEditor(),
-            ),
-          ],
-        ),
-      ),
-      if (isAndroid)
-        const SettingsSection(
-          title: 'Per-app styles',
-          children: [AppStylesSection()],
-        ),
-      const PolishSection(),
-      const LanguageSection(),
-      const ContactNamesSection(),
-      const SnippetsSection(),
-      if (isAndroid) const FieldContextSection(),
-      const SettingsSection(title: 'Recording', children: [RecordingSection()]),
-      if (isLinux)
-        const SettingsSection(
-          title: 'Linux',
-          children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: Space.gutter),
-              child: LinuxSection(),
-            ),
-          ],
-        ),
-      if (isAndroid)
-        const SettingsSection(title: 'Keyboard', children: [AndroidSection()]),
-      if (isAndroid)
-        const SettingsSection(
-          title: 'Floating mic',
-          children: [BubbleSection()],
-        ),
-      SettingsSection(
-        title: 'Help',
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: Space.gutter,
-            ),
-            leading: const Icon(Icons.checklist_rounded),
-            title: const Text('Setup guide'),
-            subtitle: const Text(
-              'Microphone, engine, keyboard and the floating mic',
-            ),
-            onTap: () => context.push('/setup'),
-          ),
-        ],
-      ),
-      const SettingsSection(title: 'Privacy', children: [PrivacySection()]),
-      const SettingsSection(title: 'About', children: [AboutSection()]),
+    final available = [
+      for (final k in SettingsCategory.values)
+        if (k != SettingsCategory.dictation || isAndroid)
+          if (k != SettingsCategory.desktop || isLinux) k,
     ];
+
+    // Every section's own rows get the same side margin.
+    Widget padded(Widget child) => Padding(padding: const EdgeInsets.symmetric(horizontal: Space.gutter), child: child);
+
+    final List<Widget> sections = switch (c) {
+      null => [
+          for (final k in available)
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: Space.gutter, vertical: 4),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                child: Icon(k.icon),
+              ),
+              title: Text(k.title),
+              subtitle: Text(k.summary),
+              onTap: () => context.go('/settings/${k.id}'),
+            ),
+        ],
+      SettingsCategory.engine => [
+          const SettingsSection(title: 'Engine', children: [EnginePicker(showPath: true)]),
+        ],
+      SettingsCategory.writing => [
+          SettingsSection(
+            title: 'Tone',
+            subtitle: 'Applied to every dictation. Switch it any time on the record screen or the keyboard.',
+            children: [
+              const StyleChips(centered: false),
+              const SizedBox(height: Space.x2),
+              const TextSpeakSwitch(),
+              const SizedBox(height: Space.x2),
+              padded(const StyleEditor()),
+            ],
+          ),
+          if (isAndroid) const SettingsSection(title: 'Per-app tones', children: [AppStylesSection()]),
+          const PolishSection(),
+          const LanguageSection(),
+          const ContactNamesSection(),
+          const SnippetsSection(),
+        ],
+      SettingsCategory.dictation => [
+          if (isAndroid) const FieldContextSection(),
+          const SettingsSection(title: 'Recording', children: [RecordingSection()]),
+          const SettingsSection(title: 'Keyboard', children: [AndroidSection()]),
+          SettingsSection(title: 'Floating mic', children: [padded(const BubbleSection())]),
+        ],
+      SettingsCategory.desktop => [
+          SettingsSection(title: 'Linux', children: [padded(const LinuxSection())]),
+          const SettingsSection(title: 'Recording', children: [RecordingSection()]),
+        ],
+      SettingsCategory.privacy => [const SettingsSection(title: 'Privacy', children: [PrivacySection()])],
+      SettingsCategory.about => [
+          SettingsSection(
+            title: 'Help',
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: Space.gutter),
+                leading: const Icon(Icons.checklist_rounded),
+                title: const Text('Setup guide'),
+                subtitle: const Text('Microphone, engine, keyboard and the floating mic'),
+                onTap: () => context.push('/setup'),
+              ),
+            ],
+          ),
+          const SettingsSection(title: 'About', children: [AboutSection()]),
+        ],
+    };
+
+    final back = c != null
+        ? IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => context.go('/settings'),
+          )
+        : wide
+            ? IconButton(
+                tooltip: 'Back to recording',
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => context.go('/'),
+              )
+            : null;
 
     return CallbackShortcuts(
       bindings: {
-        if (wide)
-          const SingleActivator(LogicalKeyboardKey.escape): () =>
-              context.go('/'),
+        if (wide || c != null)
+          const SingleActivator(LogicalKeyboardKey.escape): () => context.go(c != null ? '/settings' : '/'),
       },
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: kContentWidth),
-            child: FocusTraversalGroup(
-              policy: ReadingOrderTraversalPolicy(),
-              // Not a lazy ListView: its sections differ in height and some
-              // grow after loading, which made a lazy list jump while
-              // scrolling (offsets of rebuilt sections were re-estimated).
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: Space.x4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ScreenTitle(
-                      'Settings',
-                      leading: wide
-                          ? IconButton(
-                              tooltip: 'Back to recording',
-                              icon: const Icon(Icons.arrow_back_rounded),
-                              onPressed: () => context.go('/'),
-                            )
-                          : null,
-                    ),
-                    ...sections,
-                  ],
+      child: PopScope(
+        canPop: c == null,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && c != null) context.go('/settings');
+        },
+        child: SafeArea(
+          bottom: false,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kContentWidth),
+              child: FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                // Not a lazy ListView: sections differ in height and some grow
+                // after loading, which made a lazy list jump while scrolling.
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: Space.x4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ScreenTitle(c?.title ?? 'Settings', leading: back),
+                      ...sections,
+                    ],
+                  ),
                 ),
               ),
             ),

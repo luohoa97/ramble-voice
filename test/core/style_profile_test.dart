@@ -57,4 +57,12 @@ void main() {
     expect(p.copyWith(), p);
     expect(p.copyWith().hashCode, p.hashCode);
   });
+
+  test('text speak only applies to the Texting tone and is saved', () {
+    const on = StyleProfile(preset: StylePreset.texting, textSpeak: true);
+    expect(on.describe(), contains('ngl'));
+    expect(const StyleProfile(preset: StylePreset.casual, textSpeak: true).describe(), isNot(contains('ngl')));
+    expect(const StyleProfile(preset: StylePreset.texting).describe(), isNot(contains('ngl')));
+    expect(StyleProfile.fromJson(on.toJson()).textSpeak, isTrue);
+  });
 }

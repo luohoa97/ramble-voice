@@ -39,5 +39,5 @@ AntiFeatures:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
-CurrentVersion: 1.0.0
-CurrentVersionCode: 100
+CurrentVersion: 1.1.0
+CurrentVersionCode: 110

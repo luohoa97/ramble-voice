@@ -1,0 +1,6 @@
+Ramble Voice 1.1.0
+- Email addresses: one-tap chips, "my email" or "the work one" by voice, labels.
+- Writes emotion, whispers and mocking voices the way you'd type them.
+- Casual adapts to long rambles; optional text speak in Texting.
+- Obsidian and Markdown editors keep exact formatting; rotation keeps dictating.
+- Tone and model pickers inside the keyboard; Settings in pages.

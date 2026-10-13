@@ -72,12 +72,13 @@ class CleanupPipeline {
     CleanupMode mode = CleanupMode.clean,
     String? contextBefore,
     String? contextAfter,
+    String? screenContext,
     void Function(PipelineProgress)? onProgress,
   }) async {
     pcm = condition(pcm);
     try {
       return await _runWith(primary, pcm, style, mode, onProgress,
-          fellBack: false, contextBefore: contextBefore, contextAfter: contextAfter);
+          fellBack: false, contextBefore: contextBefore, contextAfter: contextAfter, screenContext: screenContext);
     } on CleanupFailure catch (failure) {
       if (fallback == null || !failure.kind.cloudFallbackEligible || fallback.kind == primary.kind) {
         rethrow;
@@ -85,7 +86,7 @@ class CleanupPipeline {
       final ready = await fallback.readiness();
       if (ready is! EngineReady) rethrow;
       final result = await _runWith(fallback, pcm, style, mode, onProgress,
-          fellBack: true, contextBefore: contextBefore, contextAfter: contextAfter);
+          fellBack: true, contextBefore: contextBefore, contextAfter: contextAfter, screenContext: screenContext);
       return PipelineResult(
         text: result.text,
         engine: fallback.kind,
@@ -168,6 +169,7 @@ class CleanupPipeline {
     required bool fellBack,
     String? contextBefore,
     String? contextAfter,
+    String? screenContext,
   }) async {
     final limit = engine.maxAudioPerRequest;
     final window = searchWindow < limit ~/ 2 ? searchWindow : limit ~/ 4;
@@ -200,6 +202,7 @@ class CleanupPipeline {
         contextBefore: before,
         contextAfter: lastChunk ? contextAfter : null,
         part: i == 0 ? null : i + 1,
+        screenContext: screenContext,
         repeated: Pcm.durationOf(span.overlap),
       ));
       // Words of the overlap the model wrote again.

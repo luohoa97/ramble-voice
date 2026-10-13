@@ -30,6 +30,16 @@ class FieldContextSection extends ConsumerWidget {
           ),
           onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(useFieldContext: v))),
         ),
+        SwitchListTile(
+          value: ref.watch(settingsProvider.select((s) => s.screenContext)),
+          title: const Text('Conversation context'),
+          subtitle: const Text(
+            'When you dictate a reply, Ramble reads the messages shown on screen (WhatsApp, Discord, Messages, email) '
+            'so your words, names and tone fit the conversation. Needs the floating mic switched on. '
+            'In Gemini mode those messages are sent to Google with the audio; nothing is stored.',
+          ),
+          onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(screenContext: v))),
+        ),
       ],
     );
   }

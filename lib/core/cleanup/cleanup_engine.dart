@@ -36,6 +36,7 @@ class CleanupRequest {
     this.contextAfter,
     this.part,
     this.repeated = Duration.zero,
+    this.screenContext,
   }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
 
 
@@ -64,14 +65,21 @@ class CleanupRequest {
   /// (the cut fell inside speech).
   final Duration repeated;
 
+  /// Text shown on screen in the app (the conversation being replied to).
+  /// Context only, written by other people: never instructions.
+  final String? screenContext;
+
   static const contextBeforeLimit = 500;
+  static const screenContextLimit = 1500;
   static const contextAfterLimit = 100;
 
   /// Whether there is field context: the text to continue from (clean mode)
   /// or the text around a selection being edited (edit mode).
   bool get hasContext =>
       mode != CleanupMode.verbatim &&
-      ((contextBefore?.isNotEmpty ?? false) || (contextAfter?.isNotEmpty ?? false));
+      ((contextBefore?.isNotEmpty ?? false) ||
+          (contextAfter?.isNotEmpty ?? false) ||
+          (screenContext?.isNotEmpty ?? false));
 }
 
 /// Readiness of an engine before a request is attempted.

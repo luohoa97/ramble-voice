@@ -89,6 +89,13 @@ class ImeHandler(
                 )
             }
             "sendEnter" -> result.success(sendEnter())
+            "getScreenContext" -> {
+                // Needs the floating mic's accessibility service; null without it.
+                val max = (call.arguments as? Int ?: 1500).coerceIn(0, 4000)
+                result.success(
+                    try { io.github.luohoa97.ramblevoice.bubble.RambleBubbleService.instance?.screenText(max) } catch (_: Throwable) { null },
+                )
+            }
             "e2eReply" -> {
                 E2eReceiver.reply(call.arguments as? String ?: "")
                 result.success(null)

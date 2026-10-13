@@ -77,11 +77,12 @@ Future<void> imeMain() async {
       imeBridgeProvider.overrideWithValue(bridge),
       // Dictation continues the sentence in the field: read the text around
       // the cursor (never in password fields).
-      fieldContextReaderProvider.overrideWithValue(() async {
+      fieldContextReaderProvider.overrideWithValue(({bool screen = false}) async {
         if (bridge.current.isPassword) return null;
         final before = await bridge.getTextBeforeCursor(CleanupRequest.contextBeforeLimit) ?? '';
         final after = await bridge.getTextAfterCursor(CleanupRequest.contextAfterLimit) ?? '';
-        return FieldContext(before: before, after: after);
+        final shown = screen ? await bridge.getScreenContext(CleanupRequest.screenContextLimit) : null;
+        return FieldContext(before: before, after: after, screen: shown);
       }),
       dictationOriginProvider.overrideWith(_KeyboardOrigin.new),
       outcomeHookProvider.overrideWith((ref) {

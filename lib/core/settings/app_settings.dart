@@ -46,6 +46,7 @@ class AppSettings {
     this.languages = const [],
     this.useContactNames = false,
     this.useFieldContext = true,
+    this.screenContext = false,
     this.snippets = const [],
     this.appStyles = const {},
     this.completedSetup = const {},
@@ -104,6 +105,10 @@ class AppSettings {
   /// the sentence. In Gemini mode that text is sent to Google with the audio.
   final bool useFieldContext;
 
+  /// Android: send the text shown in the app (the conversation being
+  /// replied to) with each dictation. Off unless the user turns it on.
+  final bool screenContext;
+
   /// Spoken shortcuts expanded during cleanup.
   final List<Snippet> snippets;
 
@@ -154,6 +159,7 @@ class AppSettings {
     List<String>? languages,
     bool? useContactNames,
     bool? useFieldContext,
+    bool? screenContext,
     List<Snippet>? snippets,
     Map<String, StylePreset>? appStyles,
     Set<String>? completedSetup,
@@ -182,6 +188,7 @@ class AppSettings {
         languages: languages ?? this.languages,
         useContactNames: useContactNames ?? this.useContactNames,
         useFieldContext: useFieldContext ?? this.useFieldContext,
+        screenContext: screenContext ?? this.screenContext,
         snippets: snippets ?? this.snippets,
         appStyles: appStyles ?? this.appStyles,
         completedSetup: completedSetup ?? this.completedSetup,
@@ -211,6 +218,7 @@ class AppSettings {
         'languages': languages,
         'useContactNames': useContactNames,
         'useFieldContext': useFieldContext,
+        'screenContext': screenContext,
         'snippets': [for (final s in snippets) s.toJson()],
         'appStyles': {for (final e in appStyles.entries) e.key: e.value.name},
         'completedSetup': completedSetup.toList()..sort(),
@@ -246,6 +254,7 @@ class AppSettings {
         languages: _languagesFromJson(j, deviceLanguages),
         useContactNames: j['useContactNames'] as bool? ?? false,
         useFieldContext: j['useFieldContext'] as bool? ?? true,
+        screenContext: j['screenContext'] as bool? ?? false,
         snippets: [
           for (final e in j['snippets'] is List ? j['snippets'] as List : const [])
             if (e is Map) Snippet.fromJson(e.cast<String, Object?>()),

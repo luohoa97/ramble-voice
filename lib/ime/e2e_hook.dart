@@ -91,6 +91,9 @@ class E2eHook {
         await bridge.sendEnter();
       case 'backspace':
         await bridge.deleteBackward();
+      case 'screen':
+        // What conversation context would send (the setting is not checked here).
+        return {'screen': await bridge.getScreenContext(1500)};
       case 'insert':
         // The same insert path a finished dictation takes.
         final r = await container.read(platformServicesProvider).inserter.insert(arg ?? '');

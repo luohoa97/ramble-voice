@@ -167,6 +167,10 @@ class ImeBridge {
     }
   }
 
+  /// The text shown in the app being typed into (recent messages), read by
+  /// the floating mic's accessibility service; null when it is off.
+  Future<String?> getScreenContext(int maxChars) => _string('getScreenContext', maxChars);
+
   /// Inserts [text] at the cursor of the focused field.
   Future<bool> commitText(String text) => _bool('commitText', text);
 

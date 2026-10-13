@@ -195,7 +195,7 @@ final outcomeHookProvider = Provider<Future<void> Function(DictationOutcome)?>((
 
 /// Reads the text around the cursor at the start of a dictation. Null where
 /// there is no cursor to read (overridden by the keyboard entrypoint).
-final fieldContextReaderProvider = Provider<Future<FieldContext?> Function()?>((ref) => null);
+final fieldContextReaderProvider = Provider<Future<FieldContext?> Function({bool screen})?>((ref) => null);
 
 final dictationControllerProvider = Provider<DictationController>((ref) {
   final services = ref.watch(platformServicesProvider);
@@ -205,8 +205,11 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
     engines: ref.watch(engineSetProvider),
     style: ref.read(styleResolverProvider),
     fieldContext: () async {
-      if (!ref.read(settingsProvider).useFieldContext) return null;
-      return ref.read(fieldContextReaderProvider)?.call();
+      final s = ref.read(settingsProvider);
+      if (!s.useFieldContext && !s.screenContext) return null;
+      final c = await ref.read(fieldContextReaderProvider)?.call(screen: s.screenContext);
+      if (c == null || s.useFieldContext) return c;
+      return FieldContext(screen: c.screen);
     },
     pipeline: const CleanupPipeline(),
     maxSession: ref.read(settingsProvider).maxSession,

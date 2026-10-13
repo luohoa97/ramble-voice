@@ -118,7 +118,7 @@ class DictationFailed extends DictationState {
 
 /// The text around the cursor of the field being dictated into.
 class FieldContext {
-  const FieldContext({this.before = '', this.after = ''});
+  const FieldContext({this.before = '', this.after = '', this.screen});
 
   /// Up to 500 characters before the cursor.
   final String before;
@@ -126,7 +126,11 @@ class FieldContext {
   /// Up to 100 characters after the cursor.
   final String after;
 
-  bool get isEmpty => before.isEmpty && after.isEmpty;
+  /// Text shown in the app (the conversation being replied to), when the
+  /// user turned on conversation context.
+  final String? screen;
+
+  bool get isEmpty => before.isEmpty && after.isEmpty && (screen?.isEmpty ?? true);
 }
 
 class EngineSet {
@@ -416,6 +420,7 @@ class DictationController {
         style: await style(),
         contextBefore: context?.before,
         contextAfter: context?.after,
+        screenContext: context?.screen,
         primary: set.primary,
         fallback: set.fallback,
         onProgress: (p) {

@@ -67,6 +67,7 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        instance = this
         prefs = BubblePrefs(this)
         windowManager = getSystemService(WindowManager::class.java)
         inserter = BubbleInserter(this)
@@ -550,6 +551,7 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
     }
 
     override fun onDestroy() {
+        if (instance === this) instance = null
         if (::prefs.isInitialized) BubbleKeeper.scheduleSoon(this)
         shutdown()
         super.onDestroy()
@@ -566,7 +568,43 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         host.dispose()
     }
 
+    /**
+     * The text shown in the app being dictated into (a chat's recent messages,
+     * an email being replied to), top to bottom, at most [maxChars] from the
+     * end. Only called when the user turned on "Conversation context", at the
+     * start of a dictation; nothing is kept. Skips our own app, keyboards,
+     * password fields and the field being typed in.
+     */
+    fun screenText(maxChars: Int): String? {
+        val root = windows
+            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .sortedByDescending { it.isActive || it.isFocused }
+            .firstNotNullOfOrNull { it.root }
+            ?: return null
+        if (root.packageName?.toString() == packageName) return null
+        val lines = mutableListOf<Pair<Rect, String>>()
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (depth > 40 || lines.size > 400) return
+            if (!node.isVisibleToUser || node.isPassword) return
+            if (!node.isEditable) {
+                val text = (node.text ?: node.contentDescription)?.toString()?.trim()
+                if (!text.isNullOrEmpty() && text.length > 1) {
+                    lines += Rect().also { node.getBoundsInScreen(it) } to text.replace(Regex("\\s+"), " ")
+                }
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let { walk(it, depth + 1) }
+        }
+        walk(root, 0)
+        val ordered = lines.sortedWith(compareBy({ it.first.top }, { it.first.left })).map { it.second }.distinct()
+        val joined = ordered.joinToString("\n")
+        return joined.takeLast(maxChars).ifBlank { null }
+    }
+
     companion object {
+        /** The running service, for the keyboard's conversation context. */
+        @Volatile var instance: RambleBubbleService? = null
+            private set
+
         private const val EVALUATE_DELAY_MS = 60L
         private const val HIDE_DELAY_MS = 1000L
         /** Smaller input-method windows are not a keyboard. */

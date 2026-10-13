@@ -247,6 +247,26 @@ class ImeHandler(
         return count > 0 && (0 until count).all { info.getSubtypeAt(it).mode == "voice" }
     }
 
+    /** Number, phone, date/time and password fields: typed, never dictated. */
+    fun needsTypingKeyboard(info: EditorInfo?): Boolean {
+        val type = info?.inputType ?: return false
+        val cls = type and InputType.TYPE_MASK_CLASS
+        if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE || cls == InputType.TYPE_CLASS_DATETIME) {
+            return true
+        }
+        val variation = type and InputType.TYPE_MASK_VARIATION
+        return cls == InputType.TYPE_CLASS_TEXT && (
+            variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            )
+    }
+
+    /** Hands over to the typing keyboard without ever showing the picker. */
+    fun switchToTypingKeyboard() {
+        switchKeyboard(userInitiated = false)
+    }
+
     private fun shouldOfferSwitch(): Boolean {
         val imm = service.getSystemService(InputMethodManager::class.java) ?: return false
         val token = service.window?.window?.attributes?.token ?: return false

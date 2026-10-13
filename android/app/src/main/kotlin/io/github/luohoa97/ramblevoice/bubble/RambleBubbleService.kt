@@ -183,6 +183,13 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
             .ifEmpty { listOfNotNull(rootInActiveWindow) }
         val focus = appRoots.firstNotNullOfOrNull { it.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }
         if (focus?.isPassword == true) return null
+        // Numbers, PINs and codes are typed (the Ramble keyboard hands them back too).
+        val cls = (focus?.inputType ?: 0) and android.text.InputType.TYPE_MASK_CLASS
+        if (cls == android.text.InputType.TYPE_CLASS_NUMBER || cls == android.text.InputType.TYPE_CLASS_PHONE ||
+            cls == android.text.InputType.TYPE_CLASS_DATETIME
+        ) {
+            return null
+        }
         // A keyboard is a precondition: a field that keeps focus after the
         // keyboard is dismissed (chat apps do) must not keep the bubble.
         // A hardware keyboard hotkey needs only an editable field.

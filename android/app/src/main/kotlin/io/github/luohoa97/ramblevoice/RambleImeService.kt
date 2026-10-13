@@ -108,6 +108,13 @@ class RambleImeService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        if (!restarting && ime?.needsTypingKeyboard(info) == true) {
+            // PINs, codes, phone numbers and passwords are typed, not dictated:
+            // hand the field to the user's typing keyboard straight away.
+            CrashLog.note("ime hands a number/password field to the typing keyboard")
+            ime?.switchToTypingKeyboard()
+            return
+        }
         engine?.lifecycleChannel?.appIsResumed()
         ImeLaunch.setImeShowing(true)
         ime?.notifyInputStarted(info, restarting)

@@ -71,13 +71,18 @@ B: EV=120013
 B: KEY=0 0 0 0 4000000 0
 ''';
       // Bit 58 = word 1 (from the end) bit 26 = 0x4000000.
-      expect(parseInputDevices(text, wordBits: 32).map((d) => d.eventPath), ['/dev/input/event7']);
+      expect(parseInputDevices(text, wordBits: 32).map((d) => d.eventPath), [
+        '/dev/input/event7',
+      ]);
       expect(parseInputDevices(text, wordBits: 64), isEmpty);
     });
 
     test('empty and garbage input', () {
       expect(parseInputDevices(''), isEmpty);
-      expect(parseInputDevices('H: Handlers=event1\nB: EV=zz\nB: KEY=zz'), isEmpty);
+      expect(
+        parseInputDevices('H: Handlers=event1\nB: EV=zz\nB: KEY=zz'),
+        isEmpty,
+      );
     });
   });
 
@@ -98,7 +103,10 @@ B: KEY=0 0 0 0 4000000 0
 
     test('records split across chunks', () {
       final p = InputEventParser(recordSize: 24);
-      final bytes = [..._event(evKey, keyCapsLock, 1), ..._event(evKey, keyCapsLock, 0)];
+      final bytes = [
+        ..._event(evKey, keyCapsLock, 1),
+        ..._event(evKey, keyCapsLock, 0),
+      ];
       final out = <HotkeyPhase>[];
       for (var i = 0; i < bytes.length; i += 7) {
         out.addAll(p.add(bytes.sublist(i, (i + 7).clamp(0, bytes.length))));
@@ -108,7 +116,9 @@ B: KEY=0 0 0 0 4000000 0
 
     test('32-bit records', () {
       final p = InputEventParser(recordSize: 16);
-      expect(p.add(_event(evKey, keyCapsLock, 1, size: 16)), [HotkeyPhase.pressed]);
+      expect(p.add(_event(evKey, keyCapsLock, 1, size: 16)), [
+        HotkeyPhase.pressed,
+      ]);
     });
   });
 
@@ -117,7 +127,9 @@ B: KEY=0 0 0 0 4000000 0
     setUp(() => dir = Directory.systemTemp.createTempSync('evdev'));
     tearDown(() => dir.deleteSync(recursive: true));
 
-    File procFile() => File('${dir.path}/devices')..writeAsStringSync(_proc.replaceAll('event3', 'event3'));
+    File procFile() =>
+        File('${dir.path}/devices')
+          ..writeAsStringSync(_proc.replaceAll('event3', 'event3'));
 
     test('emits events and collapses duplicates', () async {
       final ctrl = StreamController<List<int>>();
@@ -142,7 +154,11 @@ B: KEY=0 0 0 0 4000000 0
       final hk = EvdevHotkey(
         devicesFile: procFile().path,
         rescan: const Duration(hours: 1),
-        openDevice: (p) async => throw FileSystemException('denied', p, const OSError('Permission denied', 13)),
+        openDevice: (p) async => throw FileSystemException(
+          'denied',
+          p,
+          const OSError('Permission denied', 13),
+        ),
       );
       final status = await hk.start();
       expect(status.readable, isFalse);
@@ -154,33 +170,60 @@ B: KEY=0 0 0 0 4000000 0
   group('XkbCapsRemap', () {
     test('parse and format', () {
       expect(XkbCapsRemap.parse('@as []\n'), isEmpty);
-      expect(XkbCapsRemap.parse("['ctrl:swap_lalt_lctl', 'compose:ralt']"), ['ctrl:swap_lalt_lctl', 'compose:ralt']);
+      expect(XkbCapsRemap.parse("['ctrl:swap_lalt_lctl', 'compose:ralt']"), [
+        'ctrl:swap_lalt_lctl',
+        'compose:ralt',
+      ]);
       expect(XkbCapsRemap.format([]), '@as []');
       expect(XkbCapsRemap.format(['a:b', 'c:d']), "['a:b', 'c:d']");
     });
 
     test('adds caps:none and drops other caps:*', () {
-      expect(XkbCapsRemap.withCapsNone(['caps:escape', 'compose:ralt']), ['compose:ralt', 'caps:none']);
+      expect(XkbCapsRemap.withCapsNone(['caps:escape', 'compose:ralt']), [
+        'compose:ralt',
+        'caps:none',
+      ]);
       expect(XkbCapsRemap.withCapsNone(['caps:none']), ['caps:none']);
     });
 
     test('removes only caps:none', () {
-      expect(XkbCapsRemap.withoutCapsNone(['caps:none', 'compose:ralt']), ['compose:ralt']);
+      expect(XkbCapsRemap.withoutCapsNone(['caps:none', 'compose:ralt']), [
+        'compose:ralt',
+      ]);
     });
 
     test('skips gsettings outside GNOME, writes on GNOME', () async {
       final calls = <List<String>>[];
       Future<ProcessResult> run(String exe, List<String> args) async {
         calls.add(args);
-        return ProcessResult(0, 0, args.first == 'get' ? "['compose:ralt']\n" : '', '');
+        return ProcessResult(
+          0,
+          0,
+          args.first == 'get' ? "['compose:ralt']\n" : '',
+          '',
+        );
       }
 
-      expect(await XkbCapsRemap(environment: {'XDG_CURRENT_DESKTOP': 'KDE'}, run: run).setCapsDisabled(true), isFalse);
+      expect(
+        await XkbCapsRemap(
+          environment: {'XDG_CURRENT_DESKTOP': 'KDE'},
+          run: run,
+        ).setCapsDisabled(true),
+        isFalse,
+      );
       expect(calls, isEmpty);
 
-      final gnome = XkbCapsRemap(environment: {'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME'}, run: run);
+      final gnome = XkbCapsRemap(
+        environment: {'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME'},
+        run: run,
+      );
       expect(await gnome.setCapsDisabled(true), isTrue);
-      expect(calls.last, ['set', 'org.gnome.desktop.input-sources', 'xkb-options', "['compose:ralt', 'caps:none']"]);
+      expect(calls.last, [
+        'set',
+        'org.gnome.desktop.input-sources',
+        'xkb-options',
+        "['compose:ralt', 'caps:none']",
+      ]);
     });
   });
 

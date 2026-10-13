@@ -12,11 +12,15 @@ void installErrorLog(Directory support) {
   final log = File('${support.path}/logs/dart.log');
   try {
     log.parent.createSync(recursive: true);
-    if (log.existsSync() && log.lengthSync() > 256 * 1024) log.renameSync('${log.path}.old');
+    if (log.existsSync() && log.lengthSync() > 256 * 1024)
+      log.renameSync('${log.path}.old');
   } catch (_) {}
   void write(String what, Object error, StackTrace? stack) {
     try {
-      log.writeAsStringSync('${DateTime.now().toIso8601String()} $what: $error\n$stack\n\n', mode: FileMode.append);
+      log.writeAsStringSync(
+        '${DateTime.now().toIso8601String()} $what: $error\n$stack\n\n',
+        mode: FileMode.append,
+      );
     } catch (_) {}
   }
 

@@ -75,9 +75,11 @@ class LinuxTextInserter implements TextInserter {
     this.settle = const Duration(milliseconds: 120),
     this.pasteThreshold = 200,
     Map<String, String>? environment,
-  })  : _run = runner ?? runCommand,
-        _flutterClipboard = flutterClipboard ?? ((t) => Clipboard.setData(ClipboardData(text: t))),
-        _environment = environment ?? Platform.environment;
+  }) : _run = runner ?? runCommand,
+       _flutterClipboard =
+           flutterClipboard ??
+           ((t) => Clipboard.setData(ClipboardData(text: t))),
+       _environment = environment ?? Platform.environment;
 
   final LinuxEnvironment env;
   final RemoteDesktopPortal? portal;
@@ -94,7 +96,8 @@ class LinuxTextInserter implements TextInserter {
   String? _lastFailure;
 
   /// Whether [text] should be pasted instead of typed key by key.
-  bool shouldPaste(String text) => text.length > pasteThreshold || text.runes.any((r) => r > 0xffff);
+  bool shouldPaste(String text) =>
+      text.length > pasteThreshold || text.runes.any((r) => r > 0xffff);
 
   @override
   Future<InsertResult> insert(String text) async {
@@ -114,7 +117,8 @@ class LinuxTextInserter implements TextInserter {
     return InsertResult(
       InsertMethod.clipboardOnly,
       backend: copied ? 'clipboard' : null,
-      message: '${copied ? 'The text was copied. Press Ctrl+V to paste it. ' : 'Could not copy the text. '}$why',
+      message:
+          '${copied ? 'The text was copied. Press Ctrl+V to paste it. ' : 'Could not copy the text. '}$why',
     );
   }
 
@@ -126,17 +130,25 @@ class LinuxTextInserter implements TextInserter {
         try {
           if (shouldPaste(text)) {
             if (!await _copy(text)) {
-              _lastFailure = 'Could not place the text on the clipboard for pasting.';
+              _lastFailure =
+                  'Could not place the text on the clipboard for pasting.';
               return null;
             }
             await Future<void>.delayed(const Duration(milliseconds: 40));
             await rd.pasteShortcut();
-            return const InsertResult(InsertMethod.pasted, backend: 'RemoteDesktop portal');
+            return const InsertResult(
+              InsertMethod.pasted,
+              backend: 'RemoteDesktop portal',
+            );
           }
           await rd.typeText(text);
-          return const InsertResult(InsertMethod.typed, backend: 'RemoteDesktop portal');
+          return const InsertResult(
+            InsertMethod.typed,
+            backend: 'RemoteDesktop portal',
+          );
         } on RemoteDesktopUnavailable catch (e) {
-          _lastFailure = '${e.message} Allow keyboard access for Ramble Voice when the desktop asks.';
+          _lastFailure =
+              '${e.message} Allow keyboard access for Ramble Voice when the desktop asks.';
         } catch (_) {
           _lastFailure = 'RemoteDesktop portal failed.';
         }
@@ -144,29 +156,51 @@ class LinuxTextInserter implements TextInserter {
       case Injector.wtype:
         return await _runHelper('wtype', ['-'], text, 'wtype');
       case Injector.xdotool:
-        return await _runHelper('xdotool', ['type', '--clearmodifiers', '--delay', '2', '--file', '-'], text, 'xdotool');
+        return await _runHelper(
+          'xdotool',
+          ['type', '--clearmodifiers', '--delay', '2', '--file', '-'],
+          text,
+          'xdotool',
+        );
       case Injector.ydotool:
         final socket = LinuxEnvironment.ydotoolSocketPath(_environment);
-        return await _runHelper('ydotool', ['type', '--file', '-'], text, 'ydotool',
-            environment: socket == null ? null : {'YDOTOOL_SOCKET': socket});
+        return await _runHelper(
+          'ydotool',
+          ['type', '--file', '-'],
+          text,
+          'ydotool',
+          environment: socket == null ? null : {'YDOTOOL_SOCKET': socket},
+        );
     }
   }
 
-  Future<InsertResult?> _runHelper(String exe, List<String> args, String text, String label,
-      {Map<String, String>? environment}) async {
-    final code = await _run(exe, args,
-        stdin: text,
-        environment: environment,
-        timeout: Duration(seconds: 10 + text.length ~/ 40));
+  Future<InsertResult?> _runHelper(
+    String exe,
+    List<String> args,
+    String text,
+    String label, {
+    Map<String, String>? environment,
+  }) async {
+    final code = await _run(
+      exe,
+      args,
+      stdin: text,
+      environment: environment,
+      timeout: Duration(seconds: 10 + text.length ~/ 40),
+    );
     if (code == 0) return InsertResult(InsertMethod.typed, backend: label);
-    _lastFailure = code == -1 ? '$label could not be started.' : '$label failed (exit $code).';
+    _lastFailure = code == -1
+        ? '$label could not be started.'
+        : '$label failed (exit $code).';
     return null;
   }
 
   String _noInjectorHint() {
-    if (env.isFlatpak) return 'No way to type into other apps is available in this sandbox.';
+    if (env.isFlatpak)
+      return 'No way to type into other apps is available in this sandbox.';
     if (env.isWayland) {
-      return env.compositor == Compositor.gnome || env.compositor == Compositor.kde
+      return env.compositor == Compositor.gnome ||
+              env.compositor == Compositor.kde
           ? 'Enable the RemoteDesktop portal (xdg-desktop-portal-${env.compositor == Compositor.gnome ? 'gnome' : 'kde'}) or install wtype/ydotool.'
           : 'Install wtype to type into other apps.';
     }
@@ -187,7 +221,12 @@ class LinuxTextInserter implements TextInserter {
       ok = true;
     } catch (_) {}
     if (env.isWayland && env.has('wl-copy')) {
-      final code = await _run('wl-copy', const [], stdin: text, timeout: const Duration(seconds: 3));
+      final code = await _run(
+        'wl-copy',
+        const [],
+        stdin: text,
+        timeout: const Duration(seconds: 3),
+      );
       ok = ok || code == 0;
     }
     return ok;
@@ -198,14 +237,16 @@ class LinuxTextInserter implements TextInserter {
     final chain = env.injectionChain();
     if (chain.isEmpty) return 'Clipboard only (${_noInjectorHint()})';
     String label(Injector i) => switch (i) {
-          Injector.remoteDesktopPortal => 'RemoteDesktop portal',
-          Injector.wtype => 'wtype',
-          Injector.xdotool => 'xdotool',
-          Injector.ydotool => 'ydotool',
-        };
+      Injector.remoteDesktopPortal => 'RemoteDesktop portal',
+      Injector.wtype => 'wtype',
+      Injector.xdotool => 'xdotool',
+      Injector.ydotool => 'ydotool',
+    };
     final session = '${env.desktopLabel}, ${env.isWayland ? 'Wayland' : 'X11'}';
     final first = label(chain.first);
-    final rest = chain.length > 1 ? ', then ${chain.skip(1).map(label).join(', then ')}' : '';
+    final rest = chain.length > 1
+        ? ', then ${chain.skip(1).map(label).join(', then ')}'
+        : '';
     return '$first ($session)$rest';
   }
 }

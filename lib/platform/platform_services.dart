@@ -36,7 +36,8 @@ class InsertResult {
   /// User-facing note when falling back (shown as a notification on Linux).
   final String? message;
 
-  bool get delivered => method == InsertMethod.typed || method == InsertMethod.pasted;
+  bool get delivered =>
+      method == InsertMethod.typed || method == InsertMethod.pasted;
 }
 
 /// Puts text where the user was typing. Must never act on the content.
@@ -60,7 +61,12 @@ class HotkeyEvent {
 enum HotkeyBackend { portal, compositorBinding, x11, evdev, none }
 
 class HotkeyStatus {
-  const HotkeyStatus(this.backend, {this.trigger, this.supportsRelease = false, this.message});
+  const HotkeyStatus(
+    this.backend, {
+    this.trigger,
+    this.supportsRelease = false,
+    this.message,
+  });
   final HotkeyBackend backend;
 
   /// Human-readable binding, e.g. "Ctrl+Alt+Space".
@@ -92,7 +98,11 @@ enum IndicatorState { idle, listening, processing, error }
 
 /// Tray icon + listening/processing overlay or notification (Linux).
 abstract interface class StatusIndicator {
-  Future<void> init({required void Function() onToggle, required void Function() onShowWindow, required void Function() onQuit});
+  Future<void> init({
+    required void Function() onToggle,
+    required void Function() onShowWindow,
+    required void Function() onQuit,
+  });
   Future<void> show(IndicatorState state, {double level = 0, String? text});
   Future<void> dispose();
 }

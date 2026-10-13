@@ -86,7 +86,10 @@ class RecordingVault {
   }
 
   Future<void> delete(String id) async {
-    for (final f in [fileFor(id), File(p.join(directory.path, '$id$_pendingMarker'))]) {
+    for (final f in [
+      fileFor(id),
+      File(p.join(directory.path, '$id$_pendingMarker')),
+    ]) {
       if (await f.exists()) await f.delete();
     }
   }
@@ -106,7 +109,9 @@ class RecordingVault {
       }
     }
     done.sort();
-    for (final id in done.take(done.length - keepLatest < 0 ? 0 : done.length - keepLatest)) {
+    for (final id in done.take(
+      done.length - keepLatest < 0 ? 0 : done.length - keepLatest,
+    )) {
       await delete(id);
     }
   }

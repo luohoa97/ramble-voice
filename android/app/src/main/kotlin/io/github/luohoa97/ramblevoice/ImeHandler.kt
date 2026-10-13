@@ -292,9 +292,20 @@ class ImeHandler(
                 "packageName" to info?.packageName,
                 "isPassword" to isPassword,
                 "multiLine" to (inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0),
+                // What the field is, for the model: hint/label shown in the field, the app's name.
+                "hint" to info?.hintText?.toString(),
+                "label" to info?.label?.toString(),
+                "fieldName" to info?.fieldName,
+                "appLabel" to appLabel(info?.packageName),
                 "restarting" to restarting,
             ),
         )
+    }
+
+    private fun appLabel(pkg: String?): String? = try {
+        if (pkg == null) null else service.packageManager.getApplicationInfo(pkg, 0).loadLabel(service.packageManager).toString()
+    } catch (_: Exception) {
+        null
     }
 
     fun notifyInputFinished() {

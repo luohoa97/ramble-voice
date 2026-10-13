@@ -36,19 +36,67 @@ class ImeInputInfo {
     this.multiLine = false,
     this.autoStart = false,
     this.hold = false,
+    this.hint,
+    this.label,
+    this.fieldName,
+    this.appLabel,
   });
 
   factory ImeInputInfo.fromMap(Map<Object?, Object?> m) => ImeInputInfo(
-        inputType: (m['inputType'] as num?)?.toInt() ?? 0,
-        imeOptions: (m['imeOptions'] as num?)?.toInt() ?? 0,
-        actionId: (m['actionId'] as num?)?.toInt() ?? 0,
-        actionLabel: m['actionLabel'] as String?,
-        packageName: m['packageName'] as String?,
-        isPassword: m['isPassword'] as bool? ?? false,
-        multiLine: m['multiLine'] as bool? ?? false,
-        autoStart: m['autoStart'] as bool? ?? false,
-        hold: m['hold'] as bool? ?? false,
-      );
+    inputType: (m['inputType'] as num?)?.toInt() ?? 0,
+    imeOptions: (m['imeOptions'] as num?)?.toInt() ?? 0,
+    actionId: (m['actionId'] as num?)?.toInt() ?? 0,
+    actionLabel: m['actionLabel'] as String?,
+    packageName: m['packageName'] as String?,
+    isPassword: m['isPassword'] as bool? ?? false,
+    multiLine: m['multiLine'] as bool? ?? false,
+    autoStart: m['autoStart'] as bool? ?? false,
+    hold: m['hold'] as bool? ?? false,
+    hint: m['hint'] as String?,
+    label: m['label'] as String?,
+    fieldName: m['fieldName'] as String?,
+    appLabel: m['appLabel'] as String?,
+  );
+
+  /// The field's hint ("Search settings", "Message"), label and name, and the
+  /// app's name: shown to the model so it shapes the text for the field.
+  final String? hint;
+  final String? label;
+  final String? fieldName;
+  final String? appLabel;
+
+  /// One line describing the field for the model, e.g.
+  /// `App: Settings. Field: search box, hint "Search settings". Enter key: Search.`
+  String describe() {
+    final cls = inputType & 0xf;
+    final variation = inputType & 0xff0;
+    final kind = cls == 2 || cls == 3
+        ? 'number field'
+        : cls == 4
+        ? 'date or time field'
+        : switch (variation) {
+            0x10 => 'web address (URL) field',
+            0x20 || 0xd0 => 'email address field',
+            0x30 => 'email subject field',
+            0x40 => 'short message (chat) box',
+            0x50 => 'long message box',
+            0x60 => 'person name field',
+            0x70 => 'postal address field',
+            0xb0 => 'search filter box',
+            _ when action == ImeAction.search => 'search box',
+            _ => multiLine ? 'multi-line text field' : 'single-line text field',
+          };
+    String clip(String s) => s.length > 80 ? '${s.substring(0, 80)}…' : s;
+    final parts = [
+      if ((appLabel ?? packageName) != null)
+        'App: ${appLabel ?? packageName}${appLabel != null && packageName != null ? ' ($packageName)' : ''}.',
+      'Field: $kind'
+          '${hint != null && hint!.trim().isNotEmpty ? ', hint "${clip(hint!.trim())}"' : ''}'
+          '${label != null && label!.trim().isNotEmpty ? ', label "${clip(label!.trim())}"' : ''}.',
+      if (action != null) 'Enter key: ${action!.name}.',
+    ];
+    return parts.join(' ');
+  }
 
   final int inputType;
   final int imeOptions;
@@ -92,7 +140,8 @@ enum ImeAction { go, search, send, next, done, previous }
 
 /// Commands to, and events from, the keyboard service.
 class ImeBridge {
-  ImeBridge({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('ramble/ime') {
+  ImeBridge({MethodChannel? channel})
+    : _channel = channel ?? const MethodChannel('ramble/ime') {
     _channel.setMethodCallHandler(_onCall);
   }
 
@@ -123,7 +172,9 @@ class ImeBridge {
     switch (call.method) {
       case 'inputStarted':
         final args = call.arguments;
-        current = args is Map ? ImeInputInfo.fromMap(args) : const ImeInputInfo();
+        current = args is Map
+            ? ImeInputInfo.fromMap(args)
+            : const ImeInputInfo();
         _started.add(current);
         return null;
       case 'inputFinished':
@@ -141,7 +192,9 @@ class ImeBridge {
         final reply = handler == null
             ? '{"ok":false,"error":"no e2e hook"}'
             : await handler(a['cmd'] as String, a['arg'] as String?);
-        unawaited(_channel.invokeMethod<void>('e2eReply', reply).catchError((_) {}));
+        unawaited(
+          _channel.invokeMethod<void>('e2eReply', reply).catchError((_) {}),
+        );
         return null;
     }
     throw MissingPluginException(call.method);
@@ -169,13 +222,15 @@ class ImeBridge {
 
   /// The text shown in the app being typed into (recent messages), read by
   /// the floating mic's accessibility service; null when it is off.
-  Future<String?> getScreenContext(int maxChars) => _string('getScreenContext', maxChars);
+  Future<String?> getScreenContext(int maxChars) =>
+      _string('getScreenContext', maxChars);
 
   /// Inserts [text] at the cursor of the focused field.
   Future<bool> commitText(String text) => _bool('commitText', text);
 
   /// Deletes [count] characters (code points) before the cursor.
-  Future<bool> deleteBackward({int count = 1}) => _bool('deleteBackward', count);
+  Future<bool> deleteBackward({int count = 1}) =>
+      _bool('deleteBackward', count);
 
   /// The selected text of the focused field, or null when nothing is selected
   /// (or the field does not expose it).
@@ -183,11 +238,13 @@ class ImeBridge {
 
   /// Up to [count] UTF-16 units of text before the cursor, or null when the
   /// field does not expose it. Empty string means the cursor is at the start.
-  Future<String?> getTextBeforeCursor(int count) => _string('getTextBeforeCursor', count);
+  Future<String?> getTextBeforeCursor(int count) =>
+      _string('getTextBeforeCursor', count);
 
   /// Up to [count] UTF-16 units of text after the cursor, or null when the
   /// field does not expose it.
-  Future<String?> getTextAfterCursor(int count) => _string('getTextAfterCursor', count);
+  Future<String?> getTextAfterCursor(int count) =>
+      _string('getTextAfterCursor', count);
 
   /// Replaces the current selection with [text], leaving the cursor after it.
   /// False when nothing is selected.
@@ -197,24 +254,37 @@ class ImeBridge {
   /// [expected] is given, nothing is changed unless the text before the cursor
   /// still ends with exactly that (the field changed under us). False when the
   /// replacement did not happen.
-  Future<bool> replaceBeforeCursor(int oldLength, String text, {String? expected}) =>
-      _bool('replaceBeforeCursor', {'length': oldLength, 'text': text, 'expected': ?expected});
+  Future<bool> replaceBeforeCursor(
+    int oldLength,
+    String text, {
+    String? expected,
+  }) => _bool('replaceBeforeCursor', {
+    'length': oldLength,
+    'text': text,
+    'expected': ?expected,
+  });
 
   /// Replaces [before] (right before the cursor) and [after] (right after it)
   /// with [text], leaving the cursor at the end of [text]. Nothing changes
   /// unless the field still holds exactly that text around the cursor.
   Future<bool> replaceAroundCursor(String before, String after, String text) =>
-      _bool('replaceAroundCursor', {'before': before, 'after': after, 'text': text});
+      _bool('replaceAroundCursor', {
+        'before': before,
+        'after': after,
+        'text': text,
+      });
 
   /// Performs the field's IME action, or inserts a newline.
   Future<bool> sendEnter() => _bool('sendEnter');
 
   /// [auto] = the automatic hop back after a dictation: never shows a picker.
-  Future<bool> switchToPreviousInputMethod({bool auto = false}) => _bool('switchToPreviousInputMethod', !auto);
+  Future<bool> switchToPreviousInputMethod({bool auto = false}) =>
+      _bool('switchToPreviousInputMethod', !auto);
   Future<bool> shouldOfferSwitch() => _bool('shouldOfferSwitch');
 
   /// Opens the app (optionally at [route], see [ImeRoutes]) and hides the keyboard.
-  Future<void> openApp([String route = ImeRoutes.home]) => _bool('openApp', route);
+  Future<void> openApp([String route = ImeRoutes.home]) =>
+      _bool('openApp', route);
 
   Future<void> hideKeyboard() => _bool('hideKeyboard');
 

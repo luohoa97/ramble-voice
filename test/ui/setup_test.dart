@@ -11,8 +11,14 @@ import 'fakes.dart';
 void main() {
   group('step bookkeeping', () {
     test('Android and Linux have their own steps', () {
-      expect(setupStepsFor(android: true), containsAll(['mic', 'keyboard', 'bubble']));
-      expect(setupStepsFor(android: false), containsAll(['hotkey', 'typing', 'tray']));
+      expect(
+        setupStepsFor(android: true),
+        containsAll(['mic', 'keyboard', 'bubble']),
+      );
+      expect(
+        setupStepsFor(android: false),
+        containsAll(['hotkey', 'typing', 'tray']),
+      );
       expect(setupStepsFor(android: false), isNot(contains('keyboard')));
     });
 
@@ -26,18 +32,28 @@ void main() {
 
     test('completedSetup round-trips through json', () {
       const a = AppSettings(completedSetup: {'mic', 'welcome'});
-      expect(AppSettings.fromJson(a.toJson()).completedSetup, {'mic', 'welcome'});
+      expect(AppSettings.fromJson(a.toJson()).completedSetup, {
+        'mic',
+        'welcome',
+      });
       expect(AppSettings.fromJson(const {}).completedSetup, isEmpty);
     });
   });
 
   group('banner', () {
     testWidgets('counts the steps left and can be hidden', (tester) async {
-      await tester.pumpWidget(host(const SetupBanner(), overrides: [
-        ...baseOverrides(settings: const AppSettings(onboarded: true)),
-        isAndroidProvider.overrideWithValue(true),
-        setupStatusProvider.overrideWith((ref) async => const SetupStatus(micGranted: true)),
-      ]));
+      await tester.pumpWidget(
+        host(
+          const SetupBanner(),
+          overrides: [
+            ...baseOverrides(settings: const AppSettings(onboarded: true)),
+            isAndroidProvider.overrideWithValue(true),
+            setupStatusProvider.overrideWith(
+              (ref) async => const SetupStatus(micGranted: true),
+            ),
+          ],
+        ),
+      );
       await pumpFor(tester, const Duration(milliseconds: 100));
       expect(find.text('Finish setup (6 steps left)'), findsOneWidget);
       await tester.tap(find.byTooltip('Hide setup reminder'));
@@ -45,12 +61,21 @@ void main() {
       expect(find.textContaining('Finish setup'), findsNothing);
     });
 
-    testWidgets('is absent before onboarding and once everything is done', (tester) async {
-      await tester.pumpWidget(host(const SetupBanner(), overrides: [
-        ...baseOverrides(settings: const AppSettings()),
-        isAndroidProvider.overrideWithValue(true),
-        setupStatusProvider.overrideWith((ref) async => const SetupStatus()),
-      ]));
+    testWidgets('is absent before onboarding and once everything is done', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          const SetupBanner(),
+          overrides: [
+            ...baseOverrides(settings: const AppSettings()),
+            isAndroidProvider.overrideWithValue(true),
+            setupStatusProvider.overrideWith(
+              (ref) async => const SetupStatus(),
+            ),
+          ],
+        ),
+      );
       await pumpFor(tester, const Duration(milliseconds: 100));
       expect(find.textContaining('Finish setup'), findsNothing);
     });

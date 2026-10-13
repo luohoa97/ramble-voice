@@ -7,7 +7,8 @@ import 'package:ramble_voice/platform/android/android_system.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   const channel = MethodChannel('ramble/system');
 
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
@@ -20,7 +21,10 @@ void main() {
     });
 
     test('round-trips through JSON', () {
-      final s = const AppSettings().copyWith(physicalKeyHotkey: false, physicalKeyCode: BubbleHotkeys.rightCtrl);
+      final s = const AppSettings().copyWith(
+        physicalKeyHotkey: false,
+        physicalKeyCode: BubbleHotkeys.rightCtrl,
+      );
       final back = AppSettings.fromJson(s.toJson());
       expect(back.physicalKeyHotkey, isFalse);
       expect(back.physicalKeyCode, BubbleHotkeys.rightCtrl);
@@ -52,11 +56,19 @@ void main() {
         hotkeyEnabled: false,
         hotkeyCode: 114,
       );
-      expect(args, {'blockedApps': ['a'], 'size': 'small', 'hotkeyEnabled': false, 'hotkeyCode': 114});
+      expect(args, {
+        'blockedApps': ['a'],
+        'size': 'small',
+        'hotkeyEnabled': false,
+        'hotkeyCode': 114,
+      });
     });
 
     test('recordHotkey returns the key code, null when unavailable', () async {
-      messenger.setMockMethodCallHandler(channel, (c) async => c.method == 'recordHotkey' ? 131 : null);
+      messenger.setMockMethodCallHandler(
+        channel,
+        (c) async => c.method == 'recordHotkey' ? 131 : null,
+      );
       expect(await AndroidSystem().recordHotkey(), 131);
       messenger.setMockMethodCallHandler(channel, null);
       expect(await AndroidSystem().recordHotkey(), isNull);

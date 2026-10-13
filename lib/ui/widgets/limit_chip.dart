@@ -12,7 +12,8 @@ class LimitChip extends StatelessWidget {
 
   final DictationListening state;
 
-  static String textFor(DictationListening s) => '${formatClock(s.remaining)} left';
+  static String textFor(DictationListening s) =>
+      '${formatClock(s.remaining)} left';
 
   @override
   Widget build(BuildContext context) {
@@ -23,20 +24,25 @@ class LimitChip extends StatelessWidget {
       label: 'Recording stops automatically in $text',
       excludeSemantics: true,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: c.tertiaryContainer, borderRadius: BorderRadius.circular(100)),
+        decoration: BoxDecoration(
+          color: c.tertiaryContainer,
+          borderRadius: BorderRadius.circular(100),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.timer_outlined, size: 18, color: c.onTertiaryContainer),
+              Icon(
+                Icons.timer_outlined,
+                size: 18,
+                color: c.onTertiaryContainer,
+              ),
               const SizedBox(width: 6),
               Text(
                 text,
-                style: RambleTextStyles.of(context).timer.copyWith(
-                      fontSize: 14,
-                      color: c.onTertiaryContainer,
-                    ),
+                style: RambleTextStyles.of(context).timer
+                    .copyWith(fontSize: 14, color: c.onTertiaryContainer),
               ),
             ],
           ),

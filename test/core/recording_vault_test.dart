@@ -24,14 +24,17 @@ void main() {
     dir = Directory('${(await makeTempDir()).path}/vault');
   });
 
-  test('begin creates the directory, a pending marker and an id from the time', () async {
-    final vault = RecordingVault(dir);
-    final sink = await vault.begin(now: _t(1234));
-    expect(sink.id, '1234');
-    expect(await dir.exists(), isTrue);
-    expect(await File('${dir.path}/1234.pending').exists(), isTrue);
-    await sink.close();
-  });
+  test(
+    'begin creates the directory, a pending marker and an id from the time',
+    () async {
+      final vault = RecordingVault(dir);
+      final sink = await vault.begin(now: _t(1234));
+      expect(sink.id, '1234');
+      expect(await dir.exists(), isTrue);
+      expect(await File('${dir.path}/1234.pending').exists(), isTrue);
+      await sink.close();
+    },
+  );
 
   test('add, close and read back', () async {
     final vault = RecordingVault(dir);
@@ -87,24 +90,38 @@ void main() {
     await vault.markProcessed(id); // idempotent
   });
 
-  test('prune keeps the latest N processed recordings, never pending ones', () async {
-    final vault = RecordingVault(dir, keepLatest: 2);
-    final pendingOld = await _record(vault, 1, [0, 0]); // oldest, never processed
-    final ids = [for (var i = 2; i <= 5; i++) await _record(vault, i, [i, 0])];
-    for (final id in ids) {
-      await vault.markProcessed(id);
-    }
-    expect(await vault.read(ids[0]), isNull);
-    expect(await vault.read(ids[1]), isNull);
-    expect(await vault.read(ids[2]), isNotNull);
-    expect(await vault.read(ids[3]), isNotNull);
-    expect(await vault.read(pendingOld), isNotNull, reason: 'pending audio must survive pruning');
-    expect(await vault.pending(), [pendingOld]);
-  });
+  test(
+    'prune keeps the latest N processed recordings, never pending ones',
+    () async {
+      final vault = RecordingVault(dir, keepLatest: 2);
+      final pendingOld = await _record(vault, 1, [
+        0,
+        0,
+      ]); // oldest, never processed
+      final ids = [
+        for (var i = 2; i <= 5; i++) await _record(vault, i, [i, 0]),
+      ];
+      for (final id in ids) {
+        await vault.markProcessed(id);
+      }
+      expect(await vault.read(ids[0]), isNull);
+      expect(await vault.read(ids[1]), isNull);
+      expect(await vault.read(ids[2]), isNotNull);
+      expect(await vault.read(ids[3]), isNotNull);
+      expect(
+        await vault.read(pendingOld),
+        isNotNull,
+        reason: 'pending audio must survive pruning',
+      );
+      expect(await vault.pending(), [pendingOld]);
+    },
+  );
 
   test('prune does nothing under the limit', () async {
     final vault = RecordingVault(dir, keepLatest: 5);
-    final ids = [for (var i = 1; i <= 3; i++) await _record(vault, i, [i, 0])];
+    final ids = [
+      for (var i = 1; i <= 3; i++) await _record(vault, i, [i, 0]),
+    ];
     for (final id in ids) {
       await vault.markProcessed(id);
     }

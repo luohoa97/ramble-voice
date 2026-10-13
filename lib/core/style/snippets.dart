@@ -17,19 +17,23 @@ class Snippet {
   Map<String, Object?> toJson() => {'trigger': trigger, 'expansion': expansion};
 
   factory Snippet.fromJson(Map<String, Object?> j) => Snippet(
-        trigger: j['trigger'] as String? ?? '',
-        expansion: j['expansion'] as String? ?? '',
-      );
+    trigger: j['trigger'] as String? ?? '',
+    expansion: j['expansion'] as String? ?? '',
+  );
 
-  Snippet copyWith({String? trigger, String? expansion}) =>
-      Snippet(trigger: trigger ?? this.trigger, expansion: expansion ?? this.expansion);
+  Snippet copyWith({String? trigger, String? expansion}) => Snippet(
+    trigger: trigger ?? this.trigger,
+    expansion: expansion ?? this.expansion,
+  );
 
   /// A snippet with an empty side does nothing.
   bool get isUsable => trigger.trim().isNotEmpty && expansion.trim().isNotEmpty;
 
   @override
   bool operator ==(Object other) =>
-      other is Snippet && other.trigger == trigger && other.expansion == expansion;
+      other is Snippet &&
+      other.trigger == trigger &&
+      other.expansion == expansion;
 
   @override
   int get hashCode => Object.hash(trigger, expansion);
@@ -70,6 +74,7 @@ String _clean(String s) {
       .replaceAll(RegExp(r'[{}<>`"“”]'), '')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
-  if (t.length > Snippet.maxLength) t = t.substring(0, Snippet.maxLength).trim();
+  if (t.length > Snippet.maxLength)
+    t = t.substring(0, Snippet.maxLength).trim();
   return t;
 }

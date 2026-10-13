@@ -13,7 +13,9 @@ import '../ui/util/app_label.dart';
 /// tone when the app is unknown.
 Future<void> setKeyboardTone(WidgetRef ref, StylePreset preset) {
   final pkg = ref.read(currentPackageProvider);
-  return ref.read(settingsProvider.notifier).update(
+  return ref
+      .read(settingsProvider.notifier)
+      .update(
         (s) => pkg == null
             ? s.copyWith(style: s.style.copyWith(preset: preset))
             : s.copyWith(appStyles: {...s.appStyles, pkg: preset}),
@@ -37,7 +39,9 @@ class ToneMenu extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final pkg = ref.watch(currentPackageProvider);
     final effective = settings.styleForApp(pkg);
-    final label = pkg == null ? null : (ref.watch(appLabelProvider(pkg)).value ?? pkg);
+    final label = pkg == null
+        ? null
+        : (ref.watch(appLabelProvider(pkg)).value ?? pkg);
     final hasOverride = pkg != null && settings.appStyles.containsKey(pkg);
     final canGlobal = pkg != null && effective != settings.style.preset;
     final t = Theme.of(context).textTheme;
@@ -53,7 +57,10 @@ class ToneMenu extends ConsumerWidget {
       return ref.read(settingsProvider.notifier).update((s) {
         final next = {...s.appStyles}..remove(pkg);
         return action == 'all'
-            ? s.copyWith(appStyles: next, style: s.style.copyWith(preset: effective))
+            ? s.copyWith(
+                appStyles: next,
+                style: s.style.copyWith(preset: effective),
+              )
             : s.copyWith(appStyles: next);
       });
     }
@@ -64,15 +71,38 @@ class ToneMenu extends ConsumerWidget {
       onSelected: act,
       itemBuilder: (_) => [
         if (label != null)
-          PopupMenuItem<String>(enabled: false, height: 32, child: Text('For $label', style: t.labelMedium)),
+          PopupMenuItem<String>(
+            enabled: false,
+            height: 32,
+            child: Text('For $label', style: t.labelMedium),
+          ),
         for (final p in StylePreset.values)
-          CheckedPopupMenuItem<String>(value: p.name, checked: p == effective, height: 40, child: Text(p.label)),
+          CheckedPopupMenuItem<String>(
+            value: p.name,
+            checked: p == effective,
+            height: 40,
+            child: Text(p.label),
+          ),
         const PopupMenuDivider(),
         const _EmbeddedEntry(child: PolishChoice()),
         const PopupMenuDivider(),
-        if (canGlobal) PopupMenuItem(value: 'all', height: 40, child: Text('Use ${effective.label} for all apps')),
-        if (hasOverride) const PopupMenuItem(value: 'reset', height: 40, child: Text('Reset for this app')),
-        const PopupMenuItem(value: 'edit', height: 40, child: Text('Custom instructions')),
+        if (canGlobal)
+          PopupMenuItem(
+            value: 'all',
+            height: 40,
+            child: Text('Use ${effective.label} for all apps'),
+          ),
+        if (hasOverride)
+          const PopupMenuItem(
+            value: 'reset',
+            height: 40,
+            child: Text('Reset for this app'),
+          ),
+        const PopupMenuItem(
+          value: 'edit',
+          height: 40,
+          child: Text('Custom instructions'),
+        ),
       ],
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48),
@@ -81,7 +111,10 @@ class ToneMenu extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(effective.label, style: t.labelLarge?.copyWith(color: c.onSurface)),
+              Text(
+                effective.label,
+                style: t.labelLarge?.copyWith(color: c.onSurface),
+              ),
               Icon(Icons.arrow_drop_down_rounded, size: 20, color: c.onSurface),
             ],
           ),
@@ -109,6 +142,8 @@ class _EmbeddedEntry extends PopupMenuEntry<String> {
 
 class _EmbeddedEntryState extends State<_EmbeddedEntry> {
   @override
-  Widget build(BuildContext context) =>
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: widget.child);
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: widget.child,
+  );
 }

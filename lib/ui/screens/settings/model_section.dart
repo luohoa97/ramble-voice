@@ -15,7 +15,10 @@ import '../../widgets/adaptive_sheet.dart';
 
 /// Shows the Apache-2.0 attribution. Returns true when the user accepts.
 Future<bool> showModelLicense(BuildContext context) async {
-  final ok = await showAdaptiveSheet<bool>(context, builder: (context) => const _LicenseSheet());
+  final ok = await showAdaptiveSheet<bool>(
+    context,
+    builder: (context) => const _LicenseSheet(),
+  );
   return ok ?? false;
 }
 
@@ -30,9 +33,15 @@ class _LicenseSheet extends StatelessWidget {
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           const SizedBox(width: 8),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('I accept')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('I accept'),
+          ),
         ],
       ),
       children: [
@@ -103,7 +112,8 @@ class _ModelRowState extends ConsumerState<ModelRow> {
       if (!mounted) return;
       final wasDone = _status is Downloaded;
       setState(() => _status = s);
-      if (wasDone != (s is Downloaded)) ref.invalidate(activeEngineReadinessProvider);
+      if (wasDone != (s is Downloaded))
+        ref.invalidate(activeEngineReadinessProvider);
     });
     _downloader.refresh(widget.variant).then((s) {
       if (mounted) setState(() => _status = s);
@@ -116,14 +126,18 @@ class _ModelRowState extends ConsumerState<ModelRow> {
     super.dispose();
   }
 
-  void _select() => ref.read(settingsProvider.notifier).update((s) => s.copyWith(gemmaVariantId: widget.variant.id));
+  void _select() => ref
+      .read(settingsProvider.notifier)
+      .update((s) => s.copyWith(gemmaVariantId: widget.variant.id));
 
   Future<void> _download() async {
     final settings = ref.read(settingsProvider);
     if (!settings.modelLicenseAccepted) {
       final ok = await showModelLicense(context);
       if (!ok || !mounted) return;
-      await ref.read(settingsProvider.notifier).update((s) => s.copyWith(modelLicenseAccepted: true));
+      await ref
+          .read(settingsProvider.notifier)
+          .update((s) => s.copyWith(modelLicenseAccepted: true));
     }
     _select();
     unawaited(_downloader.start(widget.variant));
@@ -134,10 +148,18 @@ class _ModelRowState extends ConsumerState<ModelRow> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete ${widget.variant.label}?'),
-        content: Text('This frees ${widget.variant.sizeLabel}. You can download it again later.'),
+        content: Text(
+          'This frees ${widget.variant.sizeLabel}. You can download it again later.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -147,7 +169,8 @@ class _ModelRowState extends ConsumerState<ModelRow> {
   @override
   Widget build(BuildContext context) {
     final v = widget.variant;
-    final selected = ref.watch(settingsProvider.select((s) => s.gemmaVariantId)) == v.id;
+    final selected =
+        ref.watch(settingsProvider.select((s) => s.gemmaVariantId)) == v.id;
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
     final s = _status;
@@ -160,14 +183,20 @@ class _ModelRowState extends ConsumerState<ModelRow> {
 
     switch (s) {
       case NotDownloaded():
-        actions.add(FilledButton.tonalIcon(
-          onPressed: _download,
-          icon: const Icon(Icons.download_rounded, size: 20),
-          label: const Text('Download'),
-        ));
+        actions.add(
+          FilledButton.tonalIcon(
+            onPressed: _download,
+            icon: const Icon(Icons.download_rounded, size: 20),
+            label: const Text('Download'),
+          ),
+        );
       case Downloading(:final received, :final total, :final fraction):
-        progress = LinearProgressIndicator(value: fraction, semanticsLabel: 'Download progress');
-        status = '${formatBytes(received)} of ${formatBytes(total)}, ${(fraction * 100).floor()}%';
+        progress = LinearProgressIndicator(
+          value: fraction,
+          semanticsLabel: 'Download progress',
+        );
+        status =
+            '${formatBytes(received)} of ${formatBytes(total)}, ${(fraction * 100).floor()}%';
         actions.addAll([
           if (_downloader.supportsPause)
             FilledButton.tonalIcon(
@@ -176,7 +205,10 @@ class _ModelRowState extends ConsumerState<ModelRow> {
               label: const Text('Pause'),
             ),
           if (_downloader.supportsPause)
-            TextButton(onPressed: () => _downloader.delete(v), child: const Text('Cancel'))
+            TextButton(
+              onPressed: () => _downloader.delete(v),
+              child: const Text('Cancel'),
+            )
           else
             FilledButton.tonalIcon(
               onPressed: () => _downloader.delete(v),
@@ -185,7 +217,10 @@ class _ModelRowState extends ConsumerState<ModelRow> {
             ),
         ]);
       case Paused(:final received, :final total, :final fraction):
-        progress = LinearProgressIndicator(value: fraction, semanticsLabel: 'Download paused');
+        progress = LinearProgressIndicator(
+          value: fraction,
+          semanticsLabel: 'Download paused',
+        );
         status = 'Paused at ${formatBytes(received)} of ${formatBytes(total)}';
         actions.addAll([
           FilledButton.tonalIcon(
@@ -193,10 +228,15 @@ class _ModelRowState extends ConsumerState<ModelRow> {
             icon: const Icon(Icons.play_arrow_rounded, size: 20),
             label: const Text('Resume'),
           ),
-          TextButton(onPressed: () => _downloader.delete(v), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => _downloader.delete(v),
+            child: const Text('Cancel'),
+          ),
         ]);
       case Verifying():
-        progress = const LinearProgressIndicator(semanticsLabel: 'Verifying download');
+        progress = const LinearProgressIndicator(
+          semanticsLabel: 'Verifying download',
+        );
         status = 'Verifying the download';
       case Downloaded():
         status = 'Downloaded';
@@ -210,7 +250,10 @@ class _ModelRowState extends ConsumerState<ModelRow> {
             icon: const Icon(Icons.refresh_rounded, size: 20),
             label: const Text('Retry'),
           ),
-          TextButton(onPressed: () => _downloader.delete(v), child: const Text('Discard')),
+          TextButton(
+            onPressed: () => _downloader.delete(v),
+            child: const Text('Discard'),
+          ),
         ]);
     }
 
@@ -231,7 +274,9 @@ class _ModelRowState extends ConsumerState<ModelRow> {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Icon(
-                  selected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
                   color: selected ? c.primary : c.outline,
                 ),
               ),
@@ -244,7 +289,14 @@ class _ModelRowState extends ConsumerState<ModelRow> {
                       spacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text(v.label, style: selected ? t.titleMedium : t.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
+                        Text(
+                          v.label,
+                          style: selected
+                              ? t.titleMedium
+                              : t.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                        ),
                         if (v.id == ModelCatalog.e4b.id)
                           DecoratedBox(
                             decoration: BoxDecoration(
@@ -252,8 +304,16 @@ class _ModelRowState extends ConsumerState<ModelRow> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              child: Text('Recommended', style: t.labelSmall?.copyWith(color: c.onPrimaryContainer)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                'Recommended',
+                                style: t.labelSmall?.copyWith(
+                                  color: c.onPrimaryContainer,
+                                ),
+                              ),
                             ),
                           ),
                       ],
@@ -263,15 +323,24 @@ class _ModelRowState extends ConsumerState<ModelRow> {
                       '${v.summary.split('.').first} · ${v.sizeLabel} · ${v.recommendedRamGb} GB memory',
                       style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
                     ),
-                    if (progress != null) ...[const SizedBox(height: 12), progress],
+                    if (progress != null) ...[
+                      const SizedBox(height: 12),
+                      progress,
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        if (statusIcon != null) ...[Icon(statusIcon, size: 16, color: c.primary), const SizedBox(width: 6)],
+                        if (statusIcon != null) ...[
+                          Icon(statusIcon, size: 16, color: c.primary),
+                          const SizedBox(width: 6),
+                        ],
                         Expanded(
                           child: Semantics(
                             liveRegion: s is! Downloading,
-                            child: Text(status, style: t.labelLarge?.copyWith(color: statusColor)),
+                            child: Text(
+                              status,
+                              style: t.labelLarge?.copyWith(color: statusColor),
+                            ),
                           ),
                         ),
                       ],
@@ -292,7 +361,11 @@ class _ModelRowState extends ConsumerState<ModelRow> {
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'card', child: Text('Model card')),
-                  if (s is Downloaded) const PopupMenuItem(value: 'delete', child: Text('Delete from this device')),
+                  if (s is Downloaded)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete from this device'),
+                    ),
                 ],
               ),
             ],

@@ -8,7 +8,8 @@ import '../platform_services.dart';
 
 /// `ramble/system`: share sheet, accent colour, haptics and keyboard settings.
 class AndroidSystem {
-  AndroidSystem({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('ramble/system');
+  AndroidSystem({MethodChannel? channel})
+    : _channel = channel ?? const MethodChannel('ramble/system');
 
   final MethodChannel _channel;
 
@@ -37,7 +38,8 @@ class AndroidSystem {
     }
   }
 
-  Future<void> openKeyboardSettings() => _channel.invokeMethod<void>('openKeyboardSettings');
+  Future<void> openKeyboardSettings() =>
+      _channel.invokeMethod<void>('openKeyboardSettings');
 
   Future<bool> isKeyboardEnabled() async {
     try {
@@ -74,13 +76,12 @@ extension BubbleSystem on AndroidSystem {
     required String size,
     bool hotkeyEnabled = true,
     int hotkeyCode = 115,
-  }) =>
-      _call('setBubbleConfig', {
-        'blockedApps': blockedApps,
-        'size': size,
-        'hotkeyEnabled': hotkeyEnabled,
-        'hotkeyCode': hotkeyCode,
-      });
+  }) => _call('setBubbleConfig', {
+    'blockedApps': blockedApps,
+    'size': size,
+    'hotkeyEnabled': hotkeyEnabled,
+    'hotkeyCode': hotkeyCode,
+  });
 
   /// Waits (up to about 10 s) for the user to press one key on a physical
   /// keyboard and returns its Android key code, or null if none / the service is off.
@@ -103,7 +104,8 @@ extension BubbleSystem on AndroidSystem {
   /// `Build.MANUFACTURER`, lower case; empty when unknown.
   Future<String> manufacturer() async {
     try {
-      return (await _channel.invokeMethod<String>('manufacturer') ?? '').toLowerCase();
+      return (await _channel.invokeMethod<String>('manufacturer') ?? '')
+          .toLowerCase();
     } on PlatformException {
       return '';
     } on MissingPluginException {
@@ -118,11 +120,13 @@ extension BubbleSystem on AndroidSystem {
   Future<void> forgetBubble() => _call('forgetBubble');
 
   /// Whether WRITE_SECURE_SETTINGS was granted (over adb), which auto-restore needs.
-  Future<bool> hasSecureSettingsPermission() => _bool('hasSecureSettingsPermission');
+  Future<bool> hasSecureSettingsPermission() =>
+      _bool('hasSecureSettingsPermission');
 
   /// Turns the opt-in auto-restore on or off. When on and permitted, the
   /// native side re-adds the bubble service if the system switched it off.
-  Future<void> setBubbleAutoRestore(bool enabled) => _call('setBubbleAutoRestore', enabled);
+  Future<void> setBubbleAutoRestore(bool enabled) =>
+      _call('setBubbleAutoRestore', enabled);
 
   /// Lets the floating mic show inside Ramble itself (the setup "Try it" box).
   Future<void> allowBubbleInApp(bool allow) => _call('allowBubbleInApp', allow);
@@ -140,10 +144,18 @@ extension BubbleSystem on AndroidSystem {
 
   Future<List<LaunchableApp>> launchableApps() async {
     try {
-      final raw = await _channel.invokeListMethod<Map<Object?, Object?>>('launchableApps') ?? const [];
+      final raw =
+          await _channel.invokeListMethod<Map<Object?, Object?>>(
+            'launchableApps',
+          ) ??
+          const [];
       return [
         for (final m in raw)
-          if (m['package'] is String) LaunchableApp(m['package']! as String, m['label'] as String? ?? m['package']! as String),
+          if (m['package'] is String)
+            LaunchableApp(
+              m['package']! as String,
+              m['label'] as String? ?? m['package']! as String,
+            ),
       ];
     } on PlatformException {
       return const [];

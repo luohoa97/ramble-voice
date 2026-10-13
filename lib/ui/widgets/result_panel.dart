@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_3_expressive/material_3_expressive.dart' show M3ELoadingIndicator;
+import 'package:material_3_expressive/material_3_expressive.dart'
+    show M3ELoadingIndicator;
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/providers.dart';
@@ -11,7 +12,12 @@ import '../util/clipboard.dart';
 /// Cleaned text in emphasized type, with Copy, Share and "Show original".
 /// [recordingId] keys the verbatim transcript; null hides that action.
 class ResultPanel extends ConsumerStatefulWidget {
-  const ResultPanel({super.key, required this.text, this.recordingId, this.footer});
+  const ResultPanel({
+    super.key,
+    required this.text,
+    this.recordingId,
+    this.footer,
+  });
 
   final String text;
   final String? recordingId;
@@ -39,7 +45,10 @@ class _ResultPanelState extends ConsumerState<ResultPanel> {
     final id = widget.recordingId;
 
     return DecoratedBox(
-      decoration: BoxDecoration(color: c.surfaceContainerLow, borderRadius: BorderRadius.circular(Shapes.extraLarge)),
+      decoration: BoxDecoration(
+        color: c.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(Shapes.extraLarge),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 16, 12),
         child: Column(
@@ -47,17 +56,26 @@ class _ResultPanelState extends ConsumerState<ResultPanel> {
           children: [
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: Semantics(label: 'Cleaned text', child: SelectableText(widget.text, style: styles.result)),
+              child: Semantics(
+                label: 'Cleaned text',
+                child: SelectableText(widget.text, style: styles.result),
+              ),
             ),
             if (_showOriginal && id != null) ...[
               const SizedBox(height: 24),
-              Text('Original', style: t.labelLarge?.copyWith(color: c.onSurfaceVariant)),
+              Text(
+                'Original',
+                style: t.labelLarge?.copyWith(color: c.onSurfaceVariant),
+              ),
               const SizedBox(height: 4),
               OriginalText(id: id),
             ],
             if (widget.footer != null) ...[
               const SizedBox(height: 12),
-              Padding(padding: const EdgeInsets.only(right: 8), child: widget.footer!),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: widget.footer!,
+              ),
             ],
             const SizedBox(height: 12),
             Wrap(
@@ -77,9 +95,17 @@ class _ResultPanelState extends ConsumerState<ResultPanel> {
                   ),
                 if (id != null)
                   TextButton.icon(
-                    onPressed: () => setState(() => _showOriginal = !_showOriginal),
-                    icon: Icon(_showOriginal ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
-                    label: Text(_showOriginal ? 'Hide original' : 'Show original'),
+                    onPressed: () =>
+                        setState(() => _showOriginal = !_showOriginal),
+                    icon: Icon(
+                      _showOriginal
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _showOriginal ? 'Hide original' : 'Show original',
+                    ),
                   ),
               ],
             ),
@@ -105,9 +131,18 @@ class OriginalText extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            M3ELoadingIndicator(size: 32, color: c.primary, semanticLabel: 'Transcribing the original'),
+            M3ELoadingIndicator(
+              size: 32,
+              color: c.primary,
+              semanticLabel: 'Transcribing the original',
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Text('Transcribing the recording word for word', style: t.bodyMedium)),
+            Expanded(
+              child: Text(
+                'Transcribing the recording word for word',
+                style: t.bodyMedium,
+              ),
+            ),
           ],
         ),
       ),
@@ -116,14 +151,26 @@ class OriginalText extends ConsumerWidget {
         style: t.bodyMedium?.copyWith(color: c.error),
       ),
       data: (text) => text == null
-          ? Text('The original recording is no longer available.', style: t.bodyMedium)
+          ? Text(
+              'The original recording is no longer available.',
+              style: t.bodyMedium,
+            )
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: SelectableText(text, style: t.bodyLarge?.copyWith(color: c.onSurfaceVariant))),
+                Expanded(
+                  child: SelectableText(
+                    text,
+                    style: t.bodyLarge?.copyWith(color: c.onSurfaceVariant),
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Copy original',
-                  onPressed: () => copyToClipboard(context, text, message: 'Original copied'),
+                  onPressed: () => copyToClipboard(
+                    context,
+                    text,
+                    message: 'Original copied',
+                  ),
                   icon: const Icon(Icons.copy_rounded, size: 18),
                 ),
               ],

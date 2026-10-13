@@ -28,7 +28,9 @@ List<String> languagesFromLocales(Iterable<String> locales) {
 List<String> detectDeviceLanguages() {
   final locales = <String>[];
   try {
-    locales.addAll([for (final l in PlatformDispatcher.instance.locales) l.toLanguageTag()]);
+    locales.addAll([
+      for (final l in PlatformDispatcher.instance.locales) l.toLanguageTag(),
+    ]);
   } catch (_) {}
   if (Platform.isLinux) {
     final env = Platform.environment;

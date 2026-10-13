@@ -5,7 +5,8 @@
 /// [ColorScheme] roles; the seed below is the single brand hex.
 library;
 
-import 'package:material_3_expressive/material_3_expressive.dart' show M3ESpring, M3EThemeData;
+import 'package:material_3_expressive/material_3_expressive.dart'
+    show M3ESpring, M3EThemeData;
 import 'package:material_ui/material_ui.dart';
 
 /// Recording-light vermilion. Used when the platform provides no accent.
@@ -32,7 +33,11 @@ abstract final class Motion {
 /// Extra text styles that do not exist in the Material type scale.
 @immutable
 class RambleTextStyles extends ThemeExtension<RambleTextStyles> {
-  const RambleTextStyles({required this.result, required this.timer, required this.timerLarge});
+  const RambleTextStyles({
+    required this.result,
+    required this.timer,
+    required this.timerLarge,
+  });
 
   /// Dictated text on the result card.
   final TextStyle result;
@@ -44,15 +49,22 @@ class RambleTextStyles extends ThemeExtension<RambleTextStyles> {
   static RambleTextStyles of(BuildContext context) =>
       Theme.of(context).extension<RambleTextStyles>() ?? _fallback;
 
-  static const _fallback = RambleTextStyles(result: TextStyle(), timer: TextStyle(), timerLarge: TextStyle());
+  static const _fallback = RambleTextStyles(
+    result: TextStyle(),
+    timer: TextStyle(),
+    timerLarge: TextStyle(),
+  );
 
   @override
-  RambleTextStyles copyWith({TextStyle? result, TextStyle? timer, TextStyle? timerLarge}) =>
-      RambleTextStyles(
-        result: result ?? this.result,
-        timer: timer ?? this.timer,
-        timerLarge: timerLarge ?? this.timerLarge,
-      );
+  RambleTextStyles copyWith({
+    TextStyle? result,
+    TextStyle? timer,
+    TextStyle? timerLarge,
+  }) => RambleTextStyles(
+    result: result ?? this.result,
+    timer: timer ?? this.timer,
+    timerLarge: timerLarge ?? this.timerLarge,
+  );
 
   @override
   RambleTextStyles lerp(RambleTextStyles? other, double t) => other == null
@@ -93,19 +105,25 @@ abstract final class Shapes {
 }
 
 List<FontVariation> _axes(double weight, double opsz, {double grade = 0}) => [
-      FontVariation('wght', weight),
-      FontVariation('opsz', opsz.clamp(8, 144)),
-      FontVariation('GRAD', grade),
-    ];
+  FontVariation('wght', weight),
+  FontVariation('opsz', opsz.clamp(8, 144)),
+  FontVariation('GRAD', grade),
+];
 
-TextStyle _s(double size, double lh, double weight, {double ls = 0, double grade = 0}) => TextStyle(
-      fontFamily: fontFamily,
-      fontSize: size,
-      height: lh / size,
-      letterSpacing: ls,
-      fontWeight: FontWeight.values[((weight / 100).round() - 1).clamp(0, 8)],
-      fontVariations: _axes(weight, size, grade: grade),
-    );
+TextStyle _s(
+  double size,
+  double lh,
+  double weight, {
+  double ls = 0,
+  double grade = 0,
+}) => TextStyle(
+  fontFamily: fontFamily,
+  fontSize: size,
+  height: lh / size,
+  letterSpacing: ls,
+  fontWeight: FontWeight.values[((weight / 100).round() - 1).clamp(0, 8)],
+  fontVariations: _axes(weight, size, grade: grade),
+);
 
 /// Baseline scale on the left, emphasized (heavier, graded) on display and
 /// headline roles for the dictated result.
@@ -143,17 +161,27 @@ ColorScheme _scheme(Brightness brightness, Color? accent) {
     primary: dark ? const Color(0xFFFFB4A4) : brandSeed,
     onPrimary: dark ? const Color(0xFF5F1500) : const Color(0xFFFFFFFF),
     primaryContainer: dark ? const Color(0xFF8A2410) : const Color(0xFFFFDAD2),
-    onPrimaryContainer: dark ? const Color(0xFFFFDAD2) : const Color(0xFF3A0900),
+    onPrimaryContainer: dark
+        ? const Color(0xFFFFDAD2)
+        : const Color(0xFF3A0900),
     surface: dark ? const Color(0xFF1A1816) : const Color(0xFFFAF7F4),
     onSurface: dark ? const Color(0xFFEAE4DF) : const Color(0xFF1D1B19),
     onSurfaceVariant: dark ? const Color(0xFFCFC6BF) : const Color(0xFF4F4842),
     surfaceDim: dark ? const Color(0xFF14120F) : const Color(0xFFDDD8D3),
     surfaceBright: dark ? const Color(0xFF3A3633) : const Color(0xFFFAF7F4),
-    surfaceContainerLowest: dark ? const Color(0xFF0F0D0B) : const Color(0xFFFFFFFF),
-    surfaceContainerLow: dark ? const Color(0xFF211F1C) : const Color(0xFFF5F1ED),
+    surfaceContainerLowest: dark
+        ? const Color(0xFF0F0D0B)
+        : const Color(0xFFFFFFFF),
+    surfaceContainerLow: dark
+        ? const Color(0xFF211F1C)
+        : const Color(0xFFF5F1ED),
     surfaceContainer: dark ? const Color(0xFF262421) : const Color(0xFFF0EBE7),
-    surfaceContainerHigh: dark ? const Color(0xFF312E2B) : const Color(0xFFEAE5E1),
-    surfaceContainerHighest: dark ? const Color(0xFF3C3936) : const Color(0xFFE4DFDB),
+    surfaceContainerHigh: dark
+        ? const Color(0xFF312E2B)
+        : const Color(0xFFEAE5E1),
+    surfaceContainerHighest: dark
+        ? const Color(0xFF3C3936)
+        : const Color(0xFFE4DFDB),
     outline: dark ? const Color(0xFF988F88) : const Color(0xFF81776F),
     outlineVariant: dark ? const Color(0xFF4F4842) : const Color(0xFFD3C8C0),
   );
@@ -178,7 +206,11 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
     extensions: [
       RambleTextStyles(
         result: text.headlineSmall!.copyWith(
-          fontVariations: _axes(560, 24, grade: brightness == Brightness.dark ? -25 : 0),
+          fontVariations: _axes(
+            560,
+            24,
+            grade: brightness == Brightness.dark ? -25 : 0,
+          ),
           height: 1.4,
           letterSpacing: 0,
         ),
@@ -210,7 +242,9 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
       selectedColor: scheme.secondaryContainer,
       checkmarkColor: scheme.onSecondaryContainer,
       labelStyle: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
-      secondaryLabelStyle: text.labelLarge?.copyWith(color: scheme.onSecondaryContainer),
+      secondaryLabelStyle: text.labelLarge?.copyWith(
+        color: scheme.onSecondaryContainer,
+      ),
       padding: EdgeInsets.zero,
       labelPadding: const EdgeInsets.symmetric(horizontal: 10),
     ),
@@ -218,7 +252,10 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
       trackOutlineColor: WidgetStatePropertyAll(Colors.transparent),
     ),
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(minimumSize: const Size(64, 48), textStyle: text.labelLarge),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(64, 48),
+        textStyle: text.labelLarge,
+      ),
     ),
     // Text buttons stay neutral: the accent is vermilion, which on a plain
     // text action reads as a warning.
@@ -256,7 +293,9 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Shapes.medium)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Shapes.medium),
+      ),
     ),
     dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(borderRadius: Shapes.sheetRadius),
@@ -265,7 +304,11 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: scheme.surfaceContainerLow,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Shapes.extraLarge))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(Shapes.extraLarge),
+        ),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -281,10 +324,14 @@ ThemeData buildTheme({required Brightness brightness, Color? accent}) {
     ),
     listTileTheme: ListTileThemeData(
       minVerticalPadding: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Shapes.medium)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Shapes.medium),
+      ),
     ),
     focusColor: scheme.primary.withValues(alpha: 0.16),
-    tooltipTheme: TooltipThemeData(waitDuration: const Duration(milliseconds: 500)),
+    tooltipTheme: TooltipThemeData(
+      waitDuration: const Duration(milliseconds: 500),
+    ),
   );
 }
 

@@ -31,26 +31,41 @@ GoRouter buildRouter({required ValueListenable<bool> onboarded}) {
       GoRoute(path: '/setup', builder: (_, _) => const OnboardingScreen()),
       ShellRoute(
         navigatorKey: _shellKey,
-        builder: (context, state, child) => AppShell(location: state.matchedLocation, child: child),
+        builder: (context, state, child) =>
+            AppShell(location: state.matchedLocation, child: child),
         routes: [
-          GoRoute(path: '/', pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const HomePane())),
+          GoRoute(
+            path: '/',
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const HomePane()),
+          ),
           GoRoute(
             path: '/history',
-            pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const HistoryRoutePage()),
+            pageBuilder: (_, s) => NoTransitionPage(
+              key: s.pageKey,
+              child: const HistoryRoutePage(),
+            ),
           ),
           GoRoute(
             path: '/settings',
-            pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen()),
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const SettingsScreen()),
             routes: [
               // Deep link target of the keyboard's "Download a model".
               GoRoute(
                 path: 'models',
-                pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen(anchor: 'engine')),
+                pageBuilder: (_, s) => NoTransitionPage(
+                  key: s.pageKey,
+                  child: const SettingsScreen(anchor: 'engine'),
+                ),
               ),
               // Deep link target of the keyboard's style edit button.
               GoRoute(
                 path: 'style',
-                pageBuilder: (_, s) => NoTransitionPage(key: s.pageKey, child: const SettingsScreen(anchor: 'style')),
+                pageBuilder: (_, s) => NoTransitionPage(
+                  key: s.pageKey,
+                  child: const SettingsScreen(anchor: 'style'),
+                ),
               ),
             ],
           ),
@@ -63,7 +78,10 @@ GoRouter buildRouter({required ValueListenable<bool> onboarded}) {
 /// Router tied to the onboarding flag in settings.
 final routerProvider = Provider<GoRouter>((ref) {
   final onboarded = ValueNotifier<bool>(ref.read(settingsProvider).onboarded);
-  ref.listen(settingsProvider.select((s) => s.onboarded), (_, v) => onboarded.value = v);
+  ref.listen(
+    settingsProvider.select((s) => s.onboarded),
+    (_, v) => onboarded.value = v,
+  );
   final router = buildRouter(onboarded: onboarded);
   ref.onDispose(() {
     router.dispose();

@@ -27,7 +27,10 @@ class RecordingSection extends ConsumerWidget {
           child: Row(
             children: [
               Expanded(child: Text('Maximum length', style: t.bodyLarge)),
-              Text('$minutes ${minutes == 1 ? 'minute' : 'minutes'}', style: t.titleMedium?.copyWith(color: c.primary)),
+              Text(
+                '$minutes ${minutes == 1 ? 'minute' : 'minutes'}',
+                style: t.titleMedium?.copyWith(color: c.primary),
+              ),
             ],
           ),
         ),
@@ -38,7 +41,9 @@ class RecordingSection extends ConsumerWidget {
           value: minutes.clamp(1, 30).toDouble(),
           label: '$minutes min',
           semanticFormatterCallback: (v) => '${v.round()} minutes',
-          onChanged: (v) => ref.read(settingsProvider.notifier).update((x) => x.copyWith(maxSessionMinutes: v.round())),
+          onChanged: (v) => ref
+              .read(settingsProvider.notifier)
+              .update((x) => x.copyWith(maxSessionMinutes: v.round())),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -52,15 +57,21 @@ class RecordingSection extends ConsumerWidget {
             contentPadding: const EdgeInsets.only(left: 16, right: 8),
             title: const Text('Haptic feedback'),
             value: s.haptics,
-            onChanged: (v) => ref.read(settingsProvider.notifier).update((x) => x.copyWith(haptics: v)),
+            onChanged: (v) => ref
+                .read(settingsProvider.notifier)
+                .update((x) => x.copyWith(haptics: v)),
           ),
         if (android)
           SwitchListTile(
             contentPadding: const EdgeInsets.only(left: 16, right: 8),
             title: const Text('Phone noise reduction'),
-            subtitle: const Text('Uses the phone\'s call noise filter on the microphone. Try it on buses and in loud places.'),
+            subtitle: const Text(
+              'Uses the phone\'s call noise filter on the microphone. Try it on buses and in loud places.',
+            ),
             value: s.noiseReduction,
-            onChanged: (v) => ref.read(settingsProvider.notifier).update((x) => x.copyWith(noiseReduction: v)),
+            onChanged: (v) => ref
+                .read(settingsProvider.notifier)
+                .update((x) => x.copyWith(noiseReduction: v)),
           ),
       ],
     );
@@ -74,7 +85,8 @@ class AndroidSection extends ConsumerStatefulWidget {
   ConsumerState<AndroidSection> createState() => _AndroidSectionState();
 }
 
-class _AndroidSectionState extends ConsumerState<AndroidSection> with WidgetsBindingObserver {
+class _AndroidSectionState extends ConsumerState<AndroidSection>
+    with WidgetsBindingObserver {
   bool? _enabled;
 
   @override
@@ -117,11 +129,21 @@ class _AndroidSectionState extends ConsumerState<AndroidSection> with WidgetsBin
         ),
         ListTile(
           contentPadding: const EdgeInsets.only(left: 16, right: 8),
-          leading: Icon(enabled ? Icons.check_circle_rounded : Icons.keyboard_alt_outlined, color: enabled ? c.primary : c.onSurfaceVariant),
-          title: Text(_enabled == null ? 'Checking keyboard status' : (enabled ? 'Keyboard is enabled' : 'Keyboard is not enabled')),
+          leading: Icon(
+            enabled ? Icons.check_circle_rounded : Icons.keyboard_alt_outlined,
+            color: enabled ? c.primary : c.onSurfaceVariant,
+          ),
+          title: Text(
+            _enabled == null
+                ? 'Checking keyboard status'
+                : (enabled ? 'Keyboard is enabled' : 'Keyboard is not enabled'),
+          ),
           trailing: enabled
               ? null
-              : FilledButton.tonal(onPressed: SystemChannel.openKeyboardSettings, child: const Text('Enable')),
+              : FilledButton.tonal(
+                  onPressed: SystemChannel.openKeyboardSettings,
+                  child: const Text('Enable'),
+                ),
         ),
       ],
     );
@@ -149,12 +171,17 @@ class PrivacySection extends ConsumerWidget {
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           leading: Icon(Icons.delete_outline_rounded, color: c.error),
-          title: Text('Delete all history and recordings', style: TextStyle(color: c.error)),
+          title: Text(
+            'Delete all history and recordings',
+            style: TextStyle(color: c.error),
+          ),
           onTap: () async {
             if (!await confirmDeleteAll(context)) return;
             await deleteEverything(ref);
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('History and recordings deleted')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('History and recordings deleted')),
+              );
             }
           },
         ),

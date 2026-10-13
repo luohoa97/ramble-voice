@@ -77,23 +77,44 @@ Future<void> imeMain() async {
       imeBridgeProvider.overrideWithValue(bridge),
       // Dictation continues the sentence in the field: read the text around
       // the cursor (never in password fields).
-      fieldContextReaderProvider.overrideWithValue(({bool screen = false}) async {
+      fieldContextReaderProvider.overrideWithValue(({
+        bool screen = false,
+      }) async {
         if (bridge.current.isPassword) return null;
-        final before = await bridge.getTextBeforeCursor(CleanupRequest.contextBeforeLimit) ?? '';
-        final after = await bridge.getTextAfterCursor(CleanupRequest.contextAfterLimit) ?? '';
-        final shown = screen ? await bridge.getScreenContext(CleanupRequest.screenContextLimit) : null;
-        return FieldContext(before: before, after: after, screen: shown);
+        final before =
+            await bridge.getTextBeforeCursor(
+              CleanupRequest.contextBeforeLimit,
+            ) ??
+            '';
+        final after =
+            await bridge.getTextAfterCursor(CleanupRequest.contextAfterLimit) ??
+            '';
+        final shown = screen
+            ? await bridge.getScreenContext(CleanupRequest.screenContextLimit)
+            : null;
+        return FieldContext(
+          before: before,
+          after: after,
+          screen: shown,
+          field: bridge.current.describe(),
+        );
       }),
       dictationOriginProvider.overrideWith(_KeyboardOrigin.new),
       outcomeHookProvider.overrideWith((ref) {
         return (outcome) async {
-          final pre = await bridge.getTextBeforeCursor(CleanupRequest.contextBeforeLimit);
+          final pre = await bridge.getTextBeforeCursor(
+            CleanupRequest.contextBeforeLimit,
+          );
           final result = await services.inserter.insert(outcome.insertText);
           if (result.method == InsertMethod.typed) {
             final post = await bridge.getTextBeforeCursor(
-              CleanupRequest.contextBeforeLimit + outcome.insertText.length * 2 + 16,
+              CleanupRequest.contextBeforeLimit +
+                  outcome.insertText.length * 2 +
+                  16,
             );
-            ref.read(lastTypedProvider.notifier).set(typedBetween(pre, post) ?? outcome.insertText);
+            ref
+                .read(lastTypedProvider.notifier)
+                .set(typedBetween(pre, post) ?? outcome.insertText);
           }
           ref.read(lastInsertProvider.notifier).set(result);
           if (result.method == InsertMethod.typed) {
@@ -142,7 +163,8 @@ Future<void> imeMain() async {
 
   // The microphone follows the noise-reduction setting.
   final mic = base.audio;
-  if (mic is AndroidAudioSource) mic.noiseReduction = () => container.read(settingsProvider).noiseReduction;
+  if (mic is AndroidAudioSource)
+    mic.noiseReduction = () => container.read(settingsProvider).noiseReduction;
 
   runApp(
     UncontrolledProviderScope(container: container, child: const ImeApp()),

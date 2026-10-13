@@ -17,9 +17,12 @@ import '../widgets/result_panel.dart';
 import '../widgets/settings_section.dart';
 
 String engineLabel(HistoryEntry e) =>
-    (e.engine == EngineKind.gemini.name ? 'Gemini' : 'On-device') + (e.fellBack ? ' (fallback)' : '');
+    (e.engine == EngineKind.gemini.name ? 'Gemini' : 'On-device') +
+    (e.fellBack ? ' (fallback)' : '');
 
-IconData engineIcon(HistoryEntry e) => e.engine == EngineKind.gemini.name ? Icons.cloud_outlined : Icons.memory_rounded;
+IconData engineIcon(HistoryEntry e) => e.engine == EngineKind.gemini.name
+    ? Icons.cloud_outlined
+    : Icons.memory_rounded;
 
 /// Deletes every history row and every stored recording.
 Future<void> deleteEverything(WidgetRef ref) async {
@@ -38,10 +41,18 @@ Future<bool> confirmDeleteAll(BuildContext context) async {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Delete all history?'),
-      content: const Text('This removes every dictation and saved recording from this device. It cannot be undone.'),
+      content: const Text(
+        'This removes every dictation and saved recording from this device. It cannot be undone.',
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete all')),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Delete all'),
+        ),
       ],
     ),
   );
@@ -50,27 +61,33 @@ Future<bool> confirmDeleteAll(BuildContext context) async {
 
 /// Deletes [e] and offers Undo. The recording file is removed only once the
 /// snackbar is gone and Undo was not used.
-Future<void> deleteWithUndo(WidgetRef ref, ScaffoldMessengerState messenger, HistoryEntry e) async {
+Future<void> deleteWithUndo(
+  WidgetRef ref,
+  ScaffoldMessengerState messenger,
+  HistoryEntry e,
+) async {
   final db = ref.read(historyDbProvider);
   final vault = ref.read(recordingVaultProvider);
   await db.deleteEntry(e.id);
   messenger.hideCurrentSnackBar();
   var undone = false;
   messenger
-      .showSnackBar(SnackBar(
-        content: const Text('Deleted'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            undone = true;
-            db.upsert(e.toCompanion(false));
-          },
+      .showSnackBar(
+        SnackBar(
+          content: const Text('Deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              undone = true;
+              db.upsert(e.toCompanion(false));
+            },
+          ),
         ),
-      ))
+      )
       .closed
       .then((_) {
-    if (!undone) vault.delete(e.id);
-  });
+        if (!undone) vault.delete(e.id);
+      });
 }
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -112,7 +129,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final t = Theme.of(context).textTheme;
 
     final search = Padding(
-      padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.x1),
+      padding: const EdgeInsets.fromLTRB(
+        Space.gutter,
+        0,
+        Space.gutter,
+        Space.x1,
+      ),
       child: TextField(
         controller: _controller,
         focusNode: widget.searchFocus,
@@ -133,16 +155,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     setState(() => _query = '');
                   },
                 ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide(color: c.primary, width: 2)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: BorderSide(color: c.primary, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
 
     final list = history.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('History could not be loaded.', style: t.bodyLarge)),
+      error: (e, _) => Center(
+        child: Text('History could not be loaded.', style: t.bodyLarge),
+      ),
       data: (items) {
         if (items.isEmpty) {
           return Center(
@@ -154,7 +187,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   Icon(Icons.history_rounded, size: 40, color: c.outline),
                   const SizedBox(height: Space.x2),
                   Text(
-                    _query.isEmpty ? 'No dictations yet. Cleaned text appears here.' : 'Nothing matches "$_query".',
+                    _query.isEmpty
+                        ? 'No dictations yet. Cleaned text appears here.'
+                        : 'Nothing matches "$_query".',
                     textAlign: TextAlign.center,
                     style: t.bodyLarge?.copyWith(color: c.onSurfaceVariant),
                   ),
@@ -169,7 +204,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           itemBuilder: (context, i) => _HistoryRow(
             entry: items[i],
             onOpen: () => showHistoryDetail(context, items[i]),
-            onDelete: () => deleteWithUndo(ref, ScaffoldMessenger.of(context), items[i]),
+            onDelete: () =>
+                deleteWithUndo(ref, ScaffoldMessenger.of(context), items[i]),
           ),
         );
       },
@@ -183,7 +219,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             padding: const EdgeInsets.fromLTRB(Space.x3, Space.x1, 8, 0),
             child: Row(
               children: [
-                Expanded(child: Semantics(header: true, child: Text('History', style: t.titleLarge))),
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    child: Text('History', style: t.titleLarge),
+                  ),
+                ),
                 deleteAll,
               ],
             ),
@@ -220,7 +261,11 @@ class _DeleteAllButton extends ConsumerWidget {
 }
 
 class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({required this.entry, required this.onOpen, required this.onDelete});
+  const _HistoryRow({
+    required this.entry,
+    required this.onOpen,
+    required this.onDelete,
+  });
 
   final HistoryEntry entry;
   final VoidCallback onOpen;
@@ -230,18 +275,25 @@ class _HistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
-    final meta = '${formatDateTime(entry.createdAt)} · ${formatClock(Duration(milliseconds: entry.durationMs))} · ${engineLabel(entry)}';
+    final meta =
+        '${formatDateTime(entry.createdAt)} · ${formatClock(Duration(milliseconds: entry.durationMs))} · ${engineLabel(entry)}';
     return Dismissible(
       key: ValueKey(entry.id),
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onDelete(),
       background: DecoratedBox(
-        decoration: BoxDecoration(color: c.errorContainer, borderRadius: BorderRadius.circular(Shapes.large)),
+        decoration: BoxDecoration(
+          color: c.errorContainer,
+          borderRadius: BorderRadius.circular(Shapes.large),
+        ),
         child: Align(
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.only(right: 24),
-            child: Icon(Icons.delete_outline_rounded, color: c.onErrorContainer),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              color: c.onErrorContainer,
+            ),
           ),
         ),
       ),
@@ -260,10 +312,17 @@ class _HistoryRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DecoratedBox(
-                  decoration: BoxDecoration(color: c.surfaceContainerHigh, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: c.surfaceContainerHigh,
+                    shape: BoxShape.circle,
+                  ),
                   child: SizedBox.square(
                     dimension: 40,
-                    child: Icon(engineIcon(entry), size: 20, color: c.onSurfaceVariant),
+                    child: Icon(
+                      engineIcon(entry),
+                      size: 20,
+                      color: c.onSurfaceVariant,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -271,9 +330,21 @@ class _HistoryRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(meta, style: t.labelMedium?.copyWith(color: c.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        meta,
+                        style: t.labelMedium?.copyWith(
+                          color: c.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 4),
-                      Text(entry.cleaned, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodyLarge),
+                      Text(
+                        entry.cleaned,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.bodyLarge,
+                      ),
                     ],
                   ),
                 ),
@@ -288,7 +359,10 @@ class _HistoryRow extends StatelessWidget {
 
 /// A dictation in full: cleaned or original text, copy, share, delete.
 Future<void> showHistoryDetail(BuildContext context, HistoryEntry entry) {
-  return showAdaptiveSheet<void>(context, builder: (context) => _HistoryDetail(entry: entry));
+  return showAdaptiveSheet<void>(
+    context,
+    builder: (context) => _HistoryDetail(entry: entry),
+  );
 }
 
 class _HistoryDetail extends ConsumerStatefulWidget {
@@ -309,7 +383,8 @@ class _HistoryDetailState extends ConsumerState<_HistoryDetail> {
     final c = Theme.of(context).colorScheme;
     final styles = RambleTextStyles.of(context);
     final share = ref.watch(platformServicesProvider).share;
-    final meta = '${formatDateTime(e.createdAt)} · ${formatClock(Duration(milliseconds: e.durationMs))} · ${engineLabel(e)}';
+    final meta =
+        '${formatDateTime(e.createdAt)} · ${formatClock(Duration(milliseconds: e.durationMs))} · ${engineLabel(e)}';
 
     return SheetBody(
       title: 'Dictation',
@@ -346,12 +421,23 @@ class _HistoryDetailState extends ConsumerState<_HistoryDetail> {
         Wrap(
           spacing: 8,
           children: [
-            ChoiceChip(label: const Text('Cleaned'), selected: !_original, onSelected: (_) => setState(() => _original = false)),
-            ChoiceChip(label: const Text('Original'), selected: _original, onSelected: (_) => setState(() => _original = true)),
+            ChoiceChip(
+              label: const Text('Cleaned'),
+              selected: !_original,
+              onSelected: (_) => setState(() => _original = false),
+            ),
+            ChoiceChip(
+              label: const Text('Original'),
+              selected: _original,
+              onSelected: (_) => setState(() => _original = true),
+            ),
           ],
         ),
         const SizedBox(height: Space.x3),
-        if (_original) OriginalText(id: e.id) else SelectableText(e.cleaned, style: styles.result),
+        if (_original)
+          OriginalText(id: e.id)
+        else
+          SelectableText(e.cleaned, style: styles.result),
       ],
     );
   }

@@ -31,11 +31,14 @@ class LinuxIntegration {
   var _held = false;
 
   PlatformServices get _services => container.read(platformServicesProvider);
-  DictationController get _controller => container.read(dictationControllerProvider);
+  DictationController get _controller =>
+      container.read(dictationControllerProvider);
 
   void _startFromHotkey() {
     if (_controller.isBusy) return;
-    container.read(dictationOriginProvider.notifier).set(DictationOrigin.hotkey);
+    container
+        .read(dictationOriginProvider.notifier)
+        .set(DictationOrigin.hotkey);
     container.read(lastInsertProvider.notifier).set(null);
     _controller.start();
   }
@@ -51,35 +54,41 @@ class LinuxIntegration {
   Future<void> start() async {
     final hotkeys = _services.hotkeys;
     if (hotkeys != null) {
-      _subs.add(hotkeys.events.listen((e) {
-        if (_holdSupported) {
-          if (e.phase == HotkeyPhase.pressed) {
-            _held = true;
-            _startFromHotkey();
-          } else {
-            _held = false;
-            if (_controller.state is DictationListening) _controller.stop();
-          }
-        } else if (e.phase == HotkeyPhase.pressed) {
-          _toggleFromHotkey();
-        }
-      }));
-      _subs.add(hotkeys.cliCommands.listen((cmd) {
-        switch (cmd) {
-          case 'toggle':
+      _subs.add(
+        hotkeys.events.listen((e) {
+          if (_holdSupported) {
+            if (e.phase == HotkeyPhase.pressed) {
+              _held = true;
+              _startFromHotkey();
+            } else {
+              _held = false;
+              if (_controller.state is DictationListening) _controller.stop();
+            }
+          } else if (e.phase == HotkeyPhase.pressed) {
             _toggleFromHotkey();
-          case 'start':
-            _startFromHotkey();
-          case 'stop':
-            if (_controller.state is DictationListening) _controller.stop();
-          case 'show':
-            WindowChannel.present();
-        }
-      }));
+          }
+        }),
+      );
+      _subs.add(
+        hotkeys.cliCommands.listen((cmd) {
+          switch (cmd) {
+            case 'toggle':
+              _toggleFromHotkey();
+            case 'start':
+              _startFromHotkey();
+            case 'stop':
+              if (_controller.state is DictationListening) _controller.stop();
+            case 'show':
+              WindowChannel.present();
+          }
+        }),
+      );
       try {
         await _bind(hotkeys);
       } catch (_) {
-        container.read(hotkeyStatusProvider.notifier).set(const HotkeyStatus(HotkeyBackend.none));
+        container
+            .read(hotkeyStatusProvider.notifier)
+            .set(const HotkeyStatus(HotkeyBackend.none));
       }
     }
 
@@ -96,8 +105,11 @@ class LinuxIntegration {
           (_, next) {
             final s = next.value;
             if (s != null) _pushIndicator(indicator, s);
-            if (s is DictationListening && _holdSupported && !_held &&
-                container.read(dictationOriginProvider) == DictationOrigin.hotkey) {
+            if (s is DictationListening &&
+                _holdSupported &&
+                !_held &&
+                container.read(dictationOriginProvider) ==
+                    DictationOrigin.hotkey) {
               _controller.stop();
             }
           },
@@ -110,7 +122,10 @@ class LinuxIntegration {
   Future<void> _bind(HotkeyService hotkeys) async {
     final settings = container.read(settingsProvider);
     final status = hotkeys is LinuxHotkeyService
-        ? await hotkeys.bindWithKey(settings.hotkeyKey, preferredTrigger: settings.hotkeyTrigger)
+        ? await hotkeys.bindWithKey(
+            settings.hotkeyKey,
+            preferredTrigger: settings.hotkeyTrigger,
+          )
         : await hotkeys.bind(preferredTrigger: settings.hotkeyTrigger);
     _holdSupported = status.supportsRelease;
     container.read(hotkeyStatusProvider.notifier).set(status);
@@ -118,13 +133,17 @@ class LinuxIntegration {
 
   /// Saves the "Dictation key" choice (`capslock` | `portal`) and re-binds.
   Future<void> setDictationKey(String key) async {
-    await container.read(settingsProvider.notifier).update((s) => s.copyWith(hotkeyKey: key));
+    await container
+        .read(settingsProvider.notifier)
+        .update((s) => s.copyWith(hotkeyKey: key));
     final hotkeys = _services.hotkeys;
     if (hotkeys == null) return;
     try {
       await _bind(hotkeys);
     } catch (_) {
-      container.read(hotkeyStatusProvider.notifier).set(const HotkeyStatus(HotkeyBackend.none));
+      container
+          .read(hotkeyStatusProvider.notifier)
+          .set(const HotkeyStatus(HotkeyBackend.none));
     }
   }
 

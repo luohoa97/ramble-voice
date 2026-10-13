@@ -5,7 +5,8 @@ import 'package:ramble_voice/core/audio/audio_source.dart';
 import 'package:ramble_voice/core/audio/pcm.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_pipeline.dart';
-import 'package:ramble_voice/core/dictation/dictation_controller.dart' show EngineSet;
+import 'package:ramble_voice/core/dictation/dictation_controller.dart'
+    show EngineSet;
 import 'package:ramble_voice/core/dictation/edit_controller.dart';
 import 'package:ramble_voice/core/style/style_profile.dart';
 
@@ -54,33 +55,39 @@ class _Rig {
 }
 
 void main() {
-  test('happy path returns the revised text and keeps the original for undo', () async {
-    final rig = _Rig.create();
-    await rig.controller.startEdit('Original text.');
-    expect(rig.controller.state, isA<EditListening>());
-    expect(rig.controller.isBusy, isTrue);
-    await rig.speak(2);
-    await rig.controller.stop();
+  test(
+    'happy path returns the revised text and keeps the original for undo',
+    () async {
+      final rig = _Rig.create();
+      await rig.controller.startEdit('Original text.');
+      expect(rig.controller.state, isA<EditListening>());
+      expect(rig.controller.isBusy, isTrue);
+      await rig.speak(2);
+      await rig.controller.stop();
 
-    final done = rig.controller.state as EditDone;
-    expect(done.outcome.original, 'Original text.');
-    expect(done.outcome.revised, 'Revised.');
-    expect(done.outcome.changed, isTrue);
-    expect(done.outcome.duration, const Duration(seconds: 2));
-    expect(done.outcome.engine, EngineKind.gemini);
-    expect(rig.controller.isBusy, isFalse);
-  });
+      final done = rig.controller.state as EditDone;
+      expect(done.outcome.original, 'Original text.');
+      expect(done.outcome.revised, 'Revised.');
+      expect(done.outcome.changed, isTrue);
+      expect(done.outcome.duration, const Duration(seconds: 2));
+      expect(done.outcome.engine, EngineKind.gemini);
+      expect(rig.controller.isBusy, isFalse);
+    },
+  );
 
-  test('the engine gets edit mode, the source text and the instruction audio', () async {
-    final rig = _Rig.create();
-    await rig.controller.startEdit('Original text.');
-    await rig.speak(1);
-    await rig.controller.stop();
-    final req = rig.primary.requests.single;
-    expect(req.mode, CleanupMode.edit);
-    expect(req.sourceText, 'Original text.');
-    expect(req.pcm.length, Pcm.bytesPerSecond);
-  });
+  test(
+    'the engine gets edit mode, the source text and the instruction audio',
+    () async {
+      final rig = _Rig.create();
+      await rig.controller.startEdit('Original text.');
+      await rig.speak(1);
+      await rig.controller.stop();
+      final req = rig.primary.requests.single;
+      expect(req.mode, CleanupMode.edit);
+      expect(req.sourceText, 'Original text.');
+      expect(req.pcm.length, Pcm.bytesPerSecond);
+    },
+  );
 
   test('unchanged output is reported as not changed', () async {
     final rig = _Rig.create(primary: FakeCleanupEngine(defaultResult: 'Same.'));
@@ -107,7 +114,9 @@ void main() {
   });
 
   test('permission denied fails with the audio error', () async {
-    final rig = _Rig.create(audio: FakeAudioSource(permission: false, grantsOnRequest: false));
+    final rig = _Rig.create(
+      audio: FakeAudioSource(permission: false, grantsOnRequest: false),
+    );
     await rig.controller.startEdit('Text');
     final f = rig.controller.state as EditFailed;
     expect(f.audioError, AudioSourceError.permissionDenied);
@@ -135,7 +144,9 @@ void main() {
 
   test('a failure keeps the audio so retry works', () async {
     final rig = _Rig.create(
-      primary: FakeCleanupEngine(script: [const CleanupFailure(CleanupFailureKind.noNetwork, 'offline')]),
+      primary: FakeCleanupEngine(
+        script: [const CleanupFailure(CleanupFailureKind.noNetwork, 'offline')],
+      ),
     );
     await rig.controller.startEdit('Text');
     await rig.speak(1);
@@ -150,7 +161,11 @@ void main() {
 
   test('a non-retryable failure cannot be retried', () async {
     final rig = _Rig.create(
-      primary: FakeCleanupEngine(script: [const CleanupFailure(CleanupFailureKind.invalidApiKey, 'bad key')]),
+      primary: FakeCleanupEngine(
+        script: [
+          const CleanupFailure(CleanupFailureKind.invalidApiKey, 'bad key'),
+        ],
+      ),
     );
     await rig.controller.startEdit('Text');
     await rig.speak(1);
@@ -158,21 +173,31 @@ void main() {
     expect((rig.controller.state as EditFailed).canRetry, isFalse);
   });
 
-  test('falls back to the second engine when the cloud one is offline', () async {
-    final fallback = FakeCleanupEngine(kind: EngineKind.onDevice, defaultResult: 'Local edit.');
-    final rig = _Rig.create(
-      primary: FakeCleanupEngine(script: [const CleanupFailure(CleanupFailureKind.noNetwork, 'offline')]),
-      fallback: fallback,
-    );
-    await rig.controller.startEdit('Text');
-    await rig.speak(1);
-    await rig.controller.stop();
-    final o = (rig.controller.state as EditDone).outcome;
-    expect(o.revised, 'Local edit.');
-    expect(o.fellBack, isTrue);
-    expect(o.engine, EngineKind.onDevice);
-    expect(fallback.requests.single.mode, CleanupMode.edit);
-  });
+  test(
+    'falls back to the second engine when the cloud one is offline',
+    () async {
+      final fallback = FakeCleanupEngine(
+        kind: EngineKind.onDevice,
+        defaultResult: 'Local edit.',
+      );
+      final rig = _Rig.create(
+        primary: FakeCleanupEngine(
+          script: [
+            const CleanupFailure(CleanupFailureKind.noNetwork, 'offline'),
+          ],
+        ),
+        fallback: fallback,
+      );
+      await rig.controller.startEdit('Text');
+      await rig.speak(1);
+      await rig.controller.stop();
+      final o = (rig.controller.state as EditDone).outcome;
+      expect(o.revised, 'Local edit.');
+      expect(o.fellBack, isTrue);
+      expect(o.engine, EngineKind.onDevice);
+      expect(fallback.requests.single.mode, CleanupMode.edit);
+    },
+  );
 
   test('stops by itself at the instruction limit', () async {
     final rig = _Rig.create(maxInstruction: const Duration(seconds: 2));
@@ -194,7 +219,9 @@ void main() {
 
   group('CleanupPipeline.edit', () {
     test('rejects an instruction longer than the engine accepts', () async {
-      final engine = FakeCleanupEngine(maxAudioPerRequest: const Duration(seconds: 2));
+      final engine = FakeCleanupEngine(
+        maxAudioPerRequest: const Duration(seconds: 2),
+      );
       await expectLater(
         const CleanupPipeline().edit(
           pcm: tonePcm(const Duration(seconds: 3)),
@@ -202,7 +229,13 @@ void main() {
           style: const StyleProfile(),
           primary: engine,
         ),
-        throwsA(isA<CleanupFailure>().having((f) => f.kind, 'kind', CleanupFailureKind.audioTooLong)),
+        throwsA(
+          isA<CleanupFailure>().having(
+            (f) => f.kind,
+            'kind',
+            CleanupFailureKind.audioTooLong,
+          ),
+        ),
       );
       expect(engine.requests, isEmpty);
     });
@@ -215,7 +248,13 @@ void main() {
           style: const StyleProfile(),
           primary: FakeCleanupEngine(defaultResult: '  '),
         ),
-        throwsA(isA<CleanupFailure>().having((f) => f.kind, 'kind', CleanupFailureKind.emptyResult)),
+        throwsA(
+          isA<CleanupFailure>().having(
+            (f) => f.kind,
+            'kind',
+            CleanupFailureKind.emptyResult,
+          ),
+        ),
       );
     });
   });

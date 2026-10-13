@@ -61,7 +61,11 @@ class RemoteDesktopUnavailable implements Exception {
 }
 
 class RemoteDesktopPortal {
-  RemoteDesktopPortal(this._portal, {required this.tokenFile, this.keyDelay = const Duration(milliseconds: 2)});
+  RemoteDesktopPortal(
+    this._portal, {
+    required this.tokenFile,
+    this.keyDelay = const Duration(milliseconds: 2),
+  });
 
   static const _iface = 'org.freedesktop.portal.RemoteDesktop';
 
@@ -88,13 +92,26 @@ class RemoteDesktopPortal {
 
   Future<DBusObjectPath> _start() async {
     final v = await version();
-    if (v == null) throw const RemoteDesktopUnavailable('The RemoteDesktop portal is not available.');
+    if (v == null)
+      throw const RemoteDesktopUnavailable(
+        'The RemoteDesktop portal is not available.',
+      );
 
     final sessionToken = portalToken('session');
-    final created = await _portal.request(_iface, 'CreateSession',
-        options: {'session_handle_token': DBusString(sessionToken)}, timeout: const Duration(seconds: 30));
-    if (!created.ok) throw const RemoteDesktopUnavailable('The desktop refused a RemoteDesktop session.');
-    final session = DBusObjectPath(created.results['session_handle']?.asString() ?? (await _portal.sessionPath(sessionToken)).value);
+    final created = await _portal.request(
+      _iface,
+      'CreateSession',
+      options: {'session_handle_token': DBusString(sessionToken)},
+      timeout: const Duration(seconds: 30),
+    );
+    if (!created.ok)
+      throw const RemoteDesktopUnavailable(
+        'The desktop refused a RemoteDesktop session.',
+      );
+    final session = DBusObjectPath(
+      created.results['session_handle']?.asString() ??
+          (await _portal.sessionPath(sessionToken)).value,
+    );
 
     try {
       final restore = v >= 2 ? await _readToken() : null;
@@ -109,7 +126,10 @@ class RemoteDesktopPortal {
         },
         timeout: const Duration(seconds: 30),
       );
-      if (!selected.ok) throw const RemoteDesktopUnavailable('The desktop does not allow keyboard control.');
+      if (!selected.ok)
+        throw const RemoteDesktopUnavailable(
+          'The desktop does not allow keyboard control.',
+        );
 
       final started = await _portal.request(
         _iface,
@@ -118,16 +138,21 @@ class RemoteDesktopPortal {
         timeout: const Duration(minutes: 5),
       );
       if (!started.ok) {
-        throw RemoteDesktopUnavailable(started.code == PortalResponseCode.cancelled
-            ? 'Keyboard access was declined.'
-            : 'The desktop could not start keyboard access.');
+        throw RemoteDesktopUnavailable(
+          started.code == PortalResponseCode.cancelled
+              ? 'Keyboard access was declined.'
+              : 'The desktop could not start keyboard access.',
+        );
       }
       final devices = started.results['devices'];
       if (devices is DBusUint32 && devices.value & 1 == 0) {
-        throw const RemoteDesktopUnavailable('The desktop did not grant keyboard access.');
+        throw const RemoteDesktopUnavailable(
+          'The desktop did not grant keyboard access.',
+        );
       }
       final token = started.results['restore_token'];
-      if (token is DBusString && token.value.isNotEmpty) await _writeToken(token.value);
+      if (token is DBusString && token.value.isNotEmpty)
+        await _writeToken(token.value);
     } catch (_) {
       await _close(session);
       rethrow;
@@ -184,20 +209,20 @@ class RemoteDesktopPortal {
 
   /// Types [text]. Throws [RemoteDesktopUnavailable] when access was denied.
   Future<void> typeText(String text) => _withSession((s) async {
-        for (final k in Keysyms.forText(text)) {
-          await _tap(s, k);
-          if (keyDelay > Duration.zero) await Future<void>.delayed(keyDelay);
-        }
-      });
+    for (final k in Keysyms.forText(text)) {
+      await _tap(s, k);
+      if (keyDelay > Duration.zero) await Future<void>.delayed(keyDelay);
+    }
+  });
 
   /// Sends Ctrl+V.
   Future<void> pasteShortcut() => _withSession((s) async {
-        await _key(s, Keysyms.controlL, true);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await _tap(s, Keysyms.v);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await _key(s, Keysyms.controlL, false);
-      });
+    await _key(s, Keysyms.controlL, true);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await _tap(s, Keysyms.v);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await _key(s, Keysyms.controlL, false);
+  });
 
   Future<void> _withSession(Future<void> Function(DBusObjectPath) body) async {
     await ensureSession();
@@ -214,8 +239,11 @@ class RemoteDesktopPortal {
 
   Future<void> _close(DBusObjectPath session) async {
     try {
-      await DBusRemoteObject(_portal.bus, name: portalBusName, path: session)
-          .callMethod('org.freedesktop.portal.Session', 'Close', const []);
+      await DBusRemoteObject(
+        _portal.bus,
+        name: portalBusName,
+        path: session,
+      ).callMethod('org.freedesktop.portal.Session', 'Close', const []);
     } catch (_) {}
   }
 

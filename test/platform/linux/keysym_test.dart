@@ -17,11 +17,17 @@ void main() {
       expect(Keysyms.forText('a\rb'), [0x61, 0xff0d, 0x62]);
     });
 
-    test('Latin-1 maps 1:1, other code points use the Unicode keysym range', () {
-      expect(Keysyms.forText('é'), [0xe9]);
-      expect(Keysyms.forText('€'), [0x01000000 + 0x20ac]);
-      expect(Keysyms.forText('日本'), [0x01000000 + 0x65e5, 0x01000000 + 0x672c]);
-    });
+    test(
+      'Latin-1 maps 1:1, other code points use the Unicode keysym range',
+      () {
+        expect(Keysyms.forText('é'), [0xe9]);
+        expect(Keysyms.forText('€'), [0x01000000 + 0x20ac]);
+        expect(Keysyms.forText('日本'), [
+          0x01000000 + 0x65e5,
+          0x01000000 + 0x672c,
+        ]);
+      },
+    );
 
     test('non-BMP characters are one keysym, not two surrogates', () {
       expect(Keysyms.forText('😀'), [0x01000000 + 0x1f600]);
@@ -38,7 +44,9 @@ void main() {
 
   group('PortalSettings.parseAccent', () {
     test('reads (ddd) in 0..1', () {
-      final c = PortalSettings.parseAccent(DBusStruct([DBusDouble(1), DBusDouble(0), DBusDouble(0.5)]));
+      final c = PortalSettings.parseAccent(
+        DBusStruct([DBusDouble(1), DBusDouble(0), DBusDouble(0.5)]),
+      );
       expect(c, isNotNull);
       expect(c!.r, 1.0);
       expect(c.g, 0.0);
@@ -46,7 +54,12 @@ void main() {
     });
 
     test('rejects unset sentinel and malformed values', () {
-      expect(PortalSettings.parseAccent(DBusStruct([DBusDouble(-1), DBusDouble(-1), DBusDouble(-1)])), isNull);
+      expect(
+        PortalSettings.parseAccent(
+          DBusStruct([DBusDouble(-1), DBusDouble(-1), DBusDouble(-1)]),
+        ),
+        isNull,
+      );
       expect(PortalSettings.parseAccent(DBusString('x')), isNull);
       expect(PortalSettings.parseAccent(null), isNull);
     });

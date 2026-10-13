@@ -27,8 +27,10 @@ enum GeminiThinking {
 /// about each model: which thinking level it accepts and whether it has any
 /// free-tier quota. The learned facts outlive a list refresh.
 class GeminiModelCache {
-  GeminiModelCache({this.ttl = const Duration(hours: 24), DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now;
+  GeminiModelCache({
+    this.ttl = const Duration(hours: 24),
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final Duration ttl;
   final DateTime Function() _clock;
@@ -69,17 +71,22 @@ class GeminiModelCache {
   void invalidate() => _models = null;
 
   /// The thinking mode to try first for [modelId].
-  GeminiThinking thinkingFor(String modelId) => _thinking[modelId] ?? GeminiThinking.minimal;
+  GeminiThinking thinkingFor(String modelId) =>
+      _thinking[modelId] ?? GeminiThinking.minimal;
 
-  void rememberThinking(String modelId, GeminiThinking mode) => _thinking[modelId] = mode;
+  void rememberThinking(String modelId, GeminiThinking mode) =>
+      _thinking[modelId] = mode;
 
   void markFreeTierUnavailable(String modelId) => _noFreeTier.add(modelId);
 
-  void markUnavailable(String modelId, String reason) => _unavailable[modelId] = reason;
+  void markUnavailable(String modelId, String reason) =>
+      _unavailable[modelId] = reason;
 
   /// A model that just timed out is not tried first again for [period].
-  void markSlow(String modelId, {Duration period = const Duration(minutes: 10)}) =>
-      _slowUntil[modelId] = _clock().add(period);
+  void markSlow(
+    String modelId, {
+    Duration period = const Duration(minutes: 10),
+  }) => _slowUntil[modelId] = _clock().add(period);
 
   bool isSlow(String modelId) {
     final until = _slowUntil[modelId];
@@ -100,22 +107,25 @@ class GeminiModelCache {
   void recordHealth(String modelId, GeminiHealth health, Duration? latency) =>
       _health[modelId] = (health: health, latency: latency);
 
-  GeminiHealth healthOf(String modelId) => _health[modelId]?.health ?? GeminiHealth.unknown;
+  GeminiHealth healthOf(String modelId) =>
+      _health[modelId]?.health ?? GeminiHealth.unknown;
 
   /// [models] with [GeminiModelInfo.freeTierUnavailable] and
   /// [GeminiModelInfo.unavailableReason] applied.
   List<GeminiModelInfo> annotate(List<GeminiModelInfo> models) => [
-        for (final m in models)
-          if (_noFreeTier.contains(m.id) || _unavailable.containsKey(m.id) || _health.containsKey(m.id))
-            m.copyWith(
-              freeTierUnavailable: _noFreeTier.contains(m.id) ? true : null,
-              unavailableReason: _unavailable[m.id],
-              health: _health[m.id]?.health,
-              latency: _health[m.id]?.latency,
-            )
-          else
-            m,
-      ];
+    for (final m in models)
+      if (_noFreeTier.contains(m.id) ||
+          _unavailable.containsKey(m.id) ||
+          _health.containsKey(m.id))
+        m.copyWith(
+          freeTierUnavailable: _noFreeTier.contains(m.id) ? true : null,
+          unavailableReason: _unavailable[m.id],
+          health: _health[m.id]?.health,
+          latency: _health[m.id]?.latency,
+        )
+      else
+        m,
+  ];
 }
 
 /// Cloud cleanup with the user's own Gemini API key.
@@ -183,7 +193,10 @@ class GeminiEngine implements CleanupEngine {
   Future<String> _key() async {
     final k = (await apiKey())?.trim();
     if (k == null || k.isEmpty) {
-      throw const CleanupFailure(CleanupFailureKind.missingApiKey, 'Add a Gemini API key in Settings.');
+      throw const CleanupFailure(
+        CleanupFailureKind.missingApiKey,
+        'Add a Gemini API key in Settings.',
+      );
     }
     return k;
   }
@@ -207,7 +220,8 @@ class GeminiEngine implements CleanupEngine {
 
   void _probeIfDue(String key, List<GeminiModelInfo> models) {
     if (!healthProbe || !cache.probeDue()) return;
-    cache.probing = probeHealth(models: models).whenComplete(() => cache.probing = null);
+    cache.probing = probeHealth(models: models)
+        .whenComplete(() => cache.probing = null);
   }
 
   /// Sends a tiny request to the four newest stable Flash models (and the
@@ -225,14 +239,20 @@ class GeminiEngine implements CleanupEngine {
           if (m.id == picked && !m.unavailable) targets.add(m);
         }
       }
-      final wav = WavEncoder.encode(Uint8List(Pcm.bytesFor(const Duration(milliseconds: 500))));
+      final wav = WavEncoder.encode(
+        Uint8List(Pcm.bytesFor(const Duration(milliseconds: 500))),
+      );
       await Future.wait([for (final m in targets) _probeOne(key, m, wav)]);
     } catch (_) {
       // A probe is best effort.
     }
   }
 
-  Future<void> _probeOne(String key, GeminiModelInfo model, Uint8List wav) async {
+  Future<void> _probeOne(
+    String key,
+    GeminiModelInfo model,
+    Uint8List wav,
+  ) async {
     final watch = Stopwatch()..start();
     try {
       await _generate(
@@ -246,7 +266,11 @@ class GeminiEngine implements CleanupEngine {
       );
       watch.stop();
       final latency = watch.elapsed;
-      cache.recordHealth(model.id, latency < fastLatency ? GeminiHealth.fast : GeminiHealth.slow, latency);
+      cache.recordHealth(
+        model.id,
+        latency < fastLatency ? GeminiHealth.fast : GeminiHealth.slow,
+        latency,
+      );
     } on CleanupFailure catch (f) {
       _remember(model, f);
       cache.recordHealth(model.id, GeminiHealth.failed, null);
@@ -258,7 +282,8 @@ class GeminiEngine implements CleanupEngine {
   Future<GeminiModelInfo> resolveModel({bool refresh = false}) async {
     final models = await availableModels(refresh: refresh);
     var model = GeminiModelSelector.choose(models, preferred: preferredModel);
-    if (model != null && model.unavailable) model = GeminiModelSelector.defaultModel(models) ?? model;
+    if (model != null && model.unavailable)
+      model = GeminiModelSelector.defaultModel(models) ?? model;
     if (model == null) {
       throw const CleanupFailure(
         CleanupFailureKind.server,
@@ -283,7 +308,9 @@ class GeminiEngine implements CleanupEngine {
   Future<String> testKey() async {
     await resolveModel(refresh: true);
     final key = await _key();
-    final wav = WavEncoder.encode(Uint8List(Pcm.bytesFor(const Duration(milliseconds: 500))));
+    final wav = WavEncoder.encode(
+      Uint8List(Pcm.bytesFor(const Duration(milliseconds: 500))),
+    );
     // Walk the same chain as process(), so a retired or unsuitable model does
     // not fail the test while another one works.
     final chain = _chain(await availableModels());
@@ -306,7 +333,11 @@ class GeminiEngine implements CleanupEngine {
         last = f;
       }
     }
-    throw last ?? const CleanupFailure(CleanupFailureKind.unknown, 'No Gemini model could be used.');
+    throw last ??
+        const CleanupFailure(
+          CleanupFailureKind.unknown,
+          'No Gemini model could be used.',
+        );
   }
 
   /// One call to [model], adapting the thinking config to what the model
@@ -339,14 +370,18 @@ class GeminiEngine implements CleanupEngine {
           minimalThinking: mode != GeminiThinking.none,
           thinkingLevel: mode.level,
           // Thinking tokens count against the output limit.
-          maxOutputTokens: _thinkLadder.contains(mode) ? maxOutputTokens * 4 : maxOutputTokens,
+          maxOutputTokens: _thinkLadder.contains(mode)
+              ? maxOutputTokens * 4
+              : maxOutputTokens,
           timeout: timeout ?? requestTimeout(wav.length),
         );
       } on CleanupFailure catch (f) {
         final next = _nextThinking(mode, f);
         if (next == null) rethrow;
         // A level refused: step down (high, medium, low) before giving up on thinking.
-        if (think && thinkRejected < _thinkLadder.length - 1 && _thinkLadder.contains(mode)) {
+        if (think &&
+            thinkRejected < _thinkLadder.length - 1 &&
+            _thinkLadder.contains(mode)) {
           thinkRejected++;
           continue;
         }
@@ -357,16 +392,25 @@ class GeminiEngine implements CleanupEngine {
 
   /// The thinking mode to retry with after [f], or null when [f] is not about
   /// thinking.
-  static GeminiThinking? _nextThinking(GeminiThinking current, CleanupFailure f) {
-    if (current == GeminiThinking.none || f.kind != CleanupFailureKind.unknown) return null;
+  static GeminiThinking? _nextThinking(
+    GeminiThinking current,
+    CleanupFailure f,
+  ) {
+    if (current == GeminiThinking.none || f.kind != CleanupFailureKind.unknown)
+      return null;
     final m = f.message.toLowerCase();
     if (!m.contains('think') && !m.contains('minimal')) return null;
     final levelRejected = m.contains('level') || m.contains('minimal');
-    if (current == GeminiThinking.minimal && levelRejected) return GeminiThinking.low;
+    if (current == GeminiThinking.minimal && levelRejected)
+      return GeminiThinking.low;
     return GeminiThinking.none;
   }
 
-  static const _thinkLadder = [GeminiThinking.high, GeminiThinking.medium, GeminiThinking.low];
+  static const _thinkLadder = [
+    GeminiThinking.high,
+    GeminiThinking.medium,
+    GeminiThinking.low,
+  ];
 
   /// Base wait plus the clip's own length: long clips legitimately take longer.
   static Duration requestTimeout(int wavBytes) =>
@@ -374,15 +418,14 @@ class GeminiEngine implements CleanupEngine {
 
   /// Failures that mean "this model, not this audio": try the next model.
   static bool _tryNextModel(CleanupFailure f) => switch (f.kind) {
-        CleanupFailureKind.server ||
-        CleanupFailureKind.timedOut ||
-        CleanupFailureKind.rateLimited ||
-        CleanupFailureKind.dailyQuotaExceeded ||
-        CleanupFailureKind.modelNotOnFreeTier ||
-        CleanupFailureKind.modelUnavailable =>
-          true,
-        _ => false,
-      };
+    CleanupFailureKind.server ||
+    CleanupFailureKind.timedOut ||
+    CleanupFailureKind.rateLimited ||
+    CleanupFailureKind.dailyQuotaExceeded ||
+    CleanupFailureKind.modelNotOnFreeTier ||
+    CleanupFailureKind.modelUnavailable => true,
+    _ => false,
+  };
 
   @override
   Future<String> process(CleanupRequest request) async {
@@ -416,8 +459,15 @@ class GeminiEngine implements CleanupEngine {
     for (var i = 0; i < chain.length; i++) {
       final model = chain[i];
       final timeout = _timeoutFor(model, wav.length);
-      Future<String> call() =>
-          _generate(key, model, systemInstruction: system, userText: userText, wav: wav, timeout: timeout, think: think);
+      Future<String> call() => _generate(
+        key,
+        model,
+        systemInstruction: system,
+        userText: userText,
+        wav: wav,
+        timeout: timeout,
+        think: think,
+      );
       try {
         try {
           return tidy(await call());
@@ -429,7 +479,8 @@ class GeminiEngine implements CleanupEngine {
         }
       } on CleanupFailure catch (f) {
         // Model renamed or retired since the list was cached: re-resolve once.
-        if (!refreshed && (f.message.contains(' 404') || f.message.contains('NOT_FOUND'))) {
+        if (!refreshed &&
+            (f.message.contains(' 404') || f.message.contains('NOT_FOUND'))) {
           refreshed = true;
           cache.invalidate();
           models = await availableModels(refresh: true);
@@ -442,7 +493,11 @@ class GeminiEngine implements CleanupEngine {
         last = f;
       }
     }
-    throw last ?? const CleanupFailure(CleanupFailureKind.unknown, 'No Gemini model could be used.');
+    throw last ??
+        const CleanupFailure(
+          CleanupFailureKind.unknown,
+          'No Gemini model could be used.',
+        );
   }
 
   /// The user's own pick keeps the first place, but when the probe found it
@@ -451,7 +506,9 @@ class GeminiEngine implements CleanupEngine {
     final normal = requestTimeout(wavBytes);
     final picked = preferredModel == model.id;
     final health = cache.healthOf(model.id);
-    if (picked && (health == GeminiHealth.slow || health == GeminiHealth.failed) && pickedModelTimeout < normal) {
+    if (picked &&
+        (health == GeminiHealth.slow || health == GeminiHealth.failed) &&
+        pickedModelTimeout < normal) {
       return pickedModelTimeout;
     }
     return normal;
@@ -459,9 +516,13 @@ class GeminiEngine implements CleanupEngine {
 
   /// Remembers per-model dead ends so later requests skip the model.
   void _remember(GeminiModelInfo model, CleanupFailure f) {
-    if (f.kind == CleanupFailureKind.modelNotOnFreeTier) cache.markFreeTierUnavailable(model.id);
-    if (f.kind == CleanupFailureKind.modelUnavailable) cache.markUnavailable(model.id, f.message);
-    if (f.kind == CleanupFailureKind.timedOut || f.kind == CleanupFailureKind.server) cache.markSlow(model.id);
+    if (f.kind == CleanupFailureKind.modelNotOnFreeTier)
+      cache.markFreeTierUnavailable(model.id);
+    if (f.kind == CleanupFailureKind.modelUnavailable)
+      cache.markUnavailable(model.id, f.message);
+    if (f.kind == CleanupFailureKind.timedOut ||
+        f.kind == CleanupFailureKind.server)
+      cache.markSlow(model.id);
   }
 
   List<GeminiModelInfo> _chain(List<GeminiModelInfo> models) {
@@ -472,12 +533,19 @@ class GeminiEngine implements CleanupEngine {
         'Google did not list any Gemini model that can transcribe audio for this key.',
       );
     }
-    final picked = preferredModel != null && models.any((m) => m.id == preferredModel && !m.unavailable);
+    final picked =
+        preferredModel != null &&
+        models.any((m) => m.id == preferredModel && !m.unavailable);
     // Automatic mode with probe results: healthy Flash models first.
     final byHealth = picked ? null : GeminiModelSelector.chainByHealth(models);
-    final chain = byHealth != null && byHealth.isNotEmpty ? byHealth : GeminiModelSelector.chain(models, first);
+    final chain = byHealth != null && byHealth.isNotEmpty
+        ? byHealth
+        : GeminiModelSelector.chain(models, first);
     // Models that just stalled go last so the next dictation doesn't wait.
-    return [...chain.where((m) => !cache.isSlow(m.id)), ...chain.where((m) => cache.isSlow(m.id))];
+    return [
+      ...chain.where((m) => !cache.isSlow(m.id)),
+      ...chain.where((m) => cache.isSlow(m.id)),
+    ];
   }
 
   @override

@@ -26,13 +26,18 @@ class ContactNamesSection extends ConsumerWidget {
       return;
     }
     ref.read(contactNamesCacheProvider)?.invalidate();
-    await ref.read(settingsProvider.notifier).update((s) => s.copyWith(useContactNames: on));
+    await ref
+        .read(settingsProvider.notifier)
+        .update((s) => s.copyWith(useContactNames: on));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(contactNameSourceProvider) == null) return const SizedBox.shrink();
-    final s = ref.watch(settingsProvider.select((s) => (s.useContactNames, s.engine)));
+    if (ref.watch(contactNameSourceProvider) == null)
+      return const SizedBox.shrink();
+    final s = ref.watch(
+      settingsProvider.select((s) => (s.useContactNames, s.engine)),
+    );
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
     return SettingsSection(
@@ -42,7 +47,9 @@ class ContactNamesSection extends ConsumerWidget {
           value: s.$1,
           title: const Text('Spell my contacts\' names correctly'),
           subtitle: Text(
-            Platform.isAndroid ? 'Uses your contacts. Needs contacts access.' : 'Uses your GNOME Contacts / Evolution address book.',
+            Platform.isAndroid
+                ? 'Uses your contacts. Needs contacts access.'
+                : 'Uses your GNOME Contacts / Evolution address book.',
           ),
           onChanged: (on) => unawaited(_toggle(context, ref, on)),
         ),
@@ -52,8 +59,12 @@ class ContactNamesSection extends ConsumerWidget {
             s.$2 == EngineKind.gemini
                 ? 'In Gemini mode your contact names are sent to Google with each request.'
                 : 'In Gemini mode your contact names would be sent to Google with each request. '
-                    'On-device mode keeps them on this device.',
-            style: t.bodySmall?.copyWith(color: s.$1 && s.$2 == EngineKind.gemini ? c.error : c.onSurfaceVariant),
+                      'On-device mode keeps them on this device.',
+            style: t.bodySmall?.copyWith(
+              color: s.$1 && s.$2 == EngineKind.gemini
+                  ? c.error
+                  : c.onSurfaceVariant,
+            ),
           ),
         ),
       ],

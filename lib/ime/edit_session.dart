@@ -45,7 +45,10 @@ class LastDictationNotifier extends Notifier<LastDictation?> {
   void set(LastDictation? value) => state = value;
 }
 
-final lastDictationProvider = NotifierProvider<LastDictationNotifier, LastDictation?>(LastDictationNotifier.new);
+final lastDictationProvider =
+    NotifierProvider<LastDictationNotifier, LastDictation?>(
+      LastDictationNotifier.new,
+    );
 
 /// Exactly what the last dictation put into the field, read back from it
 /// (note apps may store a typed line break differently): what Undo removes.
@@ -55,7 +58,9 @@ class LastTypedNotifier extends Notifier<String?> {
   void set(String? value) => state = value;
 }
 
-final lastTypedProvider = NotifierProvider<LastTypedNotifier, String?>(LastTypedNotifier.new);
+final lastTypedProvider = NotifierProvider<LastTypedNotifier, String?>(
+  LastTypedNotifier.new,
+);
 
 /// The text a dictation added, given the text before the cursor read just
 /// before ([pre]) and just after ([post]) inserting it; null when the field
@@ -134,7 +139,9 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
   /// Starts an edit: resolves the source text, then listens for the
   /// instruction.
   Future<void> begin() async {
-    if (state.phase == EditPhase.listening || state.phase == EditPhase.processing || state.phase == EditPhase.resolving) {
+    if (state.phase == EditPhase.listening ||
+        state.phase == EditPhase.processing ||
+        state.phase == EditPhase.resolving) {
       return;
     }
     if (_bridge.current.isPassword) {
@@ -152,7 +159,11 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     _original = null;
     _revised = null;
     state = ImeEditState(phase: EditPhase.listening, source: resolved.source);
-    await _controller.startEdit(resolved.text, contextBefore: resolved.before, contextAfter: resolved.after);
+    await _controller.startEdit(
+      resolved.text,
+      contextBefore: resolved.before,
+      contextAfter: resolved.after,
+    );
   }
 
   /// Tap-to-finish while the instruction is being spoken.
@@ -172,7 +183,11 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     final original = _original;
     final revised = _revised;
     if (original == null || revised == null) return;
-    final ok = await _bridge.replaceBeforeCursor(revised.length, original, expected: revised);
+    final ok = await _bridge.replaceBeforeCursor(
+      revised.length,
+      original,
+      expected: revised,
+    );
     if (!ok) {
       _fail('Could not undo: the text changed.');
       return;
@@ -199,7 +214,8 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
   /// Chooses what to edit: the selection, else the text Ramble last typed here
   /// (if it is still right before the cursor), else the field's text on both
   /// sides of the cursor.
-  Future<({EditSource source, String text, String? before, String? after})?> resolveSource() async {
+  Future<({EditSource source, String text, String? before, String? after})?>
+  resolveSource() async {
     _afterLength = 0;
     final selected = await _bridge.getSelectedText();
     if (selected != null && selected.trim().isNotEmpty) {
@@ -208,14 +224,26 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
       return (
         source: EditSource.selection,
         text: selected,
-        before: await _bridge.getTextBeforeCursor(CleanupRequest.contextBeforeLimit),
-        after: await _bridge.getTextAfterCursor(CleanupRequest.contextAfterLimit),
+        before: await _bridge.getTextBeforeCursor(
+          CleanupRequest.contextBeforeLimit,
+        ),
+        after: await _bridge.getTextAfterCursor(
+          CleanupRequest.contextAfterLimit,
+        ),
       );
     }
     final last = ref.read(lastDictationProvider);
-    if (last != null && last.text.isNotEmpty && last.packageName == _bridge.current.packageName) {
+    if (last != null &&
+        last.text.isNotEmpty &&
+        last.packageName == _bridge.current.packageName) {
       final before = await _bridge.getTextBeforeCursor(last.text.length);
-      if (before == last.text) return (source: EditSource.lastDictation, text: last.text, before: null, after: null);
+      if (before == last.text)
+        return (
+          source: EditSource.lastDictation,
+          text: last.text,
+          before: null,
+          after: null,
+        );
     }
     final before = await _bridge.getTextBeforeCursor(editContextLimit) ?? '';
     final after = await _bridge.getTextAfterCursor(editContextLimit) ?? '';
@@ -228,7 +256,8 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
   void _onEditState(EditState s) {
     switch (s) {
       case EditIdle(:final notice):
-        if (state.phase == EditPhase.listening || state.phase == EditPhase.processing) {
+        if (state.phase == EditPhase.listening ||
+            state.phase == EditPhase.processing) {
           if (notice != null) {
             _fail(notice);
           } else {
@@ -239,7 +268,11 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
         break;
       case EditListening():
         if (state.phase == EditPhase.listening) {
-          state = ImeEditState(phase: EditPhase.listening, source: _source, listening: s);
+          state = ImeEditState(
+            phase: EditPhase.listening,
+            source: _source,
+            listening: s,
+          );
         }
       case EditProcessing():
         state = ImeEditState(phase: EditPhase.processing, source: _source);
@@ -254,7 +287,11 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     final source = _source;
     if (source == null) return;
     if (!outcome.changed) {
-      state = ImeEditState(phase: EditPhase.applied, source: source, unchanged: true);
+      state = ImeEditState(
+        phase: EditPhase.applied,
+        source: source,
+        unchanged: true,
+      );
       _scheduleIdle(const Duration(seconds: 3));
       return;
     }
@@ -262,7 +299,9 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     if (source == EditSource.selection) {
       // The selection may have moved while the user was talking.
       final now = await _bridge.getSelectedText();
-      ok = now == outcome.original && await _bridge.replaceSelection(outcome.revised);
+      ok =
+          now == outcome.original &&
+          await _bridge.replaceSelection(outcome.revised);
     } else if (source == EditSource.field && _afterLength > 0) {
       final splitAt = outcome.original.length - _afterLength;
       ok = await _bridge.replaceAroundCursor(
@@ -284,19 +323,31 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
     _original = outcome.original;
     _revised = outcome.revised;
     _setLastDictation(outcome.revised);
-    state = ImeEditState(phase: EditPhase.applied, source: source, undoable: true);
+    state = ImeEditState(
+      phase: EditPhase.applied,
+      source: source,
+      undoable: true,
+    );
     _scheduleIdle(const Duration(seconds: 8));
   }
 
   /// The edited text now sits right before the cursor, so a further Edit
   /// targets it.
   void _setLastDictation(String text) {
-    ref.read(lastDictationProvider.notifier).set(LastDictation(text: text, packageName: _bridge.current.packageName));
+    ref
+        .read(lastDictationProvider.notifier)
+        .set(
+          LastDictation(text: text, packageName: _bridge.current.packageName),
+        );
   }
 
   void _fail(String message) {
     _controller.reset();
-    state = ImeEditState(phase: EditPhase.failed, source: _source, message: message);
+    state = ImeEditState(
+      phase: EditPhase.failed,
+      source: _source,
+      message: message,
+    );
   }
 
   void _scheduleIdle(Duration after) {
@@ -310,4 +361,6 @@ class ImeEditNotifier extends Notifier<ImeEditState> {
   }
 }
 
-final imeEditProvider = NotifierProvider<ImeEditNotifier, ImeEditState>(ImeEditNotifier.new);
+final imeEditProvider = NotifierProvider<ImeEditNotifier, ImeEditState>(
+  ImeEditNotifier.new,
+);

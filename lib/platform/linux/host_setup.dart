@@ -19,9 +19,12 @@ abstract final class HostSetup {
   static bool appliesTo(LinuxEnvironment env) {
     if (!env.isFlatpak) return false;
     final chain = env.injectionChain();
-    return !chain.contains(Injector.remoteDesktopPortal) && !chain.contains(Injector.wtype) && !chain.contains(Injector.ydotool);
+    return !chain.contains(Injector.remoteDesktopPortal) &&
+        !chain.contains(Injector.wtype) &&
+        !chain.contains(Injector.ydotool);
   }
 
   /// Detects the session and answers [appliesTo]. Pass [env] to reuse one.
-  static Future<bool> needed({LinuxEnvironment? env}) async => appliesTo(env ?? await LinuxEnvironment.detect());
+  static Future<bool> needed({LinuxEnvironment? env}) async =>
+      appliesTo(env ?? await LinuxEnvironment.detect());
 }

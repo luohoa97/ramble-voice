@@ -48,9 +48,16 @@ class SecretServiceStore implements SecretStore {
   /// Set once a Secret Service call failed because nothing provides it.
   bool _serviceMissing = false;
 
-  Map<String, String> get _attributes => {'application': rambleAppId, 'key': secretKey};
+  Map<String, String> get _attributes => {
+    'application': rambleAppId,
+    'key': secretKey,
+  };
 
-  DBusRemoteObject get _root => DBusRemoteObject(_bus, name: _service, path: DBusObjectPath('/org/freedesktop/secrets'));
+  DBusRemoteObject get _root => DBusRemoteObject(
+    _bus,
+    name: _service,
+    path: DBusObjectPath('/org/freedesktop/secrets'),
+  );
 
   String? get _envKey {
     final v = _env['GEMINI_API_KEY']?.trim();
@@ -89,14 +96,17 @@ class SecretServiceStore implements SecretStore {
   @override
   Future<KeySource> geminiKeySource() async {
     if (_envKey != null) return KeySource.environment;
-    if (await _readSecretService() != null || await _readFile() != null) return KeySource.secureStorage;
+    if (await _readSecretService() != null || await _readFile() != null)
+      return KeySource.secureStorage;
     return KeySource.none;
   }
 
   /// One line for the Settings screen describing where the key is kept.
   Future<String> describe() async {
-    if (_envKey != null) return 'Using the GEMINI_API_KEY environment variable.';
-    if (await _readSecretService() != null) return 'Stored in the system keyring (Secret Service).';
+    if (_envKey != null)
+      return 'Using the GEMINI_API_KEY environment variable.';
+    if (await _readSecretService() != null)
+      return 'Stored in the system keyring (Secret Service).';
     if (await _readFile() != null) {
       return 'Stored in ${fallbackFile.path} (permissions 0600, not encrypted) because no keyring service was available. '
           'Install and unlock GNOME Keyring or KWallet to store it securely.';
@@ -109,7 +119,8 @@ class SecretServiceStore implements SecretStore {
   Future<bool> _serviceAvailable() async {
     if (_serviceMissing) return false;
     try {
-      return await _bus.getNameOwner(_service) != null || (await _bus.listActivatableNames()).contains(_service);
+      return await _bus.getNameOwner(_service) != null ||
+          (await _bus.listActivatableNames()).contains(_service);
     } catch (_) {
       return false;
     }
@@ -117,12 +128,18 @@ class SecretServiceStore implements SecretStore {
 
   // ---- Secret Service ---------------------------------------------------
 
-  Future<T?> _withSession<T>(Future<T?> Function(DBusObjectPath session) body) async {
+  Future<T?> _withSession<T>(
+    Future<T?> Function(DBusObjectPath session) body,
+  ) async {
     if (_serviceMissing) return null;
     DBusObjectPath session;
     try {
       final r = await _root
-          .callMethod(_serviceIface, 'OpenSession', [DBusString('plain'), DBusVariant(DBusString(''))]).timeout(const Duration(seconds: 5));
+          .callMethod(_serviceIface, 'OpenSession', [
+            DBusString('plain'),
+            DBusVariant(DBusString('')),
+          ])
+          .timeout(const Duration(seconds: 5));
       session = r.returnValues[1].asObjectPath();
     } on DBusServiceUnknownException {
       _serviceMissing = true;
@@ -131,7 +148,9 @@ class SecretServiceStore implements SecretStore {
       _serviceMissing = true; // a bus that never answers is as good as absent
       return null;
     } on DBusMethodResponseException catch (e) {
-      if (e.errorName.contains('ServiceUnknown') || e.errorName.contains('NoReply') || e.errorName.contains('NameHasNoOwner')) {
+      if (e.errorName.contains('ServiceUnknown') ||
+          e.errorName.contains('NoReply') ||
+          e.errorName.contains('NameHasNoOwner')) {
         _serviceMissing = true;
       }
       return null;
@@ -144,26 +163,39 @@ class SecretServiceStore implements SecretStore {
       return null;
     } finally {
       try {
-        await DBusRemoteObject(_bus, name: _service, path: session).callMethod('org.freedesktop.Secret.Session', 'Close', const []);
+        await DBusRemoteObject(
+          _bus,
+          name: _service,
+          path: session,
+        ).callMethod('org.freedesktop.Secret.Session', 'Close', const []);
       } catch (_) {}
     }
   }
 
-  DBusDict _ssDict(Map<String, String> m) =>
-      DBusDict(DBusSignature('s'), DBusSignature('s'), {for (final e in m.entries) DBusString(e.key): DBusString(e.value)});
+  DBusDict _ssDict(Map<String, String> m) => DBusDict(
+    DBusSignature('s'),
+    DBusSignature('s'),
+    {for (final e in m.entries) DBusString(e.key): DBusString(e.value)},
+  );
 
-  DBusRemoteObject _obj(DBusObjectPath p) => DBusRemoteObject(_bus, name: _service, path: p);
+  DBusRemoteObject _obj(DBusObjectPath p) =>
+      DBusRemoteObject(_bus, name: _service, path: p);
 
   Future<List<DBusObjectPath>> _search() async {
     final r = await _root.callMethod(_serviceIface, 'SearchItems', [
       _ssDict(_attributes),
     ]);
-    return [...r.returnValues[0].asObjectPathArray(), ...r.returnValues[1].asObjectPathArray()];
+    return [
+      ...r.returnValues[0].asObjectPathArray(),
+      ...r.returnValues[1].asObjectPathArray(),
+    ];
   }
 
   /// Unlocks [objects] (collections or items), prompting the user if needed.
   Future<bool> _unlock(List<DBusObjectPath> objects) async {
-    final r = await _root.callMethod(_serviceIface, 'Unlock', [DBusArray.objectPath(objects)]);
+    final r = await _root.callMethod(_serviceIface, 'Unlock', [
+      DBusArray.objectPath(objects),
+    ]);
     final unlocked = r.returnValues[0].asObjectPathArray().toSet();
     final prompt = r.returnValues[1].asObjectPath();
     if (prompt.value == _noObject) return objects.every(unlocked.contains);
@@ -174,9 +206,16 @@ class SecretServiceStore implements SecretStore {
   /// Shows a Secret Service prompt. Returns whether it was dismissed.
   Future<bool> _runPrompt(DBusObjectPath prompt) async {
     final done = Completer<bool>();
-    final sub = DBusSignalStream(_bus, sender: _service, interface: _promptIface, name: 'Completed', path: prompt).listen((s) {
-      if (!done.isCompleted) done.complete(s.values[0].asBoolean());
-    });
+    final sub =
+        DBusSignalStream(
+          _bus,
+          sender: _service,
+          interface: _promptIface,
+          name: 'Completed',
+          path: prompt,
+        ).listen((s) {
+          if (!done.isCompleted) done.complete(s.values[0].asBoolean());
+        });
     try {
       await Future<void>.delayed(Duration.zero);
       await _obj(prompt).callMethod(_promptIface, 'Prompt', [DBusString('')]);
@@ -187,18 +226,18 @@ class SecretServiceStore implements SecretStore {
   }
 
   Future<String?> _readSecretService() => _withSession<String>((session) async {
-        final items = await _search();
-        for (final item in items) {
-          try {
-            return await _getSecret(item, session);
-          } on DBusMethodResponseException catch (e) {
-            if (!e.errorName.endsWith('IsLocked')) rethrow;
-            if (!await _unlock([item])) continue;
-            return await _getSecret(item, session);
-          }
-        }
-        return null;
-      });
+    final items = await _search();
+    for (final item in items) {
+      try {
+        return await _getSecret(item, session);
+      } on DBusMethodResponseException catch (e) {
+        if (!e.errorName.endsWith('IsLocked')) rethrow;
+        if (!await _unlock([item])) continue;
+        return await _getSecret(item, session);
+      }
+    }
+    return null;
+  });
 
   Future<String> _getSecret(DBusObjectPath item, DBusObjectPath session) async {
     final r = await _obj(item).callMethod(_itemIface, 'GetSecret', [session]);
@@ -208,7 +247,9 @@ class SecretServiceStore implements SecretStore {
 
   Future<DBusObjectPath?> _defaultCollection() async {
     for (final alias in ['default', 'login']) {
-      final r = await _root.callMethod(_serviceIface, 'ReadAlias', [DBusString(alias)]);
+      final r = await _root.callMethod(_serviceIface, 'ReadAlias', [
+        DBusString(alias),
+      ]);
       final p = r.returnValues[0].asObjectPath();
       if (p.value != _noObject) return p;
     }
@@ -221,22 +262,25 @@ class SecretServiceStore implements SecretStore {
       if (collection == null) return false;
       var locked = true;
       try {
-        locked = (await _obj(collection).getProperty(_collectionIface, 'Locked')).asBoolean();
+        locked = (await _obj(
+          collection,
+        ).getProperty(_collectionIface, 'Locked')).asBoolean();
       } catch (_) {}
       if (locked && !await _unlock([collection])) return false;
-      final r = await _obj(collection).callMethod(_collectionIface, 'CreateItem', [
-        DBusDict.stringVariant({
-          '$_itemIface.Label': DBusString('Ramble Voice Gemini API key'),
-          '$_itemIface.Attributes': _ssDict(_attributes),
-        }),
-        DBusStruct([
-          session,
-          DBusArray.byte(const []),
-          DBusArray.byte(utf8.encode(key)),
-          DBusString('text/plain; charset=utf8'),
-        ]),
-        DBusBoolean(true), // replace the item with the same attributes
-      ]);
+      final r = await _obj(collection)
+          .callMethod(_collectionIface, 'CreateItem', [
+            DBusDict.stringVariant({
+              '$_itemIface.Label': DBusString('Ramble Voice Gemini API key'),
+              '$_itemIface.Attributes': _ssDict(_attributes),
+            }),
+            DBusStruct([
+              session,
+              DBusArray.byte(const []),
+              DBusArray.byte(utf8.encode(key)),
+              DBusString('text/plain; charset=utf8'),
+            ]),
+            DBusBoolean(true), // replace the item with the same attributes
+          ]);
       final prompt = r.returnValues[1].asObjectPath();
       if (prompt.value != _noObject) return !await _runPrompt(prompt);
       return true;
@@ -245,13 +289,13 @@ class SecretServiceStore implements SecretStore {
   }
 
   Future<void> _deleteSecretService() => _withSession<bool>((session) async {
-        for (final item in await _search()) {
-          final r = await _obj(item).callMethod(_itemIface, 'Delete', const []);
-          final prompt = r.returnValues[0].asObjectPath();
-          if (prompt.value != _noObject) await _runPrompt(prompt);
-        }
-        return true;
-      });
+    for (final item in await _search()) {
+      final r = await _obj(item).callMethod(_itemIface, 'Delete', const []);
+      final prompt = r.returnValues[0].asObjectPath();
+      if (prompt.value != _noObject) await _runPrompt(prompt);
+    }
+    return true;
+  });
 
   // ---- Fallback file ----------------------------------------------------
 

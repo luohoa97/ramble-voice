@@ -17,7 +17,8 @@ class SetupBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    if (!settings.onboarded || settings.completedSetup.contains('dismissed')) return const SizedBox.shrink();
+    if (!settings.onboarded || settings.completedSetup.contains('dismissed'))
+      return const SizedBox.shrink();
     final status = ref.watch(setupStatusProvider).value;
     if (status == null) return const SizedBox.shrink();
     final steps = setupStepsFor(android: ref.watch(isAndroidProvider));
@@ -27,7 +28,12 @@ class SetupBanner extends ConsumerWidget {
     final c = Theme.of(context).colorScheme;
     final text = 'Finish setup ($left ${left == 1 ? 'step' : 'steps'} left)';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Space.gutter, Space.x1, Space.gutter, 0),
+      padding: const EdgeInsets.fromLTRB(
+        Space.gutter,
+        Space.x1,
+        Space.gutter,
+        0,
+      ),
       child: Material(
         color: c.tertiaryContainer,
         shape: const StadiumBorder(),
@@ -46,8 +52,18 @@ class SetupBanner extends ConsumerWidget {
                       padding: const EdgeInsets.only(left: 20),
                       child: Row(
                         children: [
-                          Expanded(child: Text(text, style: t.labelLarge?.copyWith(color: c.onTertiaryContainer))),
-                          Icon(Icons.chevron_right_rounded, color: c.onTertiaryContainer),
+                          Expanded(
+                            child: Text(
+                              text,
+                              style: t.labelLarge?.copyWith(
+                                color: c.onTertiaryContainer,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: c.onTertiaryContainer,
+                          ),
                         ],
                       ),
                     ),
@@ -57,10 +73,18 @@ class SetupBanner extends ConsumerWidget {
             ),
             IconButton(
               tooltip: 'Hide setup reminder',
-              icon: Icon(Icons.close_rounded, size: 20, color: c.onTertiaryContainer),
+              icon: Icon(
+                Icons.close_rounded,
+                size: 20,
+                color: c.onTertiaryContainer,
+              ),
               onPressed: () => ref
                   .read(settingsProvider.notifier)
-                  .update((s) => s.copyWith(completedSetup: {...s.completedSetup, 'dismissed'})),
+                  .update(
+                    (s) => s.copyWith(
+                      completedSetup: {...s.completedSetup, 'dismissed'},
+                    ),
+                  ),
             ),
           ],
         ),

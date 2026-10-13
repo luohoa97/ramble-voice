@@ -36,11 +36,18 @@ class _Fix {
 
 _Fix? _fixFor(DictationFailed f) {
   if (f.audioError == AudioSourceError.permissionDenied) {
-    return const _Fix('Allow microphone in Ramble Voice', ImeRoutes.permissions);
+    return const _Fix(
+      'Allow microphone in Ramble Voice',
+      ImeRoutes.permissions,
+    );
   }
   return switch (f.kind) {
-    CleanupFailureKind.modelNotDownloaded => const _Fix('Download a model', ImeRoutes.models),
-    CleanupFailureKind.missingApiKey || CleanupFailureKind.invalidApiKey => const _Fix('Add Gemini key', ImeRoutes.settings),
+    CleanupFailureKind.modelNotDownloaded => const _Fix(
+      'Download a model',
+      ImeRoutes.models,
+    ),
+    CleanupFailureKind.missingApiKey || CleanupFailureKind.invalidApiKey =>
+      const _Fix('Add Gemini key', ImeRoutes.settings),
     _ => null,
   };
 }
@@ -60,6 +67,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
   final _subs = <StreamSubscription<Object?>>[];
 
   ImeInputInfo _info = const ImeInputInfo();
+
   /// Text just typed into the field, while Undo is still offered.
   String? _undoText;
   Timer? _undoTimer;
@@ -72,7 +80,8 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     _info = _bridge.current;
     // Providers may not change during initState.
     Future.microtask(() {
-      if (mounted) ref.read(currentPackageProvider.notifier).set(_info.packageName);
+      if (mounted)
+        ref.read(currentPackageProvider.notifier).set(_info.packageName);
     });
     _subs
       ..add(_bridge.inputStarted.listen(_onInputStarted))
@@ -98,7 +107,8 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     // The app may have changed settings or downloaded a model since last time.
     final loaded = await ref.read(settingsStoreProvider).load();
     if (!mounted) return;
-    if (jsonEncode(loaded.toJson()) != jsonEncode(ref.read(settingsProvider).toJson())) {
+    if (jsonEncode(loaded.toJson()) !=
+        jsonEncode(ref.read(settingsProvider).toJson())) {
       await ref.read(settingsProvider.notifier).update((_) => loaded);
     }
     ref.invalidate(activeEngineReadinessProvider);
@@ -124,7 +134,10 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
   /// Haptics follow the Android system setting (View.performHapticFeedback),
   /// not an app switch.
   void _haptic(String kind) {
-    unawaited(ref.read(platformServicesProvider).haptic?.call(kind) ?? Future<void>.value());
+    unawaited(
+      ref.read(platformServicesProvider).haptic?.call(kind) ??
+          Future<void>.value(),
+    );
   }
 
   void _onState(DictationState? prev, DictationState next) {
@@ -133,14 +146,18 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
         _resetTimer?.cancel();
         _clearUndo();
         _haptic('start');
-      case DictationListening() when next.nearLimit && prev is DictationListening && !prev.nearLimit:
+      case DictationListening()
+          when next.nearLimit && prev is DictationListening && !prev.nearLimit:
         _haptic('warn');
       case DictationProcessing() when prev is DictationListening:
         // Auto-stopped at the limit, or stopped by the user.
-        _haptic(prev.remaining <= const Duration(seconds: 1) ? 'limit' : 'stop');
+        _haptic(
+          prev.remaining <= const Duration(seconds: 1) ? 'limit' : 'stop',
+        );
       case DictationDone(:final outcome):
         _haptic('done');
-        final typed = ref.read(lastInsertProvider)?.method == InsertMethod.typed;
+        final typed =
+            ref.read(lastInsertProvider)?.method == InsertMethod.typed;
         final landed = ref.read(lastTypedProvider) ?? outcome.insertText;
         if (typed && landed.isNotEmpty) {
           setState(() => _undoText = landed);
@@ -187,11 +204,15 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<DictationState>>(dictationStateProvider, (prev, next) {
+    ref.listen<AsyncValue<DictationState>>(dictationStateProvider, (
+      prev,
+      next,
+    ) {
       final s = next.value;
       if (s != null) _onState(prev?.value, s);
     });
-    final state = ref.watch(dictationStateProvider).value ?? const DictationIdle();
+    final state =
+        ref.watch(dictationStateProvider).value ?? const DictationIdle();
     final scheme = Theme.of(context).colorScheme;
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
     final edit = ref.watch(imeEditProvider);
@@ -205,16 +226,20 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     }
 
     Widget column(List<Widget> keys) => Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: keys,
-        );
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: keys,
+    );
 
     final left = listening != null
         ? [
             _BigKey(
-              icon: listening.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+              icon: listening.paused
+                  ? Icons.play_arrow_rounded
+                  : Icons.pause_rounded,
               label: listening.paused ? 'Resume' : 'Pause',
-              onPressed: () => act(() => unawaited(listening.paused ? dc.resume() : dc.pause())),
+              onPressed: () => act(
+                () => unawaited(listening.paused ? dc.resume() : dc.pause()),
+              ),
             ),
             _BigKey(
               icon: Icons.delete_outline_rounded,
@@ -226,12 +251,18 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
             _BigKey(
               text: 'ABC',
               label: 'Switch to typing keyboard',
-              onPressed: () => act(() => unawaited(_bridge.switchToPreviousInputMethod())),
+              onPressed: () =>
+                  act(() => unawaited(_bridge.switchToPreviousInputMethod())),
             ),
             _BigKey(
               icon: Icons.edit_note_rounded,
               label: 'Edit by voice',
-              onPressed: _info.isPassword ? null : () => act(() => unawaited(ref.read(imeEditProvider.notifier).begin())),
+              onPressed: _info.isPassword
+                  ? null
+                  : () => act(
+                      () =>
+                          unawaited(ref.read(imeEditProvider.notifier).begin()),
+                    ),
             ),
           ];
 
@@ -245,12 +276,20 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
               height: 48,
               child: Row(
                 children: [
-                  Expanded(child: Align(alignment: Alignment.centerLeft, child: ModelMenu(onTick: _tick))),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: ModelMenu(onTick: _tick),
+                    ),
+                  ),
                   IconButton(
                     tooltip: 'Ramble settings',
                     iconSize: 24,
                     onPressed: () => act(() => _openApp(ImeRoutes.settings)),
-                    icon: Icon(Icons.settings_outlined, color: scheme.onSurfaceVariant),
+                    icon: Icon(
+                      Icons.settings_outlined,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -308,7 +347,10 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
               height: 36,
               child: Row(
                 children: [
-                  ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
+                  ToneMenu(
+                    onEdit: () => _openApp(ImeRoutes.style),
+                    onTick: _tick,
+                  ),
                   Expanded(
                     child: Center(
                       child: _Status(
@@ -316,7 +358,9 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                         info: _info,
                         undoText: _undoText,
                         onUndo: () => act(() {
-                          final id = state is DictationIdle ? state.discardedId : null;
+                          final id = state is DictationIdle
+                              ? state.discardedId
+                              : null;
                           if (id != null) {
                             unawaited(dc.undoDiscard(id));
                           } else {
@@ -337,13 +381,13 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 }
 
 IconData _enterIcon(ImeAction? a) => switch (a) {
-      ImeAction.search => Icons.search,
-      ImeAction.send => Icons.send,
-      ImeAction.go || ImeAction.next => Icons.arrow_forward,
-      ImeAction.done => Icons.check,
-      ImeAction.previous => Icons.arrow_back,
-      null => Icons.keyboard_return,
-    };
+  ImeAction.search => Icons.search,
+  ImeAction.send => Icons.send,
+  ImeAction.go || ImeAction.next => Icons.arrow_forward,
+  ImeAction.done => Icons.check,
+  ImeAction.previous => Icons.arrow_back,
+  null => Icons.keyboard_return,
+};
 
 String _enterLabel(ImeInputInfo info) {
   final custom = info.actionLabel;
@@ -384,15 +428,25 @@ class _Center extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state;
     if (s is DictationFailed) {
-      return _ErrorPanel(failure: s, onFix: onFix, onDismiss: onDismiss, onRetry: onRetry);
+      return _ErrorPanel(
+        failure: s,
+        onFix: onFix,
+        onDismiss: onDismiss,
+        onRetry: onRetry,
+      );
     }
     return LayoutBuilder(
       builder: (context, c) {
         // Same sizing as the original keyboard (the user's preferred balance).
-        final size = math.max(88.0, math.min(150.0, math.min(c.maxHeight, c.maxWidth) - 8));
+        final size = math.max(
+          88.0,
+          math.min(150.0, math.min(c.maxHeight, c.maxWidth) - 8),
+        );
         return Center(
           child: MicButton(
-            state: s is DictationListening && s.paused ? const DictationIdle() : s,
+            state: s is DictationListening && s.paused
+                ? const DictationIdle()
+                : s,
             size: size,
             enabled: !info.isPassword,
             onTap: onToggle,
@@ -406,7 +460,12 @@ class _Center extends StatelessWidget {
 }
 
 class _Status extends StatelessWidget {
-  const _Status({required this.state, required this.info, required this.undoText, required this.onUndo});
+  const _Status({
+    required this.state,
+    required this.info,
+    required this.undoText,
+    required this.onUndo,
+  });
 
   final DictationState state;
   final ImeInputInfo info;
@@ -414,27 +473,42 @@ class _Status extends StatelessWidget {
   final VoidCallback onUndo;
 
   static String textFor(DictationState s, ImeInputInfo info) => switch (s) {
-        DictationIdle(:final discardedId) when discardedId != null => 'Discarded',
-        DictationIdle(:final notice) => notice ??
-            (info.isPassword ? 'Dictation is off in password fields' : 'Hold to talk, tap to toggle'),
-        DictationStarting() => 'Starting microphone',
-        DictationListening(:final elapsed, :final paused) when paused => 'Paused · ${formatClock(elapsed)}',
-        DictationListening(:final elapsed, :final nearLimit, :final remaining) =>
-          nearLimit ? '${formatClock(remaining)} left' : 'Listening ${formatClock(elapsed)}',
-        DictationProcessing(:final progress) => progress != null && progress.chunks > 1
-            ? 'Cleaning up, part ${progress.chunk} of ${progress.chunks}'
-            : 'Cleaning up',
-        DictationDone() => 'Inserted',
-        DictationFailed(:final message) => message,
-      };
+    DictationIdle(:final discardedId) when discardedId != null => 'Discarded',
+    DictationIdle(:final notice) =>
+      notice ??
+          (info.isPassword
+              ? 'Dictation is off in password fields'
+              : 'Hold to talk, tap to toggle'),
+    DictationStarting() => 'Starting microphone',
+    DictationListening(:final elapsed, :final paused) when paused =>
+      'Paused · ${formatClock(elapsed)}',
+    DictationListening(:final elapsed, :final nearLimit, :final remaining) =>
+      nearLimit
+          ? '${formatClock(remaining)} left'
+          : 'Listening ${formatClock(elapsed)}',
+    DictationProcessing(:final progress) =>
+      progress != null && progress.chunks > 1
+          ? 'Cleaning up, part ${progress.chunk} of ${progress.chunks}'
+          : 'Cleaning up',
+    DictationDone() => 'Inserted',
+    DictationFailed(:final message) => message,
+  };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    final discarded = state is DictationIdle && (state as DictationIdle).discardedId != null;
-    final showUndo = discarded || (undoText != null && (state is DictationIdle || state is DictationDone));
-    final text = discarded ? 'Discarded' : (showUndo ? 'Inserted' : textFor(state, info));
+    final style = theme.textTheme.titleSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final discarded =
+        state is DictationIdle && (state as DictationIdle).discardedId != null;
+    final showUndo =
+        discarded ||
+        (undoText != null &&
+            (state is DictationIdle || state is DictationDone));
+    final text = discarded
+        ? 'Discarded'
+        : (showUndo ? 'Inserted' : textFor(state, info));
 
     return Semantics(
       liveRegion: true,
@@ -442,7 +516,14 @@ class _Status extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(child: Text(text, style: style, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(
+            child: Text(
+              text,
+              style: style,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           if (showUndo) ...[
             Text(' · ', style: style),
             TextButton(
@@ -462,7 +543,12 @@ class _Status extends StatelessWidget {
 }
 
 class _ErrorPanel extends StatelessWidget {
-  const _ErrorPanel({required this.failure, required this.onFix, required this.onDismiss, required this.onRetry});
+  const _ErrorPanel({
+    required this.failure,
+    required this.onFix,
+    required this.onDismiss,
+    required this.onRetry,
+  });
 
   final DictationFailed failure;
   final void Function(String route) onFix;
@@ -498,13 +584,17 @@ class _ErrorPanel extends StatelessWidget {
               if (fix != null)
                 FilledButton(
                   onPressed: () => onFix(fix.route),
-                  style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                  ),
                   child: Text(fix.label),
                 )
               else if (failure.canRetry)
                 FilledButton(
                   onPressed: onRetry,
-                  style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                  ),
                   child: const Text('Try again'),
                 ),
               TextButton(
@@ -522,7 +612,13 @@ class _ErrorPanel extends StatelessWidget {
 
 /// A tall rounded-rectangle key that fills its column.
 class _BigKey extends StatelessWidget {
-  const _BigKey({this.icon, this.text, required this.label, required this.onPressed, this.filled = false});
+  const _BigKey({
+    this.icon,
+    this.text,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
 
   final IconData? icon;
   final String? text;
@@ -552,7 +648,11 @@ class _BigKey extends StatelessWidget {
             child: Center(
               child: icon != null
                   ? Icon(icon, size: 24, color: fg)
-                  : Text(text!, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg)),
+                  : Text(
+                      text!,
+                      style: Theme.of(context).textTheme.labelLarge
+                          ?.copyWith(color: fg),
+                    ),
             ),
           ),
         ),
@@ -563,7 +663,11 @@ class _BigKey extends StatelessWidget {
 
 /// Backspace: fires once on press, then repeats while held.
 class _BigRepeatKey extends StatefulWidget {
-  const _BigRepeatKey({required this.icon, required this.label, required this.onTrigger});
+  const _BigRepeatKey({
+    required this.icon,
+    required this.label,
+    required this.onTrigger,
+  });
 
   final IconData icon;
   final String label;
@@ -582,7 +686,10 @@ class _BigRepeatKeyState extends State<_BigRepeatKey> {
     setState(() => _down = true);
     widget.onTrigger();
     _delay = Timer(const Duration(milliseconds: 400), () {
-      _repeat = Timer.periodic(const Duration(milliseconds: 55), (_) => widget.onTrigger());
+      _repeat = Timer.periodic(
+        const Duration(milliseconds: 55),
+        (_) => widget.onTrigger(),
+      );
     });
   }
 

@@ -19,10 +19,13 @@ class EngineChip extends ConsumerWidget {
     required String modelLabel,
     required AsyncValue<EngineReadiness> readiness,
   }) {
-    final head = engine == EngineKind.onDevice ? 'On-device · $modelLabel' : 'Gemini';
+    final head = engine == EngineKind.onDevice
+        ? 'On-device · $modelLabel'
+        : 'Gemini';
     return readiness.when(
       data: (r) => switch (r) {
-        EngineReady(:final detail) => detail == null || detail.isEmpty ? head : '$head · $detail',
+        EngineReady(:final detail) =>
+          detail == null || detail.isEmpty ? head : '$head · $detail',
         EngineNotReady() => '$head · ${_short(r)}',
       },
       loading: () => '$head · Checking',
@@ -31,12 +34,12 @@ class EngineChip extends ConsumerWidget {
   }
 
   static String _short(EngineNotReady r) => switch (r.reason) {
-        CleanupFailureKind.modelNotDownloaded => 'Model not downloaded',
-        CleanupFailureKind.missingApiKey => 'No API key',
-        CleanupFailureKind.invalidApiKey => 'Invalid API key',
-        CleanupFailureKind.noNetwork => 'Offline',
-        _ => 'Not ready',
-      };
+    CleanupFailureKind.modelNotDownloaded => 'Model not downloaded',
+    CleanupFailureKind.missingApiKey => 'No API key',
+    CleanupFailureKind.invalidApiKey => 'Invalid API key',
+    CleanupFailureKind.noNetwork => 'Offline',
+    _ => 'Not ready',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,8 +79,8 @@ class EngineChip extends ConsumerWidget {
                       warn
                           ? Icons.warning_amber_rounded
                           : settings.engine == EngineKind.onDevice
-                              ? Icons.memory_rounded
-                              : Icons.cloud_outlined,
+                          ? Icons.memory_rounded
+                          : Icons.cloud_outlined,
                       size: 18,
                       color: fg,
                     ),
@@ -87,7 +90,8 @@ class EngineChip extends ConsumerWidget {
                         text,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg),
+                        style: Theme.of(context).textTheme.labelLarge
+                            ?.copyWith(color: fg),
                       ),
                     ),
                     const SizedBox(width: 2),

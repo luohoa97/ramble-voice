@@ -29,7 +29,11 @@ const engineIcons = {
 /// Choose the engine, then its model, in one place. The two engines are
 /// large radio rows; the selected one opens its own options right below it.
 class EnginePicker extends ConsumerWidget {
-  const EnginePicker({super.key, this.inset = Space.gutter, this.showPath = false});
+  const EnginePicker({
+    super.key,
+    this.inset = Space.gutter,
+    this.showPath = false,
+  });
 
   /// Side inset of the two engine rows (the model rows pad themselves).
   final double inset;
@@ -42,7 +46,9 @@ class EnginePicker extends ConsumerWidget {
     final engine = ref.watch(settingsProvider.select((s) => s.engine));
     final isLinux = ref.watch(isLinuxProvider);
 
-    void choose(EngineKind kind) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(engine: kind));
+    void choose(EngineKind kind) => ref
+        .read(settingsProvider.notifier)
+        .update((s) => s.copyWith(engine: kind));
 
     return Semantics(
       container: true,
@@ -70,7 +76,10 @@ class EnginePicker extends ConsumerWidget {
               onTap: () => choose(EngineKind.gemini),
             ),
           ),
-          _Reveal(open: engine == EngineKind.gemini, child: const GeminiOptions()),
+          _Reveal(
+            open: engine == EngineKind.gemini,
+            child: const GeminiOptions(),
+          ),
         ],
       ),
     );
@@ -100,7 +109,12 @@ class _Reveal extends StatelessWidget {
 /// One large selectable engine row: filled tonal container, check and a
 /// heavier label when selected.
 class EngineOption extends StatelessWidget {
-  const EngineOption({super.key, required this.kind, required this.selected, required this.onTap});
+  const EngineOption({
+    super.key,
+    required this.kind,
+    required this.selected,
+    required this.onTap,
+  });
 
   final EngineKind kind;
   final bool selected;
@@ -124,7 +138,9 @@ class EngineOption extends StatelessWidget {
       onTap: onTap,
       child: Material(
         color: bg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Shapes.extraLarge)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Shapes.extraLarge),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -134,7 +150,13 @@ class EngineOption extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
                 children: [
-                  Icon(engineIcons[kind], size: 28, color: selected ? c.onSecondaryContainer : c.onSurfaceVariant),
+                  Icon(
+                    engineIcons[kind],
+                    size: 28,
+                    color: selected
+                        ? c.onSecondaryContainer
+                        : c.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -144,12 +166,22 @@ class EngineOption extends StatelessWidget {
                           title,
                           style: t.titleLarge?.copyWith(
                             color: fg,
-                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                            fontVariations: [FontVariation('wght', selected ? 700 : 500), const FontVariation('opsz', 22)],
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            fontVariations: [
+                              FontVariation('wght', selected ? 700 : 500),
+                              const FontVariation('opsz', 22),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(tagline, style: t.bodyMedium?.copyWith(color: selected ? fg : c.onSurfaceVariant)),
+                        Text(
+                          tagline,
+                          style: t.bodyMedium?.copyWith(
+                            color: selected ? fg : c.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -157,7 +189,9 @@ class EngineOption extends StatelessWidget {
                   AnimatedSwitcher(
                     duration: Motion.of(context, Motion.short),
                     child: Icon(
-                      selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      selected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
                       key: ValueKey(selected),
                       color: selected ? c.primary : c.outline,
                     ),
@@ -180,7 +214,10 @@ Future<void> showEnginePicker(BuildContext context) {
       title: 'Engine',
       footer: Align(
         alignment: AlignmentDirectional.centerEnd,
-        child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+        child: FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Done'),
+        ),
       ),
       children: const [EnginePicker(inset: 0)],
     ),

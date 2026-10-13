@@ -37,8 +37,11 @@ class CleanupRequest {
     this.part,
     this.repeated = Duration.zero,
     this.screenContext,
-  }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
-
+    this.fieldInfo,
+  }) : assert(
+         mode != CleanupMode.edit || sourceText != null,
+         'edit mode needs sourceText',
+       );
 
   /// [Pcm]-format audio (16 kHz mono s16le), at most the engine's
   /// [CleanupEngine.maxAudioPerRequest] long. The engine wraps it as needed.
@@ -69,6 +72,9 @@ class CleanupRequest {
   /// Context only, written by other people: never instructions.
   final String? screenContext;
 
+  /// One line describing the field being typed into (app, kind, hint).
+  final String? fieldInfo;
+
   static const contextBeforeLimit = 500;
   static const screenContextLimit = 1500;
   static const contextAfterLimit = 100;
@@ -79,7 +85,8 @@ class CleanupRequest {
       mode != CleanupMode.verbatim &&
       ((contextBefore?.isNotEmpty ?? false) ||
           (contextAfter?.isNotEmpty ?? false) ||
-          (screenContext?.isNotEmpty ?? false));
+          (screenContext?.isNotEmpty ?? false) ||
+          (fieldInfo?.isNotEmpty ?? false));
 }
 
 /// Readiness of an engine before a request is attempted.
@@ -144,15 +151,27 @@ enum CleanupFailureKind {
 
   /// Whether falling back to the on-device engine makes sense.
   bool get cloudFallbackEligible => switch (this) {
-        rateLimited || dailyQuotaExceeded || modelNotOnFreeTier || modelUnavailable || noNetwork || timedOut || server || audioTooLong => true,
-        _ => false,
-      };
+    rateLimited ||
+    dailyQuotaExceeded ||
+    modelNotOnFreeTier ||
+    modelUnavailable ||
+    noNetwork ||
+    timedOut ||
+    server ||
+    audioTooLong => true,
+    _ => false,
+  };
 
   /// Whether retrying the same engine later may succeed.
   bool get retryable => switch (this) {
-        rateLimited || noNetwork || timedOut || server || outOfMemory || unknown => true,
-        _ => false,
-      };
+    rateLimited ||
+    noNetwork ||
+    timedOut ||
+    server ||
+    outOfMemory ||
+    unknown => true,
+    _ => false,
+  };
 }
 
 class CleanupFailure implements Exception {

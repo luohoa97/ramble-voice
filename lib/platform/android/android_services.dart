@@ -23,7 +23,10 @@ export 'ime_bridge.dart';
 /// permission can be requested. With [keyboard] set (the IME engine) text is
 /// committed through [bridge] and permission prompts are skipped; the UI sends
 /// the user to the app instead.
-Future<PlatformServices> createAndroidServices({bool keyboard = false, ImeBridge? bridge}) async {
+Future<PlatformServices> createAndroidServices({
+  bool keyboard = false,
+  ImeBridge? bridge,
+}) async {
   final system = AndroidSystem();
   final ImeBridge? ime = keyboard ? (bridge ?? ImeBridge()) : null;
   return PlatformServices(
@@ -39,7 +42,8 @@ Future<PlatformServices> createAndroidServices({bool keyboard = false, ImeBridge
 
 /// Gemini API key in the Android Keystore (flutter_secure_storage).
 class AndroidSecretStore implements SecretStore {
-  AndroidSecretStore({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage();
+  AndroidSecretStore({FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _geminiKey = 'gemini_api_key';
   final FlutterSecureStorage _storage;
@@ -56,13 +60,15 @@ class AndroidSecretStore implements SecretStore {
   }
 
   @override
-  Future<void> writeGeminiKey(String key) => _storage.write(key: _geminiKey, value: key.trim());
+  Future<void> writeGeminiKey(String key) =>
+      _storage.write(key: _geminiKey, value: key.trim());
 
   @override
   Future<void> deleteGeminiKey() => _storage.delete(key: _geminiKey);
 
   @override
-  Future<KeySource> geminiKeySource() async => await readGeminiKey() == null ? KeySource.none : KeySource.secureStorage;
+  Future<KeySource> geminiKeySource() async =>
+      await readGeminiKey() == null ? KeySource.none : KeySource.secureStorage;
 }
 
 /// Keyboard: types into the focused field. App: copies to the clipboard.
@@ -81,13 +87,17 @@ class AndroidTextInserter implements TextInserter {
     return InsertResult(
       InsertMethod.clipboardOnly,
       backend: 'Clipboard',
-      message: ime == null ? null : 'No text field is focused. The text was copied.',
+      message: ime == null
+          ? null
+          : 'No text field is focused. The text was copied.',
     );
   }
 
   @override
-  Future<void> copy(String text) => Clipboard.setData(ClipboardData(text: text));
+  Future<void> copy(String text) =>
+      Clipboard.setData(ClipboardData(text: text));
 
   @override
-  Future<String> describe() async => _ime != null ? 'Keyboard (InputConnection)' : 'Clipboard';
+  Future<String> describe() async =>
+      _ime != null ? 'Keyboard (InputConnection)' : 'Clipboard';
 }

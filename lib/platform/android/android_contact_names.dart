@@ -10,7 +10,8 @@ import '../../core/style/contact_names.dart';
 /// the bubble can use this without asking; only the Activity prompts, with
 /// [request].
 class AndroidContactNames implements ContactNameSource {
-  AndroidContactNames({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('ramble/system');
+  AndroidContactNames({MethodChannel? channel})
+    : _channel = channel ?? const MethodChannel('ramble/system');
 
   final MethodChannel _channel;
 
@@ -30,5 +31,6 @@ class AndroidContactNames implements ContactNameSource {
   static Future<bool> isGranted() => Permission.contacts.isGranted;
 
   /// Asks for contacts access. Call from the Activity only.
-  static Future<bool> request() async => (await Permission.contacts.request()).isGranted;
+  static Future<bool> request() async =>
+      (await Permission.contacts.request()).isGranted;
 }

@@ -10,7 +10,8 @@ import 'package:ramble_voice/platform/platform_services.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   const audio = MethodChannel('ramble/audio');
   const system = MethodChannel('ramble/system');
@@ -26,21 +27,32 @@ void main() {
 
   group('AndroidAudioSource', () {
     test('hasPermission reads the channel', () async {
-      messenger.setMockMethodCallHandler(audio, (c) async => c.method == 'hasPermission' ? true : null);
+      messenger.setMockMethodCallHandler(
+        audio,
+        (c) async => c.method == 'hasPermission' ? true : null,
+      );
       expect(await AndroidAudioSource().hasPermission(), isTrue);
     });
 
     test('requestPermission is false in the keyboard engine', () async {
       var asked = false;
-      final source = AndroidAudioSource(canRequestPermission: false, requestMicrophone: () async => asked = true);
+      final source = AndroidAudioSource(
+        canRequestPermission: false,
+        requestMicrophone: () async => asked = true,
+      );
       expect(await source.requestPermission(), isFalse);
       expect(asked, isFalse);
     });
 
     test('requestPermission re-checks after prompting', () async {
       var granted = false;
-      messenger.setMockMethodCallHandler(audio, (c) async => c.method == 'hasPermission' ? granted : null);
-      final source = AndroidAudioSource(requestMicrophone: () async => granted = true);
+      messenger.setMockMethodCallHandler(
+        audio,
+        (c) async => c.method == 'hasPermission' ? granted : null,
+      );
+      final source = AndroidAudioSource(
+        requestMicrophone: () async => granted = true,
+      );
       expect(await source.requestPermission(), isTrue);
     });
 
@@ -80,26 +92,50 @@ void main() {
       expect(received, blocks);
     });
 
-    test('start maps a refusal to permissionDenied or deviceUnavailable', () async {
-      var permitted = false;
-      messenger.setMockStreamHandler(pcm, MockStreamHandler.inline(onListen: (args, events) {}));
-      messenger.setMockMethodCallHandler(audio, (c) async => c.method == 'hasPermission' ? permitted : false);
+    test(
+      'start maps a refusal to permissionDenied or deviceUnavailable',
+      () async {
+        var permitted = false;
+        messenger.setMockStreamHandler(
+          pcm,
+          MockStreamHandler.inline(onListen: (args, events) {}),
+        );
+        messenger.setMockMethodCallHandler(
+          audio,
+          (c) async => c.method == 'hasPermission' ? permitted : false,
+        );
 
-      await expectLater(
-        AndroidAudioSource().start(),
-        throwsA(isA<AudioSourceException>().having((e) => e.error, 'error', AudioSourceError.permissionDenied)),
-      );
-      permitted = true;
-      await expectLater(
-        AndroidAudioSource().start(),
-        throwsA(isA<AudioSourceException>().having((e) => e.error, 'error', AudioSourceError.deviceUnavailable)),
-      );
-    });
+        await expectLater(
+          AndroidAudioSource().start(),
+          throwsA(
+            isA<AudioSourceException>().having(
+              (e) => e.error,
+              'error',
+              AudioSourceError.permissionDenied,
+            ),
+          ),
+        );
+        permitted = true;
+        await expectLater(
+          AndroidAudioSource().start(),
+          throwsA(
+            isA<AudioSourceException>().having(
+              (e) => e.error,
+              'error',
+              AudioSourceError.deviceUnavailable,
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('AndroidSystem', () {
     test('accentColor masks the signed ARGB int', () async {
-      messenger.setMockMethodCallHandler(system, (c) async => c.method == 'accentColor' ? -16776961 : null);
+      messenger.setMockMethodCallHandler(
+        system,
+        (c) async => c.method == 'accentColor' ? -16776961 : null,
+      );
       final color = await AndroidSystem().accentColor();
       expect(color!.toARGB32(), 0xFF0000FF);
     });
@@ -120,7 +156,12 @@ void main() {
       await s.share('hello');
       await s.openKeyboardSettings();
       expect(await s.isKeyboardEnabled(), isTrue);
-      expect(calls.map((c) => c.method), ['haptic', 'share', 'openKeyboardSettings', 'isKeyboardEnabled']);
+      expect(calls.map((c) => c.method), [
+        'haptic',
+        'share',
+        'openKeyboardSettings',
+        'isKeyboardEnabled',
+      ]);
       expect(calls[0].arguments, 'done');
       expect(calls[1].arguments, 'hello');
     });
@@ -137,7 +178,11 @@ void main() {
       expect(await bridge.commitText('hi'), isTrue);
       await bridge.deleteBackward(count: 3);
       await bridge.openApp(ImeRoutes.models);
-      expect(calls.map((c) => c.method), ['commitText', 'deleteBackward', 'openApp']);
+      expect(calls.map((c) => c.method), [
+        'commitText',
+        'deleteBackward',
+        'openApp',
+      ]);
       expect(calls[0].arguments, 'hi');
       expect(calls[1].arguments, 3);
       expect(calls[2].arguments, ImeRoutes.models);
@@ -155,13 +200,15 @@ void main() {
       final next = bridge.inputStarted.first;
       await messenger.handlePlatformMessage(
         'ramble/ime',
-        const StandardMethodCodec().encodeMethodCall(const MethodCall('inputStarted', {
-          'inputType': 1,
-          'imeOptions': 3,
-          'actionId': 3,
-          'packageName': 'org.example',
-          'isPassword': true,
-        })),
+        const StandardMethodCodec().encodeMethodCall(
+          const MethodCall('inputStarted', {
+            'inputType': 1,
+            'imeOptions': 3,
+            'actionId': 3,
+            'packageName': 'org.example',
+            'isPassword': true,
+          }),
+        ),
         (_) {},
       );
       final info = await next;
@@ -177,7 +224,9 @@ void main() {
       bridge.onRelease = () async => released = true;
       await messenger.handlePlatformMessage(
         'ramble/ime',
-        const StandardMethodCodec().encodeMethodCall(const MethodCall('release')),
+        const StandardMethodCodec().encodeMethodCall(
+          const MethodCall('release'),
+        ),
         (_) {},
       );
       expect(released, isTrue);
@@ -203,7 +252,8 @@ void main() {
       String? clip;
       messenger.setMockMethodCallHandler(ime, (c) async => false);
       messenger.setMockMethodCallHandler(SystemChannels.platform, (c) async {
-        if (c.method == 'Clipboard.setData') clip = (c.arguments as Map)['text'] as String?;
+        if (c.method == 'Clipboard.setData')
+          clip = (c.arguments as Map)['text'] as String?;
         return null;
       });
       final bridge = ImeBridge();
@@ -217,7 +267,8 @@ void main() {
     test('app copies to the clipboard', () async {
       String? clip;
       messenger.setMockMethodCallHandler(SystemChannels.platform, (c) async {
-        if (c.method == 'Clipboard.setData') clip = (c.arguments as Map)['text'] as String?;
+        if (c.method == 'Clipboard.setData')
+          clip = (c.arguments as Map)['text'] as String?;
         return null;
       });
       final r = await AndroidTextInserter().insert('abc');

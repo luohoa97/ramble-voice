@@ -69,16 +69,21 @@ class ModelDownloader implements ModelDownloads {
 
   @override
   File finalFile(GemmaVariant v) => File(p.join(directory.path, v.file));
-  File partFile(GemmaVariant v) => File(p.join(directory.path, '${v.file}.part'));
+  File partFile(GemmaVariant v) =>
+      File(p.join(directory.path, '${v.file}.part'));
 
   @override
   Stream<DownloadStatus> watch(GemmaVariant v) {
-    final c = _controllers.putIfAbsent(v.id, () => StreamController<DownloadStatus>.broadcast());
+    final c = _controllers.putIfAbsent(
+      v.id,
+      () => StreamController<DownloadStatus>.broadcast(),
+    );
     return c.stream;
   }
 
   @override
-  DownloadStatus statusOf(GemmaVariant v) => _status[v.id] ?? const NotDownloaded();
+  DownloadStatus statusOf(GemmaVariant v) =>
+      _status[v.id] ?? const NotDownloaded();
 
   void _set(GemmaVariant v, DownloadStatus s) {
     _status[v.id] = s;
@@ -128,12 +133,17 @@ class ModelDownloader implements ModelDownloads {
           received = 0;
           sink = part.openWrite();
         } else if (res.statusCode == 200 || res.statusCode == 206) {
-          sink = part.openWrite(mode: received > 0 ? FileMode.append : FileMode.write);
+          sink = part.openWrite(
+            mode: received > 0 ? FileMode.append : FileMode.write,
+          );
         } else if (res.statusCode == 416) {
           // Already complete on disk.
           sink = null;
         } else {
-          throw HttpException('Download failed (HTTP ${res.statusCode})', uri: v.downloadUrl);
+          throw HttpException(
+            'Download failed (HTTP ${res.statusCode})',
+            uri: v.downloadUrl,
+          );
         }
         if (sink != null) {
           _set(v, Downloading(received, v.sizeBytes));
@@ -142,7 +152,8 @@ class ModelDownloader implements ModelDownloads {
             sink.add(block);
             received += block.length;
             final now = DateTime.now();
-            if (now.difference(lastReport) > const Duration(milliseconds: 150)) {
+            if (now.difference(lastReport) >
+                const Duration(milliseconds: 150)) {
               lastReport = now;
               _set(v, Downloading(received, v.sizeBytes));
             }
@@ -155,23 +166,36 @@ class ModelDownloader implements ModelDownloads {
       if (!_active.containsKey(v.id)) return statusOf(v); // paused meanwhile
       _set(v, const Verifying());
       if (await part.length() != v.sizeBytes) {
-        throw const FileSystemException('Download ended early. Resume to finish it.');
+        throw const FileSystemException(
+          'Download ended early. Resume to finish it.',
+        );
       }
       final digest = await sha256.bind(part.openRead()).first;
       if (digest.toString() != v.sha256) {
         await part.delete();
-        throw const FileSystemException('The downloaded file failed its checksum and was removed.');
+        throw const FileSystemException(
+          'The downloaded file failed its checksum and was removed.',
+        );
       }
       final done = await part.rename(finalFile(v).path);
       _set(v, Downloaded(done.path));
     } on http.ClientException catch (e) {
       if (_active.containsKey(v.id)) {
-        _set(v, DownloadFailed('Network error: ${e.message}', received: received, total: v.sizeBytes));
+        _set(
+          v,
+          DownloadFailed(
+            'Network error: ${e.message}',
+            received: received,
+            total: v.sizeBytes,
+          ),
+        );
       }
     } on Exception catch (e) {
       if (_active.containsKey(v.id)) {
         final msg = e is FileSystemException
-            ? (e.osError?.errorCode == 28 ? 'Not enough storage space.' : e.message)
+            ? (e.osError?.errorCode == 28
+                  ? 'Not enough storage space.'
+                  : e.message)
             : e.toString();
         _set(v, DownloadFailed(msg, received: received, total: v.sizeBytes));
       }

@@ -50,8 +50,9 @@ class HistoryDb extends _$HistoryDb {
       (select(historyEntries)..where((t) => t.id.equals(id))).getSingleOrNull();
 
   Future<void> setVerbatim(String id, String text) =>
-      (update(historyEntries)..where((t) => t.id.equals(id)))
-          .write(HistoryEntriesCompanion(verbatim: Value(text)));
+      (update(historyEntries)..where((t) => t.id.equals(id))).write(
+        HistoryEntriesCompanion(verbatim: Value(text)),
+      );
 
   /// Replaces the cleaned text, e.g. after the user corrected it. Returns
   /// whether an entry was updated.

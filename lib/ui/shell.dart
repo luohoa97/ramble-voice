@@ -23,15 +23,28 @@ _Dest _destOf(String location) {
 }
 
 String _pathOf(_Dest d) => switch (d) {
-      _Dest.record => '/',
-      _Dest.history => '/history',
-      _Dest.settings => '/settings',
-    };
+  _Dest.record => '/',
+  _Dest.history => '/history',
+  _Dest.settings => '/settings',
+};
 
-({String label, IconData icon, IconData selected}) _meta(_Dest d) => switch (d) {
-      _Dest.record => (label: 'Record', icon: Icons.mic_none_rounded, selected: Icons.mic_rounded),
-      _Dest.history => (label: 'History', icon: Icons.history_rounded, selected: Icons.history_rounded),
-      _Dest.settings => (label: 'Settings', icon: Icons.settings_outlined, selected: Icons.settings_rounded),
+({String label, IconData icon, IconData selected}) _meta(_Dest d) =>
+    switch (d) {
+      _Dest.record => (
+        label: 'Record',
+        icon: Icons.mic_none_rounded,
+        selected: Icons.mic_rounded,
+      ),
+      _Dest.history => (
+        label: 'History',
+        icon: Icons.history_rounded,
+        selected: Icons.history_rounded,
+      ),
+      _Dest.settings => (
+        label: 'Settings',
+        icon: Icons.settings_outlined,
+        selected: Icons.settings_rounded,
+      ),
     };
 
 /// Phone: one screen at a time with a bottom bar. Desktop: no chrome at all,
@@ -48,14 +61,17 @@ class AppShell extends StatelessWidget {
 
     final body = CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.comma, control: true): () => context.go('/settings'),
+        const SingleActivator(LogicalKeyboardKey.comma, control: true): () =>
+            context.go('/settings'),
         const SingleActivator(LogicalKeyboardKey.keyH, control: true): () {
           if (!twoPane) {
             context.go('/history');
             return;
           }
           if (_destOf(location) != _Dest.record) context.go('/');
-          WidgetsBinding.instance.addPostFrameCallback((_) => historySearchFocus.requestFocus());
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => historySearchFocus.requestFocus(),
+          );
         },
       },
       child: child,
@@ -109,7 +125,12 @@ class HomePane extends StatelessWidget {
           width: kHistoryPaneWidth,
           child: ColoredBox(
             color: c.surfaceContainerLow,
-            child: SafeArea(child: HistoryScreen(embedded: true, searchFocus: historySearchFocus)),
+            child: SafeArea(
+              child: HistoryScreen(
+                embedded: true,
+                searchFocus: historySearchFocus,
+              ),
+            ),
           ),
         ),
       ],
@@ -123,5 +144,7 @@ class HistoryRoutePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= kTwoPaneWidth ? const HomePane() : const HistoryScreen();
+      MediaQuery.sizeOf(context).width >= kTwoPaneWidth
+      ? const HomePane()
+      : const HistoryScreen();
 }

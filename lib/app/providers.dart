@@ -45,12 +45,19 @@ class AppPaths {
   Directory get models => Directory(p.join(support.path, 'models'));
 }
 
-final appPathsProvider = Provider<AppPaths>((ref) => throw UnimplementedError('override appPathsProvider'));
-final platformServicesProvider =
-    Provider<PlatformServices>((ref) => throw UnimplementedError('override platformServicesProvider'));
-final initialSettingsProvider = Provider<AppSettings>((ref) => const AppSettings());
+final appPathsProvider = Provider<AppPaths>(
+  (ref) => throw UnimplementedError('override appPathsProvider'),
+);
+final platformServicesProvider = Provider<PlatformServices>(
+  (ref) => throw UnimplementedError('override platformServicesProvider'),
+);
+final initialSettingsProvider = Provider<AppSettings>(
+  (ref) => const AppSettings(),
+);
 
-final settingsStoreProvider = Provider<SettingsStore>((ref) => SettingsStore(ref.watch(appPathsProvider).settingsFile));
+final settingsStoreProvider = Provider<SettingsStore>(
+  (ref) => SettingsStore(ref.watch(appPathsProvider).settingsFile),
+);
 
 class SettingsNotifier extends Notifier<AppSettings> {
   @override
@@ -62,7 +69,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
   }
 }
 
-final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
+final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
+  SettingsNotifier.new,
+);
 
 /// Android package of the app the keyboard is typing into; null elsewhere.
 /// Set by the keyboard on every `inputStarted`.
@@ -72,7 +81,10 @@ class CurrentPackageNotifier extends Notifier<String?> {
   void set(String? packageName) => state = packageName;
 }
 
-final currentPackageProvider = NotifierProvider<CurrentPackageNotifier, String?>(CurrentPackageNotifier.new);
+final currentPackageProvider =
+    NotifierProvider<CurrentPackageNotifier, String?>(
+      CurrentPackageNotifier.new,
+    );
 
 /// The style used for the next dictation: the saved style with its tone
 /// resolved for [currentPackageProvider] (per-app override, built-in, global).
@@ -100,7 +112,8 @@ final styleResolverProvider = Provider<Future<StyleProfile> Function()>((ref) {
   return () async {
     final style = ref.read(effectiveStyleProvider);
     if (!ref.read(settingsProvider).useContactNames) return style;
-    final names = await ref.read(contactNamesCacheProvider)?.get() ?? const <String>[];
+    final names =
+        await ref.read(contactNamesCacheProvider)?.get() ?? const <String>[];
     return names.isEmpty ? style : style.copyWith(contactNames: names);
   };
 });
@@ -112,9 +125,13 @@ final historyDbProvider = Provider<HistoryDb>((ref) {
   return db;
 });
 
-final recordingVaultProvider = Provider<RecordingVault>((ref) => RecordingVault(ref.watch(appPathsProvider).recordings));
+final recordingVaultProvider = Provider<RecordingVault>(
+  (ref) => RecordingVault(ref.watch(appPathsProvider).recordings),
+);
 
-final modelDownloaderProvider = Provider<ModelDownloads>((ref) => ModelDownloader(directory: ref.watch(appPathsProvider).models));
+final modelDownloaderProvider = Provider<ModelDownloads>(
+  (ref) => ModelDownloader(directory: ref.watch(appPathsProvider).models),
+);
 
 final geminiClientProvider = Provider<GeminiClient>((ref) {
   final c = GeminiClient();
@@ -122,7 +139,9 @@ final geminiClientProvider = Provider<GeminiClient>((ref) {
   return c;
 });
 
-final geminiModelCacheProvider = Provider<GeminiModelCache>((ref) => GeminiModelCache());
+final geminiModelCacheProvider = Provider<GeminiModelCache>(
+  (ref) => GeminiModelCache(),
+);
 
 final geminiEngineProvider = Provider<GeminiEngine>((ref) {
   final secrets = ref.watch(platformServicesProvider).secrets;
@@ -143,7 +162,9 @@ final gemmaEngineProvider = Provider<GemmaEngine>((ref) {
     variant: variant,
     modelPath: () async {
       final f = downloader.finalFile(variant);
-      return await f.exists() && await f.length() == variant.sizeBytes ? f.path : null;
+      return await f.exists() && await f.length() == variant.sizeBytes
+          ? f.path
+          : null;
     },
   );
   ref.onDispose(engine.release);
@@ -156,15 +177,22 @@ final engineSetProvider = Provider<Future<EngineSet> Function()>((ref) {
     final s = ref.read(settingsProvider);
     final gemma = ref.read(gemmaEngineProvider);
     if (s.engine == EngineKind.onDevice) return EngineSet(gemma);
-    return EngineSet(ref.read(geminiEngineProvider), s.fallbackToOnDevice ? gemma : null);
+    return EngineSet(
+      ref.read(geminiEngineProvider),
+      s.fallbackToOnDevice ? gemma : null,
+    );
   };
 });
 
 /// Live readiness of the active engine, shown on the main screen.
-final activeEngineReadinessProvider = FutureProvider<EngineReadiness>((ref) async {
+final activeEngineReadinessProvider = FutureProvider<EngineReadiness>((
+  ref,
+) async {
   final kind = ref.watch(settingsProvider.select((s) => s.engine));
   ref.watch(settingsProvider.select((s) => s.gemmaVariantId));
-  final engine = kind == EngineKind.onDevice ? ref.watch(gemmaEngineProvider) : ref.watch(geminiEngineProvider);
+  final engine = kind == EngineKind.onDevice
+      ? ref.watch(gemmaEngineProvider)
+      : ref.watch(geminiEngineProvider);
   return engine.readiness();
 });
 
@@ -178,7 +206,10 @@ class DictationOriginNotifier extends Notifier<DictationOrigin> {
   void set(DictationOrigin origin) => state = origin;
 }
 
-final dictationOriginProvider = NotifierProvider<DictationOriginNotifier, DictationOrigin>(DictationOriginNotifier.new);
+final dictationOriginProvider =
+    NotifierProvider<DictationOriginNotifier, DictationOrigin>(
+      DictationOriginNotifier.new,
+    );
 
 /// The last insertion outcome, for UI feedback.
 class LastInsertNotifier extends Notifier<InsertResult?> {
@@ -187,15 +218,20 @@ class LastInsertNotifier extends Notifier<InsertResult?> {
   void set(InsertResult? r) => state = r;
 }
 
-final lastInsertProvider = NotifierProvider<LastInsertNotifier, InsertResult?>(LastInsertNotifier.new);
+final lastInsertProvider = NotifierProvider<LastInsertNotifier, InsertResult?>(
+  LastInsertNotifier.new,
+);
 
 /// Extra work after a successful dictation (e.g. the Android keyboard commits
 /// the text). Overridden by the IME entrypoint.
-final outcomeHookProvider = Provider<Future<void> Function(DictationOutcome)?>((ref) => null);
+final outcomeHookProvider = Provider<Future<void> Function(DictationOutcome)?>(
+  (ref) => null,
+);
 
 /// Reads the text around the cursor at the start of a dictation. Null where
 /// there is no cursor to read (overridden by the keyboard entrypoint).
-final fieldContextReaderProvider = Provider<Future<FieldContext?> Function({bool screen})?>((ref) => null);
+final fieldContextReaderProvider =
+    Provider<Future<FieldContext?> Function({bool screen})?>((ref) => null);
 
 final dictationControllerProvider = Provider<DictationController>((ref) {
   final services = ref.watch(platformServicesProvider);
@@ -207,23 +243,29 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
     fieldContext: () async {
       final s = ref.read(settingsProvider);
       if (!s.useFieldContext && !s.screenContext) return null;
-      final c = await ref.read(fieldContextReaderProvider)?.call(screen: s.screenContext);
+      final c = await ref
+          .read(fieldContextReaderProvider)
+          ?.call(screen: s.screenContext);
       if (c == null || s.useFieldContext) return c;
-      return FieldContext(screen: c.screen);
+      return FieldContext(screen: c.screen, field: c.field);
     },
     pipeline: const CleanupPipeline(),
     maxSession: ref.read(settingsProvider).maxSession,
     onOutcome: (outcome) async {
       final s = ref.read(settingsProvider);
-      await ref.read(historyDbProvider).upsert(HistoryEntriesCompanion.insert(
-            id: outcome.recordingId,
-            createdAt: outcome.createdAt,
-            durationMs: outcome.duration.inMilliseconds,
-            cleaned: outcome.text,
-            engine: outcome.engine.name,
-            fellBack: Value(outcome.fellBack),
-            stylePreset: Value(ref.read(effectiveStyleProvider).preset.name),
-          ));
+      await ref
+          .read(historyDbProvider)
+          .upsert(
+            HistoryEntriesCompanion.insert(
+              id: outcome.recordingId,
+              createdAt: outcome.createdAt,
+              durationMs: outcome.duration.inMilliseconds,
+              cleaned: outcome.text,
+              engine: outcome.engine.name,
+              fellBack: Value(outcome.fellBack),
+              stylePreset: Value(ref.read(effectiveStyleProvider).preset.name),
+            ),
+          );
       final hook = ref.read(outcomeHookProvider);
       if (hook != null) await hook(outcome);
       if (ref.read(dictationOriginProvider) == DictationOrigin.hotkey) {
@@ -252,7 +294,11 @@ final dictationControllerProvider = Provider<DictationController>((ref) {
   );
   final failures = controller.states.listen((s) {
     if (s is DictationFailed) {
-      appErrorLog?.call('dictation failed (${s.kind?.name ?? s.audioError?.name})', s.message, null);
+      appErrorLog?.call(
+        'dictation failed (${s.kind?.name ?? s.audioError?.name})',
+        s.message,
+        null,
+      );
     }
   });
   ref.onDispose(failures.cancel);
@@ -270,14 +316,20 @@ final dictationStateProvider = StreamProvider<DictationState>((ref) async* {
 void Function(String what, Object error, StackTrace? stack)? appErrorLog;
 
 final historyProvider = StreamProvider.family<List<HistoryEntry>, String>(
-  (ref, query) => ref.watch(historyDbProvider).watch(query: query).handleError((Object e, StackTrace s) {
+  (ref, query) => ref.watch(historyDbProvider).watch(query: query).handleError((
+    Object e,
+    StackTrace s,
+  ) {
     appErrorLog?.call('history', e, s);
     throw e;
   }),
 );
 
 /// Computes and caches the word-for-word transcript for "show original".
-final verbatimProvider = FutureProvider.family<String?, String>((ref, id) async {
+final verbatimProvider = FutureProvider.family<String?, String>((
+  ref,
+  id,
+) async {
   final db = ref.watch(historyDbProvider);
   final entry = await db.byId(id);
   if (entry == null) return null;
@@ -297,7 +349,9 @@ final verbatimProvider = FutureProvider.family<String?, String>((ref, id) async 
 });
 
 /// Recordings whose cleanup never finished (offered for retry at startup).
-final pendingRecordingsProvider = FutureProvider<List<String>>((ref) => ref.watch(recordingVaultProvider).pending());
+final pendingRecordingsProvider = FutureProvider<List<String>>(
+  (ref) => ref.watch(recordingVaultProvider).pending(),
+);
 
 /// "Edit by voice": a separate, explicitly started controller. Normal
 /// dictation never obeys spoken instructions; only this one does, and only to

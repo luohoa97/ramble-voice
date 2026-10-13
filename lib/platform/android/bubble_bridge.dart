@@ -30,28 +30,43 @@ class BubbleStatus {
 
   @override
   bool operator ==(Object other) =>
-      other is BubbleStatus && other.phase == phase && other.level == level && other.message == message;
+      other is BubbleStatus &&
+      other.phase == phase &&
+      other.level == level &&
+      other.message == message;
 
   @override
   int get hashCode => Object.hash(phase, level, message);
 
-  Map<String, Object?> toMap() => {'phase': phase.name, 'level': level, 'message': message};
+  Map<String, Object?> toMap() => {
+    'phase': phase.name,
+    'level': level,
+    'message': message,
+  };
 }
 
 /// Maps the dictation state machine onto what a 52 dp bubble can show.
 BubbleStatus bubbleStatusFor(DictationState state) => switch (state) {
-      DictationIdle(:final notice) => BubbleStatus(BubblePhase.idle, message: notice),
-      DictationStarting() => const BubbleStatus(BubblePhase.processing),
-      DictationListening(:final level) => BubbleStatus(BubblePhase.listening, level: level.clamp(0.0, 1.0)),
-      DictationProcessing() => const BubbleStatus(BubblePhase.processing),
-      DictationDone() => const BubbleStatus(BubblePhase.done),
-      DictationFailed(:final message, :final audioError) => BubbleStatus(
-          BubblePhase.error,
-          message: audioError == AudioSourceError.permissionDenied || audioError == AudioSourceError.deviceUnavailable
-              ? '$message Open Ramble Voice and try again.'
-              : message,
-        ),
-    };
+  DictationIdle(:final notice) => BubbleStatus(
+    BubblePhase.idle,
+    message: notice,
+  ),
+  DictationStarting() => const BubbleStatus(BubblePhase.processing),
+  DictationListening(:final level) => BubbleStatus(
+    BubblePhase.listening,
+    level: level.clamp(0.0, 1.0),
+  ),
+  DictationProcessing() => const BubbleStatus(BubblePhase.processing),
+  DictationDone() => const BubbleStatus(BubblePhase.done),
+  DictationFailed(:final message, :final audioError) => BubbleStatus(
+    BubblePhase.error,
+    message:
+        audioError == AudioSourceError.permissionDenied ||
+            audioError == AudioSourceError.deviceUnavailable
+        ? '$message Open Ramble Voice and try again.'
+        : message,
+  ),
+};
 
 /// The field the bubble is attached to.
 class BubbleFieldContext {
@@ -62,7 +77,8 @@ class BubbleFieldContext {
 }
 
 class BubbleBridge {
-  BubbleBridge({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('ramble/bubble') {
+  BubbleBridge({MethodChannel? channel})
+    : _channel = channel ?? const MethodChannel('ramble/bubble') {
     _channel.setMethodCallHandler(_onCall);
   }
 
@@ -99,7 +115,10 @@ class BubbleBridge {
       case 'context':
         final a = call.arguments;
         field = a is Map
-            ? BubbleFieldContext(packageName: a['packageName'] as String?, isMultiline: a['isMultiline'] as bool? ?? false)
+            ? BubbleFieldContext(
+                packageName: a['packageName'] as String?,
+                isMultiline: a['isMultiline'] as bool? ?? false,
+              )
             : const BubbleFieldContext();
         return null;
     }
@@ -160,7 +179,10 @@ class BubbleStateRelay {
     final status = bubbleStatusFor(state);
     final last = _last;
     if (status == last) return;
-    final levelOnly = last != null && last.phase == BubblePhase.listening && status.phase == BubblePhase.listening;
+    final levelOnly =
+        last != null &&
+        last.phase == BubblePhase.listening &&
+        status.phase == BubblePhase.listening;
     if (levelOnly && _clock.elapsed - _lastSent < minLevelInterval) return;
     _last = status;
     _lastSent = _clock.elapsed;
@@ -181,11 +203,16 @@ class BubbleTextInserter implements TextInserter {
     if (await _bridge.insert(text)) {
       return const InsertResult(InsertMethod.typed, backend: 'Accessibility');
     }
-    return const InsertResult(InsertMethod.clipboardOnly, backend: 'Clipboard', message: 'Copied, paste to insert.');
+    return const InsertResult(
+      InsertMethod.clipboardOnly,
+      backend: 'Clipboard',
+      message: 'Copied, paste to insert.',
+    );
   }
 
   @override
-  Future<void> copy(String text) => Clipboard.setData(ClipboardData(text: text));
+  Future<void> copy(String text) =>
+      Clipboard.setData(ClipboardData(text: text));
 
   @override
   Future<String> describe() async => 'Floating mic (accessibility)';

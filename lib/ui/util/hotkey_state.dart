@@ -11,4 +11,7 @@ class HotkeyStatusNotifier extends Notifier<HotkeyStatus?> {
   void set(HotkeyStatus? s) => state = s;
 }
 
-final hotkeyStatusProvider = NotifierProvider<HotkeyStatusNotifier, HotkeyStatus?>(HotkeyStatusNotifier.new);
+final hotkeyStatusProvider =
+    NotifierProvider<HotkeyStatusNotifier, HotkeyStatus?>(
+      HotkeyStatusNotifier.new,
+    );

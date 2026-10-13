@@ -15,8 +15,8 @@ abstract final class Pcm {
 
   /// Duration of [byteLength] bytes of PCM in this format.
   static Duration durationOf(int byteLength) => Duration(
-        microseconds: (byteLength ~/ bytesPerSample) * 1000000 ~/ sampleRate,
-      );
+    microseconds: (byteLength ~/ bytesPerSample) * 1000000 ~/ sampleRate,
+  );
 
   /// Number of bytes for [duration] of audio, aligned to whole samples.
   static int bytesFor(Duration duration) =>
@@ -25,8 +25,12 @@ abstract final class Pcm {
   /// Views little-endian PCM bytes as samples without copying when aligned.
   static Int16List samples(Uint8List pcm) {
     final usable = pcm.lengthInBytes - pcm.lengthInBytes % bytesPerSample;
-    if (pcm.offsetInBytes % bytesPerSample == 0 && Endian.host == Endian.little) {
-      return pcm.buffer.asInt16List(pcm.offsetInBytes, usable ~/ bytesPerSample);
+    if (pcm.offsetInBytes % bytesPerSample == 0 &&
+        Endian.host == Endian.little) {
+      return pcm.buffer.asInt16List(
+        pcm.offsetInBytes,
+        usable ~/ bytesPerSample,
+      );
     }
     final data = ByteData.sublistView(pcm, 0, usable);
     return Int16List.fromList([
@@ -56,7 +60,8 @@ abstract final class WavEncoder {
   static const int headerLength = 44;
 
   static Uint8List encode(Uint8List pcm) {
-    final dataLength = pcm.lengthInBytes - pcm.lengthInBytes % Pcm.bytesPerSample;
+    final dataLength =
+        pcm.lengthInBytes - pcm.lengthInBytes % Pcm.bytesPerSample;
     final out = Uint8List(headerLength + dataLength);
     final h = ByteData.sublistView(out, 0, headerLength);
     void ascii(int offset, String s) {
@@ -101,8 +106,12 @@ abstract final class WavEncoder {
         rate = d.getUint32(body + 4, Endian.little);
         bits = d.getUint16(body + 14, Endian.little);
       } else if (id == 'data') {
-        if (channels != Pcm.channels || rate != Pcm.sampleRate || bits != Pcm.bitsPerSample) {
-          throw FormatException('Unsupported WAV format: $channels ch, $rate Hz, $bits bit');
+        if (channels != Pcm.channels ||
+            rate != Pcm.sampleRate ||
+            bits != Pcm.bitsPerSample) {
+          throw FormatException(
+            'Unsupported WAV format: $channels ch, $rate Hz, $bits bit',
+          );
         }
         final end = math.min(body + size, wav.length);
         return Uint8List.fromList(wav.sublist(body, end));

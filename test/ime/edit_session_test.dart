@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ramble_voice/app/providers.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
-import 'package:ramble_voice/core/dictation/dictation_controller.dart' show EngineSet;
+import 'package:ramble_voice/core/dictation/dictation_controller.dart'
+    show EngineSet;
 import 'package:ramble_voice/core/dictation/edit_controller.dart';
 import 'package:ramble_voice/core/style/style_profile.dart';
 import 'package:ramble_voice/ime/edit_session.dart';
@@ -19,8 +20,8 @@ import '../fakes/pcm_fixtures.dart';
 /// An Android text field behind the `ramble/ime` channel.
 class _Field {
   _Field(this.text, {int? selStart, int? selEnd})
-      : start = selStart ?? text.length,
-        end = selEnd ?? selStart ?? text.length;
+    : start = selStart ?? text.length,
+      end = selEnd ?? selStart ?? text.length;
 
   String text;
   int start;
@@ -31,7 +32,10 @@ class _Field {
       case 'getSelectedText':
         return start == end ? null : text.substring(start, end);
       case 'getTextAfterCursor':
-        return text.substring(end, (end + (call.arguments as int)).clamp(end, text.length));
+        return text.substring(
+          end,
+          (end + (call.arguments as int)).clamp(end, text.length),
+        );
       case 'getTextBeforeCursor':
         // Android reads before the selection start.
         final n = call.arguments as int;
@@ -46,9 +50,17 @@ class _Field {
         final before = a['before'] as String;
         final after = a['after'] as String;
         if (start != end) return 'false';
-        if (before.length > end || text.substring(end - before.length, end) != before) return 'false';
-        if (end + after.length > text.length || text.substring(end, end + after.length) != after) return 'false';
-        text = text.replaceRange(end - before.length, end + after.length, a['text'] as String);
+        if (before.length > end ||
+            text.substring(end - before.length, end) != before)
+          return 'false';
+        if (end + after.length > text.length ||
+            text.substring(end, end + after.length) != after)
+          return 'false';
+        text = text.replaceRange(
+          end - before.length,
+          end + after.length,
+          a['text'] as String,
+        );
         start = end = end - before.length + (a['text'] as String).length;
         return 'true';
       case 'replaceBeforeCursor':
@@ -56,7 +68,8 @@ class _Field {
         final len = a['length'] as int;
         final expected = a['expected'] as String?;
         if (start != end || len > end) return 'false';
-        if (expected != null && text.substring(end - len, end) != expected) return 'false';
+        if (expected != null && text.substring(end - len, end) != expected)
+          return 'false';
         text = text.replaceRange(end - len, end, a['text'] as String);
         start = end = end - len + (a['text'] as String).length;
         return 'true';
@@ -79,29 +92,35 @@ void main() {
     field = _Field('Hello wrold. Second line.');
     audio = FakeAudioSource();
     engine = FakeCleanupEngine(defaultResult: 'REVISED');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
-      final r = field.handle(call);
-      return switch (call.method) {
-        'getSelectedText' || 'getTextBeforeCursor' || 'getTextAfterCursor' => r,
-        _ => r == 'true',
-      };
-    });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          final r = field.handle(call);
+          return switch (call.method) {
+            'getSelectedText' ||
+            'getTextBeforeCursor' ||
+            'getTextAfterCursor' => r,
+            _ => r == 'true',
+          };
+        });
     final bridge = ImeBridge(channel: channel);
-    container = ProviderContainer(overrides: [
-      imeBridgeProvider.overrideWithValue(bridge),
-      editControllerProvider.overrideWith((ref) {
-        final c = EditController(
-          audio: audio,
-          engines: () async => EngineSet(engine),
-          style: () => const StyleProfile(),
-        );
-        ref.onDispose(c.dispose);
-        return c;
-      }),
-    ]);
+    container = ProviderContainer(
+      overrides: [
+        imeBridgeProvider.overrideWithValue(bridge),
+        editControllerProvider.overrideWith((ref) {
+          final c = EditController(
+            audio: audio,
+            engines: () async => EngineSet(engine),
+            style: () => const StyleProfile(),
+          );
+          ref.onDispose(c.dispose);
+          return c;
+        }),
+      ],
+    );
     addTearDown(() {
       container.dispose();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
     });
     // Keep the notifier alive.
     container.listen(imeEditProvider, (_, _) {});
@@ -146,28 +165,38 @@ void main() {
     expect(state().phase, EditPhase.idle);
   });
 
-  test('prefers the last dictation when it is still before the cursor', () async {
-    container.read(lastDictationProvider.notifier).set(const LastDictation(text: 'Second line.'));
-    await notifier().begin();
-    expect(state().source, EditSource.lastDictation);
-    await speakAndFinish();
-    expect(engine.requests.single.sourceText, 'Second line.');
-    expect(field.text, 'Hello wrold. REVISED');
+  test(
+    'prefers the last dictation when it is still before the cursor',
+    () async {
+      container
+          .read(lastDictationProvider.notifier)
+          .set(const LastDictation(text: 'Second line.'));
+      await notifier().begin();
+      expect(state().source, EditSource.lastDictation);
+      await speakAndFinish();
+      expect(engine.requests.single.sourceText, 'Second line.');
+      expect(field.text, 'Hello wrold. REVISED');
 
-    // The revised text becomes the new "last dictation".
-    expect(container.read(lastDictationProvider)!.text, 'REVISED');
-    await notifier().undo();
-    expect(field.text, 'Hello wrold. Second line.');
-  });
+      // The revised text becomes the new "last dictation".
+      expect(container.read(lastDictationProvider)!.text, 'REVISED');
+      await notifier().undo();
+      expect(field.text, 'Hello wrold. Second line.');
+    },
+  );
 
-  test('falls back to the text before the cursor when the last dictation is gone', () async {
-    container.read(lastDictationProvider.notifier).set(const LastDictation(text: 'something else'));
-    await notifier().begin();
-    expect(state().source, EditSource.field);
-    await speakAndFinish();
-    expect(engine.requests.single.sourceText, 'Hello wrold. Second line.');
-    expect(field.text, 'REVISED');
-  });
+  test(
+    'falls back to the text before the cursor when the last dictation is gone',
+    () async {
+      container
+          .read(lastDictationProvider.notifier)
+          .set(const LastDictation(text: 'something else'));
+      await notifier().begin();
+      expect(state().source, EditSource.field);
+      await speakAndFinish();
+      expect(engine.requests.single.sourceText, 'Hello wrold. Second line.');
+      expect(field.text, 'REVISED');
+    },
+  );
 
   test('edits the text after the cursor too', () async {
     field = _Field('Hello wrold. Second line.', selStart: 6);
@@ -202,12 +231,15 @@ void main() {
     expect(state().phase, EditPhase.failed);
   });
 
-  test('an empty field has nothing to edit and never opens the microphone', () async {
-    field = _Field('');
-    await notifier().begin();
-    expect(state().phase, EditPhase.failed);
-    expect(audio.startCount, 0);
-  });
+  test(
+    'an empty field has nothing to edit and never opens the microphone',
+    () async {
+      field = _Field('');
+      await notifier().begin();
+      expect(state().phase, EditPhase.failed);
+      expect(audio.startCount, 0);
+    },
+  );
 
   test('password fields are refused', () async {
     final bridge = container.read(imeBridgeProvider);
@@ -243,14 +275,19 @@ void main() {
       expect(await bridge.getTextBeforeCursor(3), 'llo');
     });
 
-    test('getSelectedText and getTextBeforeCursor tolerate a missing handler', () async {
-      final bridge = ImeBridge(channel: const MethodChannel('test/none'));
-      expect(await bridge.getSelectedText(), isNull);
-      expect(await bridge.getTextBeforeCursor(5), isNull);
-      expect(await bridge.getTextAfterCursor(5), isNull);
-      expect(await bridge.replaceSelection('x'), isFalse);
-      expect(await bridge.replaceBeforeCursor(1, 'x', expected: 'y'), isFalse);
-    });
+    test(
+      'getSelectedText and getTextBeforeCursor tolerate a missing handler',
+      () async {
+        final bridge = ImeBridge(channel: const MethodChannel('test/none'));
+        expect(await bridge.getSelectedText(), isNull);
+        expect(await bridge.getTextBeforeCursor(5), isNull);
+        expect(await bridge.getTextAfterCursor(5), isNull);
+        expect(await bridge.replaceSelection('x'), isFalse);
+        expect(
+          await bridge.replaceBeforeCursor(1, 'x', expected: 'y'),
+          isFalse,
+        );
+      },
+    );
   });
-
 }

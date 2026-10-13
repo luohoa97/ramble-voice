@@ -25,7 +25,8 @@ class BubbleSection extends ConsumerStatefulWidget {
   ConsumerState<BubbleSection> createState() => _BubbleSectionState();
 }
 
-class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindingObserver {
+class _BubbleSectionState extends ConsumerState<BubbleSection>
+    with WidgetsBindingObserver {
   late final AndroidSystem _system = widget.system ?? AndroidSystem();
   bool? _enabled;
   bool _batteryExempt = false;
@@ -41,7 +42,9 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
     unawaited(_check());
     unawaited(_loadApps());
     // The native service reads a mirror of these settings; keep it in sync.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _push(ref.read(settingsProvider)));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _push(ref.read(settingsProvider)),
+    );
   }
 
   @override
@@ -65,7 +68,13 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
         _enabled = v;
         _batteryExempt = battery;
         _secureGranted = secure;
-        _oem = ['honor', 'huawei', 'xiaomi', 'redmi', 'poco'].any(maker.contains);
+        _oem = [
+          'honor',
+          'huawei',
+          'xiaomi',
+          'redmi',
+          'poco',
+        ].any(maker.contains);
       });
     }
   }
@@ -76,12 +85,14 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
   }
 
   void _push(AppSettings s) {
-    unawaited(_system.setBubbleConfig(
-      blockedApps: s.bubbleBlockedApps,
-      size: s.bubbleSize.name,
-      hotkeyEnabled: s.physicalKeyHotkey,
-      hotkeyCode: s.physicalKeyCode,
-    ));
+    unawaited(
+      _system.setBubbleConfig(
+        blockedApps: s.bubbleBlockedApps,
+        size: s.bubbleSize.name,
+        hotkeyEnabled: s.physicalKeyHotkey,
+        hotkeyCode: s.physicalKeyCode,
+      ),
+    );
   }
 
   Future<void> _change(AppSettings Function(AppSettings) change) async {
@@ -107,12 +118,20 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final code in const [BubbleHotkeys.capsLock, BubbleHotkeys.rightCtrl])
-              ListTile(title: Text(BubbleHotkeys.label(code)), onTap: () => Navigator.of(context).pop(code)),
+            for (final code in const [
+              BubbleHotkeys.capsLock,
+              BubbleHotkeys.rightCtrl,
+            ])
+              ListTile(
+                title: Text(BubbleHotkeys.label(code)),
+                onTap: () => Navigator.of(context).pop(code),
+              ),
             ListTile(
               leading: const Icon(Icons.fiber_manual_record_outlined),
               title: const Text('Record a key'),
-              subtitle: const Text('Press the key you want within 10 seconds. The floating mic must be on.'),
+              subtitle: const Text(
+                'Press the key you want within 10 seconds. The floating mic must be on.',
+              ),
               onTap: () => Navigator.of(context).pop(-1),
             ),
           ],
@@ -123,7 +142,8 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
     var code = choice;
     if (choice == -1) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Press the key now')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Press the key now')));
       }
       final recorded = await _system.recordHotkey();
       if (recorded == null) return;
@@ -138,12 +158,19 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => _AppPicker(apps: [
-        for (final a in _apps)
-          if (!blocked.contains(a.packageName)) a,
-      ]),
+      builder: (context) => _AppPicker(
+        apps: [
+          for (final a in _apps)
+            if (!blocked.contains(a.packageName)) a,
+        ],
+      ),
     );
-    if (picked != null) await _change((s) => s.copyWith(bubbleBlockedApps: [...s.bubbleBlockedApps, picked.packageName]));
+    if (picked != null)
+      await _change(
+        (s) => s.copyWith(
+          bubbleBlockedApps: [...s.bubbleBlockedApps, picked.packageName],
+        ),
+      );
   }
 
   @override
@@ -163,24 +190,32 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
         ),
         const SizedBox(height: 8),
         Text(
-          _enabled == null ? 'Checking status' : (enabled ? 'Floating mic is on' : 'Floating mic is off'),
+          _enabled == null
+              ? 'Checking status'
+              : (enabled ? 'Floating mic is on' : 'Floating mic is off'),
           style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: FilledButton.tonalIcon(
-            onPressed: enabled ? _system.openBubbleSettings : () => setState(() => _setupOpen = true),
+            onPressed: enabled
+                ? _system.openBubbleSettings
+                : () => setState(() => _setupOpen = true),
             icon: const Icon(Icons.mic_none_rounded),
-            label: Text(enabled ? 'Floating mic settings' : 'Turn on floating mic'),
+            label: Text(
+              enabled ? 'Floating mic settings' : 'Turn on floating mic',
+            ),
           ),
         ),
         if (_setupOpen && !enabled) ...[
           const SizedBox(height: 12),
-          BubbleSetupPanel(onDone: () {
-            unawaited(_check());
-            if (mounted) setState(() => _setupOpen = false);
-          }),
+          BubbleSetupPanel(
+            onDone: () {
+              unawaited(_check());
+              if (mounted) setState(() => _setupOpen = false);
+            },
+          ),
         ],
         if (!enabled) ...[
           const SizedBox(height: 16),
@@ -229,9 +264,19 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: OutlinedButton.icon(
-            onPressed: _batteryExempt ? null : () => _system.requestIgnoreBattery(),
-            icon: Icon(_batteryExempt ? Icons.check_rounded : Icons.battery_saver_rounded),
-            label: Text(_batteryExempt ? 'Battery use is unrestricted' : 'Allow unrestricted battery'),
+            onPressed: _batteryExempt
+                ? null
+                : () => _system.requestIgnoreBattery(),
+            icon: Icon(
+              _batteryExempt
+                  ? Icons.check_rounded
+                  : Icons.battery_saver_rounded,
+            ),
+            label: Text(
+              _batteryExempt
+                  ? 'Battery use is unrestricted'
+                  : 'Allow unrestricted battery',
+            ),
           ),
         ),
         if (_oem) ...[
@@ -268,20 +313,27 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
         ),
         if (settings.bubbleAutoRestore) ...[
           Text(
-            _secureGranted
-                ? 'Permission granted. Auto-restore is active.'
-                : 'Needs a one-time permission from a computer. With USB or wireless debugging connected, run:',
-            style: t.bodyMedium?.copyWith(color: _secureGranted ? c.primary : c.onSurfaceVariant),
+            _secureGranted ? 'Permission granted. Auto-restore is active.' : 'Needs a one-time permission from a computer. With USB or wireless debugging connected, run:',
+            style: t.bodyMedium?.copyWith(
+              color: _secureGranted ? c.primary : c.onSurfaceVariant,
+            ),
           ),
           if (!_secureGranted) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: SelectableText(_grantCommand, style: t.bodySmall?.copyWith(fontFamily: 'monospace'))),
+                Expanded(
+                  child: SelectableText(
+                    _grantCommand,
+                    style: t.bodySmall?.copyWith(fontFamily: 'monospace'),
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Copy command',
                   icon: const Icon(Icons.copy_rounded),
-                  onPressed: () => Clipboard.setData(const ClipboardData(text: _grantCommand)),
+                  onPressed: () => Clipboard.setData(
+                    const ClipboardData(text: _grantCommand),
+                  ),
                 ),
               ],
             ),
@@ -296,7 +348,8 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
             ButtonSegment(value: BubbleSize.medium, label: Text('Medium')),
           ],
           selected: {settings.bubbleSize},
-          onSelectionChanged: (v) => _change((s) => s.copyWith(bubbleSize: v.first)),
+          onSelectionChanged: (v) =>
+              _change((s) => s.copyWith(bubbleSize: v.first)),
         ),
         const SizedBox(height: 16),
         SwitchListTile(
@@ -315,14 +368,19 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
             child: TextButton.icon(
               onPressed: _pickHotkey,
               icon: const Icon(Icons.keyboard_alt_outlined),
-              label: Text('Key: ${BubbleHotkeys.label(settings.physicalKeyCode)}'),
+              label: Text(
+                'Key: ${BubbleHotkeys.label(settings.physicalKeyCode)}',
+              ),
             ),
           ),
         const SizedBox(height: 16),
         Text('Hide in these apps', style: t.titleSmall),
         const SizedBox(height: 4),
         if (settings.bubbleBlockedApps.isEmpty)
-          Text('None. The mic shows in every app except password fields.', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant))
+          Text(
+            'None. The mic shows in every app except password fields.',
+            style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+          )
         else
           for (final package in settings.bubbleBlockedApps)
             ListTile(
@@ -332,9 +390,13 @@ class _BubbleSectionState extends ConsumerState<BubbleSection> with WidgetsBindi
               trailing: IconButton(
                 tooltip: 'Show in ${_label(package)} again',
                 icon: const Icon(Icons.close_rounded),
-                onPressed: () => _change((s) => s.copyWith(
-                      bubbleBlockedApps: [...s.bubbleBlockedApps.where((p) => p != package)],
-                    )),
+                onPressed: () => _change(
+                  (s) => s.copyWith(
+                    bubbleBlockedApps: [
+                      ...s.bubbleBlockedApps.where((p) => p != package),
+                    ],
+                  ),
+                ),
               ),
             ),
         const SizedBox(height: 8),
@@ -368,7 +430,10 @@ class _AppPickerState extends State<_AppPicker> {
     final q = _query.trim().toLowerCase();
     final shown = [
       for (final a in widget.apps)
-        if (q.isEmpty || a.label.toLowerCase().contains(q) || a.packageName.toLowerCase().contains(q)) a,
+        if (q.isEmpty ||
+            a.label.toLowerCase().contains(q) ||
+            a.packageName.toLowerCase().contains(q))
+          a,
     ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -379,7 +444,10 @@ class _AppPickerState extends State<_AppPicker> {
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
             child: TextField(
               autofocus: false,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search apps'),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search_rounded),
+                hintText: 'Search apps',
+              ),
               onChanged: (v) => setState(() => _query = v),
             ),
           ),

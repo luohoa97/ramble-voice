@@ -5,7 +5,10 @@
 /// vocabulary list.
 library;
 
-final _word = RegExp(r'[\p{L}\p{N}](?:[\p{L}\p{N}._’\x27-]*[\p{L}\p{N}])?', unicode: true);
+final _word = RegExp(
+  r'[\p{L}\p{N}](?:[\p{L}\p{N}._’\x27-]*[\p{L}\p{N}])?',
+  unicode: true,
+);
 final _possessive = RegExp(r'[’\x27]s$', caseSensitive: false);
 
 /// New capitalised words and technical tokens in [corrected] that were not in
@@ -16,14 +19,22 @@ final _possessive = RegExp(r'[’\x27]s$', caseSensitive: false);
 /// token mixing letters and digits (gpt4), and a token with an inner `.` or
 /// `_` (package.json, snake_case). Plain lowercase words and ordinary
 /// sentence-initial capitals are not.
-List<String> suggestVocabulary(String original, String corrected, {int max = 8}) {
+List<String> suggestVocabulary(
+  String original,
+  String corrected, {
+  int max = 8,
+}) {
   final known = {for (final m in _word.allMatches(original)) _strip(m[0]!)};
   final seen = <String>{};
   final out = <String>[];
   for (final m in _word.allMatches(corrected)) {
     final token = _strip(m[0]!);
     if (token.length < 2 || known.contains(token)) continue;
-    if (!_looksSpecial(token, atSentenceStart: _atSentenceStart(corrected, m.start))) continue;
+    if (!_looksSpecial(
+      token,
+      atSentenceStart: _atSentenceStart(corrected, m.start),
+    ))
+      continue;
     if (!seen.add(token.toLowerCase())) continue;
     out.add(token);
     if (out.length >= max) break;
@@ -34,10 +45,13 @@ List<String> suggestVocabulary(String original, String corrected, {int max = 8})
 String _strip(String s) => s.replaceFirst(_possessive, '');
 
 bool _looksSpecial(String t, {required bool atSentenceStart}) {
-  final letters = t.runes.where((r) => _isLetter(String.fromCharCode(r))).length;
+  final letters = t.runes
+      .where((r) => _isLetter(String.fromCharCode(r)))
+      .length;
   if (letters == 0) return false;
   final hasDigit = RegExp(r'\p{N}', unicode: true).hasMatch(t);
-  if (hasDigit && letters > 0 && RegExp(r'\p{L}', unicode: true).hasMatch(t)) return true;
+  if (hasDigit && letters > 0 && RegExp(r'\p{L}', unicode: true).hasMatch(t))
+    return true;
   if (RegExp(r'[._]').hasMatch(t) && letters >= 2) return true;
   final first = t.substring(0, t.offsetOfFirstRuneEnd());
   final rest = t.substring(first.length);
@@ -51,7 +65,14 @@ bool _isLetter(String ch) => RegExp(r'\p{L}', unicode: true).hasMatch(ch);
 bool _atSentenceStart(String text, int index) {
   for (var i = index - 1; i >= 0; i--) {
     final c = text[i];
-    if (c == ' ' || c == '\t' || c == '"' || c == '“' || c == '(' || c == '-' || c == '*') continue;
+    if (c == ' ' ||
+        c == '\t' ||
+        c == '"' ||
+        c == '“' ||
+        c == '(' ||
+        c == '-' ||
+        c == '*')
+      continue;
     return c == '.' || c == '!' || c == '?' || c == '\n' || c == ':';
   }
   return true;

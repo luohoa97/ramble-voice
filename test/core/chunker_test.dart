@@ -11,7 +11,11 @@ import '../fakes/pcm_fixtures.dart';
 const _s = Duration(seconds: 1);
 
 /// Speech-like audio: [talk] seconds of tone then a [gap] of silence, repeated.
-Uint8List _speech({required int seconds, int talk = 4, double gapSeconds = 0.8}) {
+Uint8List _speech({
+  required int seconds,
+  int talk = 4,
+  double gapSeconds = 0.8,
+}) {
   final parts = <Uint8List>[];
   var total = 0.0;
   while (total < seconds) {
@@ -20,7 +24,11 @@ Uint8List _speech({required int seconds, int talk = 4, double gapSeconds = 0.8})
     total += talk + gapSeconds;
   }
   final all = concatBytes(parts);
-  return Uint8List.sublistView(all, 0, Pcm.bytesFor(Duration(seconds: seconds)));
+  return Uint8List.sublistView(
+    all,
+    0,
+    Pcm.bytesFor(Duration(seconds: seconds)),
+  );
 }
 
 bool _isQuiet(Uint8List pcm, int at, {int around = 480}) {
@@ -59,9 +67,18 @@ void main() {
       expect(spans.first.start, 0);
       expect(spans.last.end, pcm.length - pcm.length % 2);
       for (var i = 0; i < spans.length; i++) {
-        expect(spans[i].duration, lessThanOrEqualTo(chunker.maxChunk), reason: 'span $i');
+        expect(
+          spans[i].duration,
+          lessThanOrEqualTo(chunker.maxChunk),
+          reason: 'span $i',
+        );
         expect(spans[i].length, greaterThan(0));
-        if (i > 0) expect(spans[i].start, spans[i - 1].end, reason: 'no gap or overlap at $i');
+        if (i > 0)
+          expect(
+            spans[i].start,
+            spans[i - 1].end,
+            reason: 'no gap or overlap at $i',
+          );
       }
     });
 
@@ -69,7 +86,11 @@ void main() {
       final pcm = _speech(seconds: 150);
       final spans = chunker.plan(pcm);
       for (final span in spans.take(spans.length - 1)) {
-        expect(_isQuiet(pcm, span.end), isTrue, reason: 'cut at ${Pcm.durationOf(span.end)} is mid-speech');
+        expect(
+          _isQuiet(pcm, span.end),
+          isTrue,
+          reason: 'cut at ${Pcm.durationOf(span.end)} is mid-speech',
+        );
       }
     });
 
@@ -80,21 +101,33 @@ void main() {
       for (final s in spans) {
         expect(s.duration, lessThanOrEqualTo(chunker.maxChunk));
       }
-      expect(spans.fold<int>(0, (a, s) => a + s.length - s.overlap), pcm.length);
+      expect(
+        spans.fold<int>(0, (a, s) => a + s.length - s.overlap),
+        pcm.length,
+      );
     });
 
     test('works with a tiny limit', () {
-      final small = SilenceChunker(maxChunk: Duration(seconds: 4), searchWindow: Duration(seconds: 1));
+      final small = SilenceChunker(
+        maxChunk: Duration(seconds: 4),
+        searchWindow: Duration(seconds: 1),
+      );
       final pcm = _speech(seconds: 30, talk: 2, gapSeconds: 0.5);
       final spans = small.plan(pcm);
-      expect(spans.fold<int>(0, (a, s) => a + s.length - s.overlap), pcm.length);
+      expect(
+        spans.fold<int>(0, (a, s) => a + s.length - s.overlap),
+        pcm.length,
+      );
       for (final s in spans) {
         expect(s.duration, lessThanOrEqualTo(small.maxChunk));
       }
     });
 
     test('a cut inside speech makes the next chunk repeat its end; a pause does not', () {
-      final chunker = SilenceChunker(maxChunk: Duration(seconds: 10), searchWindow: Duration(seconds: 3));
+      final chunker = SilenceChunker(
+        maxChunk: Duration(seconds: 10),
+        searchWindow: Duration(seconds: 3),
+      );
       // Continuous speech: no pause to cut at.
       final talk = tonePcm(const Duration(seconds: 25));
       final hard = chunker.plan(talk);
@@ -102,30 +135,56 @@ void main() {
       // About two seconds, whole 30 ms frames.
       expect(Pcm.durationOf(hard[1].overlap).inMilliseconds, closeTo(2000, 30));
       expect(hard[1].start, hard[0].end - hard[1].overlap);
-      expect(hard.fold<int>(0, (a, s) => a + s.length - s.overlap), talk.length);
+      expect(
+        hard.fold<int>(0, (a, s) => a + s.length - s.overlap),
+        talk.length,
+      );
       // Speech with pauses: clean cuts, no overlap.
-      final paused = chunker.plan(_speech(seconds: 25, talk: 2, gapSeconds: 0.5));
+      final paused = chunker.plan(
+        _speech(seconds: 25, talk: 2, gapSeconds: 0.5),
+      );
       expect(paused.every((s) => s.overlap == 0), isTrue);
     });
 
     test('TextStitcher.dropRepeatedHead removes words heard twice', () {
-      expect(TextStitcher.dropRepeatedHead('We should meet on', 'meet on Tuesday at three.'), 'Tuesday at three.');
-      expect(TextStitcher.dropRepeatedHead('We should meet on', 'Meet, on Tuesday.'), 'Tuesday.');
-      expect(TextStitcher.dropRepeatedHead('We should meet', 'on Tuesday.'), 'on Tuesday.');
+      expect(
+        TextStitcher.dropRepeatedHead(
+          'We should meet on',
+          'meet on Tuesday at three.',
+        ),
+        'Tuesday at three.',
+      );
+      expect(
+        TextStitcher.dropRepeatedHead('We should meet on', 'Meet, on Tuesday.'),
+        'Tuesday.',
+      );
+      expect(
+        TextStitcher.dropRepeatedHead('We should meet', 'on Tuesday.'),
+        'on Tuesday.',
+      );
       expect(TextStitcher.dropLastWord('We should mee'), 'We should');
       expect(TextStitcher.dropLastWord('Word'), '');
     });
 
     test('AudioSpan equality and duration', () {
       expect(const AudioSpan(0, 32000), const AudioSpan(0, 32000));
-      expect(const AudioSpan(0, 32000).hashCode, const AudioSpan(0, 32000).hashCode);
-      expect(const AudioSpan(32000, 96000).duration, const Duration(seconds: 2));
+      expect(
+        const AudioSpan(0, 32000).hashCode,
+        const AudioSpan(0, 32000).hashCode,
+      );
+      expect(
+        const AudioSpan(32000, 96000).duration,
+        const Duration(seconds: 2),
+      );
     });
   });
 
   group('TextStitcher.join', () {
     test('joins with single spaces', () {
-      expect(TextStitcher.join(['Hello there.', 'How are you?']), 'Hello there. How are you?');
+      expect(
+        TextStitcher.join(['Hello there.', 'How are you?']),
+        'Hello there. How are you?',
+      );
     });
 
     test('trims, drops empty parts, handles none', () {

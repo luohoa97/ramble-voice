@@ -28,15 +28,30 @@ class NoticeBanner extends StatelessWidget {
     final c = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
     final (bg, fg, defaultIcon) = switch (tone) {
-      NoticeTone.info => (c.secondaryContainer, c.onSecondaryContainer, Icons.info_outline_rounded),
-      NoticeTone.warning => (c.tertiaryContainer, c.onTertiaryContainer, Icons.warning_amber_rounded),
-      NoticeTone.error => (c.errorContainer, c.onErrorContainer, Icons.error_outline_rounded),
+      NoticeTone.info => (
+        c.secondaryContainer,
+        c.onSecondaryContainer,
+        Icons.info_outline_rounded,
+      ),
+      NoticeTone.warning => (
+        c.tertiaryContainer,
+        c.onTertiaryContainer,
+        Icons.warning_amber_rounded,
+      ),
+      NoticeTone.error => (
+        c.errorContainer,
+        c.onErrorContainer,
+        Icons.error_outline_rounded,
+      ),
     };
     return Semantics(
       container: true,
       liveRegion: tone == NoticeTone.error,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(Shapes.large)),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(Shapes.large),
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Column(
@@ -54,7 +69,11 @@ class NoticeBanner extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (title != null) Text(title!, style: t.titleSmall?.copyWith(color: fg)),
+                        if (title != null)
+                          Text(
+                            title!,
+                            style: t.titleSmall?.copyWith(color: fg),
+                          ),
                         Text(message, style: t.bodyMedium?.copyWith(color: fg)),
                       ],
                     ),

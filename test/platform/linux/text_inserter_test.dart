@@ -12,11 +12,16 @@ class Call {
   final String stdin;
 }
 
-LinuxEnvironment env(String desktop, String session, {Set<String> bins = const {}, bool wayland = true}) =>
-    LinuxEnvironment.fromEnv(
-      {'XDG_CURRENT_DESKTOP': desktop, 'XDG_SESSION_TYPE': session, if (wayland) 'WAYLAND_DISPLAY': 'wayland-0'},
-      binaries: bins,
-    );
+LinuxEnvironment env(
+  String desktop,
+  String session, {
+  Set<String> bins = const {},
+  bool wayland = true,
+}) => LinuxEnvironment.fromEnv({
+  'XDG_CURRENT_DESKTOP': desktop,
+  'XDG_SESSION_TYPE': session,
+  if (wayland) 'WAYLAND_DISPLAY': 'wayland-0',
+}, binaries: bins);
 
 void main() {
   late List<Call> calls;
@@ -30,14 +35,21 @@ void main() {
   });
 
   LinuxTextInserter make(LinuxEnvironment e) => LinuxTextInserter(
-        env: e,
-        settle: Duration.zero,
-        runner: (exe, args, {required stdin, environment, timeout = const Duration(seconds: 1)}) async {
+    env: e,
+    settle: Duration.zero,
+    runner:
+        (
+          exe,
+          args, {
+          required stdin,
+          environment,
+          timeout = const Duration(seconds: 1),
+        }) async {
           calls.add(Call(exe, args, stdin));
           return exitCodes[exe] ?? 0;
         },
-        flutterClipboard: (t) async => clipboard.add(t),
-      );
+    flutterClipboard: (t) async => clipboard.add(t),
+  );
 
   test('wtype receives the text on stdin only, never in arguments', () async {
     final ins = make(env('sway', 'wayland', bins: {'wtype'}));
@@ -52,12 +64,23 @@ void main() {
   test('xdotool command line on X11', () async {
     final ins = make(env('XFCE', 'x11', bins: {'xdotool'}, wayland: false));
     await ins.insert('hello');
-    expect(calls.single.args, ['type', '--clearmodifiers', '--delay', '2', '--file', '-']);
+    expect(calls.single.args, [
+      'type',
+      '--clearmodifiers',
+      '--delay',
+      '2',
+      '--file',
+      '-',
+    ]);
   });
 
   test('falls through to the next injector on failure', () async {
     final e = LinuxEnvironment.fromEnv(
-      {'XDG_CURRENT_DESKTOP': 'sway', 'XDG_SESSION_TYPE': 'wayland', 'WAYLAND_DISPLAY': 'w'},
+      {
+        'XDG_CURRENT_DESKTOP': 'sway',
+        'XDG_SESSION_TYPE': 'wayland',
+        'WAYLAND_DISPLAY': 'w',
+      },
       binaries: {'wtype', 'ydotool'},
       ydotoolSocket: true,
     );
@@ -76,7 +99,8 @@ void main() {
   });
 
   test('clipboard fallback also uses wl-copy on Wayland', () async {
-    final r = await make(env('GNOME', 'wayland', bins: {'wl-copy'})).insert('hello');
+    final r = await make(env('GNOME', 'wayland', bins: {'wl-copy'}))
+        .insert('hello');
     expect(r.method, InsertMethod.clipboardOnly);
     expect(calls.single.exe, 'wl-copy');
     expect(calls.single.stdin, 'hello');
@@ -96,7 +120,13 @@ void main() {
   });
 
   test('describe', () async {
-    expect(await make(env('sway', 'wayland', bins: {'wtype'})).describe(), startsWith('wtype'));
-    expect(await make(env('GNOME', 'wayland')).describe(), startsWith('Clipboard only'));
+    expect(
+      await make(env('sway', 'wayland', bins: {'wtype'})).describe(),
+      startsWith('wtype'),
+    );
+    expect(
+      await make(env('GNOME', 'wayland')).describe(),
+      startsWith('Clipboard only'),
+    );
   });
 }

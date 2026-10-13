@@ -40,7 +40,8 @@ class FakeSecrets implements SecretStore {
   @override
   Future<String?> readGeminiKey() async => null;
   @override
-  Future<void> writeGeminiKey(String key) async => source = KeySource.secureStorage;
+  Future<void> writeGeminiKey(String key) async =>
+      source = KeySource.secureStorage;
 }
 
 class FakeInserter implements TextInserter {
@@ -49,7 +50,8 @@ class FakeInserter implements TextInserter {
   @override
   Future<String> describe() async => 'Fake inserter';
   @override
-  Future<InsertResult> insert(String text) async => const InsertResult(InsertMethod.none);
+  Future<InsertResult> insert(String text) async =>
+      const InsertResult(InsertMethod.none);
 }
 
 class FakeNotifier implements SystemNotifier {
@@ -58,19 +60,28 @@ class FakeNotifier implements SystemNotifier {
 }
 
 PlatformServices fakeServices({SecretStore? secrets}) => PlatformServices(
-      audio: FakeAudio(),
-      secrets: secrets ?? FakeSecrets(),
-      inserter: FakeInserter(),
-      notifier: FakeNotifier(),
-    );
+  audio: FakeAudio(),
+  secrets: secrets ?? FakeSecrets(),
+  inserter: FakeInserter(),
+  notifier: FakeNotifier(),
+);
 
-List<Override> baseOverrides({AppSettings settings = const AppSettings(onboarded: true), SecretStore? secrets}) => [
-      platformServicesProvider.overrideWithValue(fakeServices(secrets: secrets)),
-      appPathsProvider.overrideWithValue(AppPaths(support: Directory.systemTemp.createTempSync('ramble_ui_test'))),
-      initialSettingsProvider.overrideWithValue(settings),
-    ];
+List<Override> baseOverrides({
+  AppSettings settings = const AppSettings(onboarded: true),
+  SecretStore? secrets,
+}) => [
+  platformServicesProvider.overrideWithValue(fakeServices(secrets: secrets)),
+  appPathsProvider.overrideWithValue(
+    AppPaths(support: Directory.systemTemp.createTempSync('ramble_ui_test')),
+  ),
+  initialSettingsProvider.overrideWithValue(settings),
+];
 
-Widget host(Widget child, {List<Override> overrides = const [], Brightness brightness = Brightness.light}) {
+Widget host(
+  Widget child, {
+  List<Override> overrides = const [],
+  Brightness brightness = Brightness.light,
+}) {
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
@@ -82,7 +93,10 @@ Widget host(Widget child, {List<Override> overrides = const [], Brightness brigh
 
 /// Advances time in frame-sized steps. Prefer this to `pumpAndSettle`, which
 /// never returns while an animation repeats.
-Future<void> pumpFor(WidgetTester tester, [Duration total = const Duration(milliseconds: 400)]) async {
+Future<void> pumpFor(
+  WidgetTester tester, [
+  Duration total = const Duration(milliseconds: 400),
+]) async {
   var left = total;
   const step = Duration(milliseconds: 16);
   while (left > Duration.zero) {

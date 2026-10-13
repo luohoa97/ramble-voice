@@ -35,7 +35,8 @@ class _BubbleSettings extends SettingsNotifier {
   @override
   AppSettings build() => ref.watch(initialSettingsProvider);
 
-  Future<void> reload() async => state = await ref.read(settingsStoreProvider).load();
+  Future<void> reload() async =>
+      state = await ref.read(settingsStoreProvider).load();
 }
 
 @pragma('vm:entry-point')
@@ -60,12 +61,17 @@ Future<void> bubbleMain() async {
   );
 
   final external = await getExternalStorageDirectory();
-  final downloads = external == null ? null : AndroidModelDownloads(directory: Directory(p.join(external.path, 'models')));
+  final downloads = external == null
+      ? null
+      : AndroidModelDownloads(
+          directory: Directory(p.join(external.path, 'models')),
+        );
 
   final container = ProviderContainer(
     overrides: [
       appPathsProvider.overrideWithValue(paths),
-      if (downloads != null) modelDownloaderProvider.overrideWithValue(downloads),
+      if (downloads != null)
+        modelDownloaderProvider.overrideWithValue(downloads),
       platformServicesProvider.overrideWithValue(services),
       initialSettingsProvider.overrideWithValue(settings),
       settingsProvider.overrideWith(_BubbleSettings.new),
@@ -79,14 +85,17 @@ Future<void> bubbleMain() async {
     ],
   );
 
-  (services.audio as AndroidAudioSource).noiseReduction = () => container.read(settingsProvider).noiseReduction;
+  (services.audio as AndroidAudioSource).noiseReduction = () =>
+      container.read(settingsProvider).noiseReduction;
 
   final controller = container.read(dictationControllerProvider);
   BubbleStateRelay(controller.states, bridge);
 
   /// Picks up settings changed in the app, unless a dictation is in flight.
   Future<void> fresh(Future<void> Function() action) async {
-    if (!controller.isBusy) await (container.read(settingsProvider.notifier) as _BubbleSettings).reload();
+    if (!controller.isBusy)
+      await (container.read(settingsProvider.notifier) as _BubbleSettings)
+          .reload();
     await action();
   }
 

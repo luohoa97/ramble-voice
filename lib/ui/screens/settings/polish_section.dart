@@ -19,7 +19,10 @@ class PolishSection extends StatelessWidget {
     return const SettingsSection(
       title: 'Polish',
       children: [
-        Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: PolishChoice()),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: PolishChoice(),
+        ),
         SizedBox(height: 8),
         _Thinking(),
       ],
@@ -40,7 +43,11 @@ class _Thinking extends ConsumerWidget {
       subtitle: const Text(
         'Gemini works out what you meant before it writes: better with mumbles, noise, lists and commands. A little slower.',
       ),
-      onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(thinking: v))),
+      onChanged: (v) => unawaited(
+        ref
+            .read(settingsProvider.notifier)
+            .update((s) => s.copyWith(thinking: v)),
+      ),
     );
   }
 }
@@ -58,15 +65,25 @@ class PolishChoice extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SegmentedButton<Polish>(
-          segments: [for (final p in Polish.values) ButtonSegment(value: p, label: Text(p.label))],
+          segments: [
+            for (final p in Polish.values)
+              ButtonSegment(value: p, label: Text(p.label)),
+          ],
           selected: {polish},
           showSelectedIcon: false,
           onSelectionChanged: (v) => unawaited(
-            ref.read(settingsProvider.notifier).update((s) => s.copyWith(style: s.style.copyWith(polish: v.first))),
+            ref
+                .read(settingsProvider.notifier)
+                .update(
+                  (s) => s.copyWith(style: s.style.copyWith(polish: v.first)),
+                ),
           ),
         ),
         const SizedBox(height: 8),
-        Text(polish.description, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+        Text(
+          polish.description,
+          style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+        ),
       ],
     );
   }

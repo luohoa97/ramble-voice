@@ -11,17 +11,20 @@ import '../../../core/dictation/dictation_controller.dart';
 import '../../../platform/android/android_system.dart';
 import '../../theme/app_theme.dart';
 import '../../util/hotkey_state.dart';
-import '../../util/open_url.dart';
 import '../../util/platform_flags.dart';
 import '../../widgets/engine_picker.dart';
 import '../../widgets/mic_button.dart';
-import '../settings/gemini_section.dart';
 import '../settings/linux_section.dart';
 import 'setup_status.dart';
 
 /// One line that says whether a step is done yet.
 class StatusLine extends StatelessWidget {
-  const StatusLine({super.key, required this.done, required this.doneText, required this.waitingText});
+  const StatusLine({
+    super.key,
+    required this.done,
+    required this.doneText,
+    required this.waitingText,
+  });
 
   final bool done;
   final String doneText;
@@ -35,9 +38,22 @@ class StatusLine extends StatelessWidget {
       liveRegion: true,
       child: Row(
         children: [
-          Icon(done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 20, color: done ? c.primary : c.outline),
+          Icon(
+            done
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
+            size: 20,
+            color: done ? c.primary : c.outline,
+          ),
           const SizedBox(width: 8),
-          Expanded(child: Text(done ? doneText : waitingText, style: t.titleSmall?.copyWith(color: done ? c.onSurface : c.onSurfaceVariant))),
+          Expanded(
+            child: Text(
+              done ? doneText : waitingText,
+              style: t.titleSmall?.copyWith(
+                color: done ? c.onSurface : c.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -46,7 +62,12 @@ class StatusLine extends StatelessWidget {
 
 /// A numbered mini-step with an icon as its picture.
 class MiniStep extends StatelessWidget {
-  const MiniStep({super.key, required this.n, required this.icon, required this.text});
+  const MiniStep({
+    super.key,
+    required this.n,
+    required this.icon,
+    required this.text,
+  });
 
   final int n;
   final IconData icon;
@@ -61,15 +82,28 @@ class MiniStep extends StatelessWidget {
       child: Row(
         children: [
           DecoratedBox(
-            decoration: BoxDecoration(color: c.secondaryContainer, borderRadius: BorderRadius.circular(16)),
-            child: SizedBox.square(dimension: 48, child: Icon(icon, color: c.onSecondaryContainer)),
+            decoration: BoxDecoration(
+              color: c.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SizedBox.square(
+              dimension: 48,
+              child: Icon(icon, color: c.onSecondaryContainer),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text.rich(TextSpan(children: [
-              TextSpan(text: '$n  ', style: t.titleMedium?.copyWith(color: c.primary)),
-              TextSpan(text: text, style: t.bodyLarge),
-            ])),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$n  ',
+                    style: t.titleMedium?.copyWith(color: c.primary),
+                  ),
+                  TextSpan(text: text, style: t.bodyLarge),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -81,7 +115,8 @@ class MiniStep extends StatelessWidget {
 class RambleDemo extends StatefulWidget {
   const RambleDemo({super.key});
 
-  static const messy = 'um so like can you uh send me the the report by friday maybe';
+  static const messy =
+      'um so like can you uh send me the the report by friday maybe';
   static const clean = 'Can you send me the report by Friday?';
 
   @override
@@ -117,25 +152,44 @@ class _RambleDemoState extends State<RambleDemo> {
     final c = Theme.of(context).colorScheme;
     final styles = RambleTextStyles.of(context);
     return Semantics(
-      label: 'Example. You say: ${RambleDemo.messy}. Ramble writes: ${RambleDemo.clean}',
+      label:
+          'Example. You say: ${RambleDemo.messy}. Ramble writes: ${RambleDemo.clean}',
       excludeSemantics: true,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: c.surfaceContainerLow, borderRadius: BorderRadius.circular(Shapes.extraLarge)),
+        decoration: BoxDecoration(
+          color: c.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(Shapes.extraLarge),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_clean ? 'Ramble writes' : 'You say', style: t.labelLarge?.copyWith(color: c.onSurfaceVariant)),
+              Text(
+                _clean ? 'Ramble writes' : 'You say',
+                style: t.labelLarge?.copyWith(color: c.onSurfaceVariant),
+              ),
               const SizedBox(height: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 96),
                 child: AnimatedSwitcher(
                   duration: Motion.of(context, Motion.long),
+                  // One text fades out before the other fades in: never both at once.
+                  switchInCurve: const Interval(0.5, 1, curve: Curves.easeOut),
+                  switchOutCurve: const Interval(0.5, 1, curve: Curves.easeIn),
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: AlignmentDirectional.topStart,
+                    children: [...previous, ?current],
+                  ),
                   child: Text(
                     _clean ? RambleDemo.clean : RambleDemo.messy,
                     key: ValueKey(_clean),
-                    style: _clean ? styles.result : t.titleLarge?.copyWith(color: c.onSurfaceVariant, fontWeight: FontWeight.w400),
+                    style: _clean
+                        ? styles.result
+                        : t.titleLarge?.copyWith(
+                            color: c.onSurfaceVariant,
+                            fontWeight: FontWeight.w400,
+                          ),
                   ),
                 ),
               ),
@@ -158,7 +212,13 @@ class MicStepBody extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(child: MicButton(size: 176, state: const DictationIdle(), onTap: onTapMic)),
+        Center(
+          child: MicButton(
+            size: 176,
+            state: const DictationIdle(),
+            onTap: onTapMic,
+          ),
+        ),
         const SizedBox(height: Space.x3),
         StatusLine(
           done: status?.micGranted ?? false,
@@ -188,7 +248,9 @@ class EngineStepBody extends ConsumerWidget {
         StatusLine(
           done: status?.engineReady ?? false,
           doneText: onDevice ? 'Model ready' : 'Gemini key saved',
-          waitingText: onDevice ? 'Download a model to continue' : 'Add your Gemini key to continue',
+          waitingText: onDevice
+              ? 'Download a model to continue'
+              : 'Add your Gemini key to continue',
         ),
         const SizedBox(height: Space.x2),
         const EnginePicker(inset: 0),
@@ -211,13 +273,12 @@ class EngineStepBody extends ConsumerWidget {
           ].indexed)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text('${i + 1}.  $line', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+              child: Text(
+                '${i + 1}.  $line',
+                style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+              ),
             ),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(onPressed: () => openUrl(geminiConsoleUrl), child: const Text('Open aistudio.google.com')),
-          ),
-          Text(geminiFreeTierWarning, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+          // The link and the free-tier note are already in the Gemini options above.
         ],
       ],
     );
@@ -234,9 +295,21 @@ class KeyboardStepBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const MiniStep(n: 1, icon: Icons.keyboard_alt_outlined, text: 'Open keyboard settings'),
-        const MiniStep(n: 2, icon: Icons.toggle_on_outlined, text: 'Turn on Ramble Voice'),
-        const MiniStep(n: 3, icon: Icons.swap_horiz_rounded, text: 'Later, pick Ramble from the keyboard switcher to dictate'),
+        const MiniStep(
+          n: 1,
+          icon: Icons.keyboard_alt_outlined,
+          text: 'Open keyboard settings',
+        ),
+        const MiniStep(
+          n: 2,
+          icon: Icons.toggle_on_outlined,
+          text: 'Turn on Ramble Voice',
+        ),
+        const MiniStep(
+          n: 3,
+          icon: Icons.swap_horiz_rounded,
+          text: 'Later, pick Ramble from the keyboard switcher to dictate',
+        ),
         const SizedBox(height: Space.x2),
         StatusLine(
           done: status?.keyboardEnabled ?? false,
@@ -248,7 +321,17 @@ class KeyboardStepBody extends StatelessWidget {
   }
 }
 
-const _oemNeedsLaunchManager = {'honor', 'huawei', 'xiaomi', 'redmi', 'poco', 'oppo', 'vivo', 'realme', 'oneplus'};
+const _oemNeedsLaunchManager = {
+  'honor',
+  'huawei',
+  'xiaomi',
+  'redmi',
+  'poco',
+  'oppo',
+  'vivo',
+  'realme',
+  'oneplus',
+};
 
 class BubbleStepBody extends ConsumerWidget {
   const BubbleStepBody({super.key, required this.status});
@@ -267,9 +350,21 @@ class BubbleStepBody extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const MiniStep(n: 1, icon: Icons.settings_outlined, text: 'Open Accessibility settings'),
-        const MiniStep(n: 2, icon: Icons.search_rounded, text: 'Find Ramble Voice in the list'),
-        const MiniStep(n: 3, icon: Icons.toggle_on_outlined, text: 'Turn it on and confirm'),
+        const MiniStep(
+          n: 1,
+          icon: Icons.settings_outlined,
+          text: 'Open Accessibility settings',
+        ),
+        const MiniStep(
+          n: 2,
+          icon: Icons.search_rounded,
+          text: 'Find Ramble Voice in the list',
+        ),
+        const MiniStep(
+          n: 3,
+          icon: Icons.toggle_on_outlined,
+          text: 'Turn it on and confirm',
+        ),
         const SizedBox(height: Space.x2),
         StatusLine(
           done: status?.bubbleEnabled ?? false,
@@ -319,7 +414,10 @@ class BubbleStepBody extends ConsumerWidget {
         if (!(status?.ignoringBattery ?? false))
           Align(
             alignment: AlignmentDirectional.centerStart,
-            child: TextButton(onPressed: system.requestIgnoreBattery, child: const Text('Allow background use')),
+            child: TextButton(
+              onPressed: system.requestIgnoreBattery,
+              child: const Text('Allow background use'),
+            ),
           ),
       ],
     );
@@ -366,13 +464,19 @@ class _TryStepBodyState extends ConsumerState<TryStepBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Try saying: one get potatoes, two asparagus', style: t.titleMedium),
+        Text(
+          'Try saying: one get potatoes, two asparagus',
+          style: t.titleMedium,
+        ),
         const SizedBox(height: Space.x2),
         TextField(
           controller: _controller,
           minLines: 3,
           maxLines: 6,
-          decoration: const InputDecoration(hintText: 'Tap here, then dictate', alignLabelWithHint: true),
+          decoration: const InputDecoration(
+            hintText: 'Tap here, then dictate',
+            alignLabelWithHint: true,
+          ),
           onChanged: (v) {
             final worked = v.trim().length > 8;
             if (worked && !_worked) widget.onTyped();
@@ -380,7 +484,11 @@ class _TryStepBodyState extends ConsumerState<TryStepBody> {
           },
         ),
         const SizedBox(height: Space.x2),
-        StatusLine(done: _worked, doneText: 'That worked', waitingText: 'Waiting for your text'),
+        StatusLine(
+          done: _worked,
+          doneText: 'That worked',
+          waitingText: 'Waiting for your text',
+        ),
         const SizedBox(height: Space.x2),
         Text(
           android
@@ -410,8 +518,14 @@ class _Tip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DecoratedBox(
-            decoration: BoxDecoration(color: c.secondaryContainer, borderRadius: BorderRadius.circular(16)),
-            child: SizedBox.square(dimension: 48, child: Icon(icon, color: c.onSecondaryContainer)),
+            decoration: BoxDecoration(
+              color: c.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SizedBox.square(
+              dimension: 48,
+              child: Icon(icon, color: c.onSecondaryContainer),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -419,7 +533,10 @@ class _Tip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: t.titleMedium),
-                Text(text, style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+                Text(
+                  text,
+                  style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+                ),
               ],
             ),
           ),
@@ -498,14 +615,28 @@ class TypingStepBody extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const MiniStep(n: 1, icon: Icons.mic_rounded, text: 'Press your shortcut and speak'),
-        const MiniStep(n: 2, icon: Icons.verified_user_outlined, text: 'The first time, your desktop asks to allow remote input. Choose Allow'),
-        const MiniStep(n: 3, icon: Icons.keyboard_alt_outlined, text: 'Ramble types the text where your cursor is'),
+        const MiniStep(
+          n: 1,
+          icon: Icons.mic_rounded,
+          text: 'Press your shortcut and speak',
+        ),
+        const MiniStep(
+          n: 2,
+          icon: Icons.verified_user_outlined,
+          text: 'The first time, your desktop asks to allow remote input. Choose Allow',
+        ),
+        const MiniStep(
+          n: 3,
+          icon: Icons.keyboard_alt_outlined,
+          text: 'Ramble types the text where your cursor is',
+        ),
         const SizedBox(height: Space.x2),
         FutureBuilder<String>(
           future: services.inserter.describe(),
           builder: (context, snap) => Text(
-            snap.data == null ? 'Checking how typing works here' : 'Typing method: ${snap.data}',
+            snap.data == null
+                ? 'Checking how typing works here'
+                : 'Typing method: ${snap.data}',
             style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
           ),
         ),
@@ -522,8 +653,16 @@ class TrayStepBody extends StatelessWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        MiniStep(n: 1, icon: Icons.apps_rounded, text: 'Ramble keeps running in the tray when you close the window'),
-        MiniStep(n: 2, icon: Icons.mic_none_rounded, text: 'Use the tray icon to open it again or quit'),
+        MiniStep(
+          n: 1,
+          icon: Icons.apps_rounded,
+          text: 'Ramble keeps running in the tray when you close the window',
+        ),
+        MiniStep(
+          n: 2,
+          icon: Icons.mic_none_rounded,
+          text: 'Use the tray icon to open it again or quit',
+        ),
       ],
     );
   }

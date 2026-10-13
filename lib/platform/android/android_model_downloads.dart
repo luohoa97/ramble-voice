@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -14,9 +15,10 @@ import '../../core/models/model_downloads.dart';
 /// Model downloads over the Kotlin `ModelDownloadService` (channel
 /// `ramble/download`, live updates on `ramble/download/progress`). The service
 /// is a foreground service with a lock-screen Live Update, so the transfer
-/// keeps running when the app is backgrounded or swiped away. It resumes the
-/// `.part` file with HTTP Range, verifies SHA-256 and renames the file only if
-/// the hash matches, so a final file on disk is always a verified one.
+/// keeps running when the app is backgrounded or swiped away. It fetches the
+/// `.part` file over several HTTP Range connections at once (or one, if the
+/// server ignores Range), resumes it, verifies SHA-256 and renames the file
+/// only if the hash matches, so a final file on disk is always a verified one.
 class AndroidModelDownloads implements ModelDownloads {
   AndroidModelDownloads({
     required this.directory,
@@ -56,6 +58,29 @@ class AndroidModelDownloads implements ModelDownloads {
   @override
   File finalFile(GemmaVariant v) => File(p.join(directory.path, v.file));
   File partFile(GemmaVariant v) => File(p.join(directory.path, '${v.file}.part'));
+
+  /// Per-range progress of a multi-connection download (`DownloadSegments.kt`).
+  /// While it exists the `.part` file is allocated at full size, so its length
+  /// is not the progress.
+  File segmentsFile(GemmaVariant v) => File('${partFile(v).path}.segments');
+
+  /// Bytes of the `.part` file actually downloaded.
+  Future<int> _partBytes(GemmaVariant v) async {
+    final part = partFile(v);
+    if (!await part.exists()) return 0;
+    final segments = segmentsFile(v);
+    if (!await segments.exists()) return part.length();
+    try {
+      final json = jsonDecode(await segments.readAsString()) as Map<String, dynamic>;
+      var done = 0;
+      for (final s in json['segments'] as List<dynamic>) {
+        done += ((s as Map<String, dynamic>)['done'] as num).toInt();
+      }
+      return done;
+    } on Object {
+      return 0;
+    }
+  }
 
   @override
   Stream<DownloadStatus> watch(GemmaVariant v) {
@@ -127,8 +152,7 @@ class AndroidModelDownloads implements ModelDownloads {
     // right-sized file on disk means it is gone.
     if (s is Downloaded) s = null;
     if (s == null || s is NotDownloaded) {
-      final part = partFile(v);
-      s = await part.exists() ? Paused(await part.length(), v.sizeBytes) : const NotDownloaded();
+      s = await partFile(v).exists() ? Paused(await _partBytes(v), v.sizeBytes) : const NotDownloaded();
     }
     _set(v, s);
     return s;
@@ -142,11 +166,8 @@ class AndroidModelDownloads implements ModelDownloads {
     if (isActive(v)) return statusOf(v);
     await directory.create(recursive: true);
     final part = partFile(v);
-    var have = await part.exists() ? await part.length() : 0;
-    if (have > v.sizeBytes) {
-      await part.delete();
-      have = 0;
-    }
+    if (await part.exists() && await part.length() > v.sizeBytes) await part.delete();
+    final have = await _partBytes(v);
     await _requestNotifications();
     _set(v, Downloading(have, v.sizeBytes));
     try {
@@ -168,15 +189,14 @@ class AndroidModelDownloads implements ModelDownloads {
   Future<void> pause(GemmaVariant v) async {
     _attach(v);
     await _invoke('pause', v);
-    final part = partFile(v);
-    _set(v, Paused(await part.exists() ? await part.length() : 0, v.sizeBytes));
+    _set(v, Paused(await _partBytes(v), v.sizeBytes));
   }
 
   @override
   Future<void> delete(GemmaVariant v) async {
     _attach(v);
     await _invoke('cancel', v);
-    for (final f in [finalFile(v), partFile(v)]) {
+    for (final f in [finalFile(v), partFile(v), segmentsFile(v), File('${segmentsFile(v).path}.tmp')]) {
       if (await f.exists()) await f.delete();
     }
     _set(v, const NotDownloaded());

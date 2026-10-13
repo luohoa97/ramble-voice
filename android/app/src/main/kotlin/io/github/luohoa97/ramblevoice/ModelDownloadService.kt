@@ -17,13 +17,20 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Downloads a model file in the foreground so it keeps going when the app is
  * closed, and shows progress as an Android 16 Live Update (visible on the lock
- * screen). Resumes a `.part` file with HTTP Range, retries with backoff on
- * network loss, and only renames to the final name after the SHA-256 matches.
+ * screen). Fetches over several connections at once with HTTP Range, each
+ * filling its own byte range of the `.part` file (progress kept in a
+ * [DownloadSegments] sidecar, so it resumes after the app is killed), falls
+ * back to one resumable stream when the server ignores Range, retries with
+ * backoff on network loss, and only renames to the final name after the
+ * SHA-256 matches.
  */
 class ModelDownloadService : Service() {
 
@@ -36,6 +43,9 @@ class ModelDownloadService : Service() {
     )
 
     private class Fatal(message: String) : Exception(message)
+
+    /** The server answered a range request with the whole file. */
+    private class RangeIgnored : Exception("The server ignored the byte range.")
 
     private lateinit var notifications: NotificationManager
     private var params: Params? = null
@@ -93,7 +103,7 @@ class ModelDownloadService : Service() {
         params = p
         stopRequested = false
         cancelRequested = false
-        val existing = partFile(p).let { if (it.exists()) it.length() else 0L }
+        val existing = DownloadSegments.downloadedBytes(partFile(p))
         startForeground(
             NOTIFICATION_ID,
             progressNotification(p, existing, p.sizeBytes, indeterminate = existing == 0L),
@@ -126,16 +136,17 @@ class ModelDownloadService : Service() {
         try {
             while (!stopRequested) {
                 try {
-                    transfer(p, part)
+                    download(p, part)
                     break
                 } catch (e: Fatal) {
                     throw e
                 } catch (e: IOException) {
                     if (stopRequested) break
                     if (isOutOfSpace(e)) throw Fatal("Not enough storage space.")
-                    DownloadRegistry.update(p.fileName, DownloadSnapshot("retrying", fileLength(part), p.sizeBytes))
-                    notify(progressNotification(p, fileLength(part), p.sizeBytes, indeterminate = true, text = "Waiting for network"))
-                    sleepInterruptibly(minOf(1000L shl minOf(attempt, 5), 30_000L))
+                    val bytes = DownloadSegments.downloadedBytes(part)
+                    DownloadRegistry.update(p.fileName, DownloadSnapshot("retrying", bytes, p.sizeBytes))
+                    notify(progressNotification(p, bytes, p.sizeBytes, indeterminate = true, text = "Waiting for network"))
+                    sleepInterruptibly(backoff(attempt))
                     attempt++
                 }
             }
@@ -153,6 +164,240 @@ class ModelDownloadService : Service() {
 
     private fun isOutOfSpace(e: IOException) = e.message?.contains("ENOSPC") == true || e.message?.contains("No space") == true
 
+    private fun backoff(attempt: Int) = minOf(1000L shl minOf(attempt, 5), 30_000L)
+
+    private fun open(url: String): HttpURLConnection =
+        (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 20_000
+            readTimeout = 30_000
+            instanceFollowRedirects = true
+        }
+
+    /**
+     * Fetches the file over [CONNECTIONS] parallel range requests when the
+     * server supports them, otherwise over one connection with [transfer].
+     */
+    private fun download(p: Params, part: File) {
+        part.parentFile?.mkdirs()
+        val saved = loadPlan(p, part)
+        if (saved != null && saved.remaining() == 0L) return
+        if (saved == null && fileLength(part) == p.sizeBytes) return
+        val url = probe(p)
+        if (url != null) {
+            try {
+                parallel(p, part, saved ?: newPlan(p, part), url)
+                return
+            } catch (e: RangeIgnored) {
+                // Fall through: the ranges on disk are not a prefix the single stream can extend.
+                part.delete()
+                DownloadSegments.delete(part)
+            }
+        } else if (saved != null) {
+            part.delete()
+            DownloadSegments.delete(part)
+        }
+        transfer(p, part)
+    }
+
+    /**
+     * Asks for the first byte only. Returns the URL after redirects (Hugging
+     * Face serves files from a CDN) when the server answers with a range, or
+     * null when it ignores Range and the file has to come down in one stream.
+     */
+    private fun probe(p: Params): String? {
+        val conn = open(p.url)
+        try {
+            conn.setRequestProperty("Range", "bytes=0-0")
+            val code = conn.responseCode
+            when {
+                code == 206 -> {}
+                code == 200 -> return null
+                code == 408 || code == 429 || code >= 500 -> throw IOException("HTTP $code")
+                else -> throw Fatal("Download failed (HTTP $code).")
+            }
+            val total = conn.getHeaderField("Content-Range")?.substringAfterLast('/')?.toLongOrNull()
+            if (total != null && total != p.sizeBytes) throw Fatal("The file on the server is not the expected size.")
+            return conn.url.toString()
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** The saved ranges for [part], or null if there are none. Drops a sidecar that doesn't match [p]. */
+    private fun loadPlan(p: Params, part: File): DownloadSegments.Plan? {
+        if (!DownloadSegments.sidecarFor(part).exists()) return null
+        val plan = DownloadSegments.read(part)
+        if (plan != null && plan.size == p.sizeBytes && fileLength(part) == p.sizeBytes) return plan
+        // Unreadable, or for another file: what is on disk can't be trusted.
+        part.delete()
+        DownloadSegments.delete(part)
+        return null
+    }
+
+    /** Splits the rest of the file into ranges, keeping a single-connection `.part` as a finished prefix. */
+    private fun newPlan(p: Params, part: File): DownloadSegments.Plan {
+        var have = fileLength(part)
+        if (have > p.sizeBytes) {
+            part.delete()
+            have = 0
+        }
+        val plan = DownloadSegments.plan(p.sizeBytes, have, CONNECTIONS)
+        // Sidecar first: a full-size `.part` without one would read as complete.
+        DownloadSegments.write(part, plan)
+        RandomAccessFile(part, "rw").use { it.setLength(p.sizeBytes) }
+        return plan
+    }
+
+    /** State shared by the connections of one [parallel] run. */
+    private inner class ParallelRun(firstUrl: String) {
+        @Volatile
+        var url: String = firstUrl
+
+        @Volatile
+        var halted = false
+
+        @Volatile
+        var error: Exception? = null
+
+        /** Connections currently backing off after a network error. */
+        val waiting = AtomicInteger()
+
+        fun stopping() = stopRequested || halted
+
+        /** Records the first unrecoverable error and stops the other connections. */
+        @Synchronized
+        fun abort(e: Exception) {
+            if (error == null) error = e
+            halted = true
+        }
+
+        /** The CDN link is signed and expires; the first connection to notice fetches a new one. */
+        @Synchronized
+        fun refreshUrl(p: Params, stale: String) {
+            if (url == stale) url = probe(p) ?: throw RangeIgnored()
+        }
+    }
+
+    private fun parallel(p: Params, part: File, plan: DownloadSegments.Plan, url: String) {
+        val run = ParallelRun(url)
+        RandomAccessFile(part, "rw").use { file ->
+            val channel = file.channel
+            val threads = plan.segments.filter { !it.finished }.mapIndexed { i, segment ->
+                Thread({ fetchLoop(p, run, channel, segment) }, "model-download-$i").also { it.start() }
+            }
+            try {
+                var lastSaved = System.currentTimeMillis()
+                while (true) {
+                    val alive = threads.filter { it.isAlive }
+                    if (alive.isEmpty()) break
+                    alive.first().join(500)
+                    if (run.stopping()) continue
+                    val bytes = plan.downloaded()
+                    val active = threads.count { it.isAlive }
+                    if (active > 0 && run.waiting.get() >= active) {
+                        DownloadRegistry.update(p.fileName, DownloadSnapshot("retrying", bytes, p.sizeBytes))
+                        notify(progressNotification(p, bytes, p.sizeBytes, indeterminate = true, text = "Waiting for network"))
+                    } else {
+                        report(p, bytes)
+                    }
+                    val now = System.currentTimeMillis()
+                    if (now - lastSaved >= 2000) {
+                        lastSaved = now
+                        DownloadSegments.write(part, plan)
+                    }
+                }
+            } finally {
+                // Normally all connections are done already; on an exception here, stop them.
+                run.halted = true
+                threads.forEach { it.join() }
+                // Each range only counts bytes already written, so the saved plan never runs ahead of the file.
+                if (!cancelRequested) {
+                    try {
+                        DownloadSegments.write(part, plan)
+                    } catch (e: IOException) {
+                        // The last periodic save stands; resume re-fetches a little more.
+                    }
+                }
+            }
+        }
+        run.error?.let { throw it }
+        if (stopRequested) return
+        report(p, plan.downloaded())
+        if (plan.remaining() > 0) throw IOException("Connection ended early")
+    }
+
+    /** One connection: fetches [segment], retrying with backoff until it is complete or the run stops. */
+    private fun fetchLoop(p: Params, run: ParallelRun, channel: FileChannel, segment: DownloadSegments.Segment) {
+        var attempt = 0
+        while (!run.stopping() && !segment.finished) {
+            val before = segment.done.get()
+            try {
+                fetchSegment(p, run, channel, segment)
+            } catch (e: Fatal) {
+                run.abort(e)
+            } catch (e: RangeIgnored) {
+                run.abort(e)
+            } catch (e: IOException) {
+                if (run.stopping()) return
+                if (isOutOfSpace(e)) {
+                    run.abort(Fatal("Not enough storage space."))
+                    return
+                }
+                if (segment.done.get() > before) attempt = 0
+                run.waiting.incrementAndGet()
+                try {
+                    sleepInterruptibly(backoff(attempt)) { run.stopping() }
+                } finally {
+                    run.waiting.decrementAndGet()
+                }
+                attempt++
+            } catch (e: Exception) {
+                run.abort(e)
+            }
+        }
+    }
+
+    private fun fetchSegment(p: Params, run: ParallelRun, channel: FileChannel, segment: DownloadSegments.Segment) {
+        val url = run.url
+        var at = segment.start + segment.done.get()
+        val conn = open(url)
+        try {
+            conn.setRequestProperty("Range", "bytes=$at-${segment.end - 1}")
+            val code = conn.responseCode
+            when {
+                code == 206 -> {}
+                code == 200 -> throw RangeIgnored()
+                code == 408 || code == 429 || code >= 500 -> throw IOException("HTTP $code")
+                url != p.url && (code == 401 || code == 403 || code == 404 || code == 410) -> {
+                    run.refreshUrl(p, url)
+                    throw IOException("HTTP $code")
+                }
+                else -> throw Fatal("Download failed (HTTP $code).")
+            }
+            val range = conn.getHeaderField("Content-Range")
+            if (range != null && !range.startsWith("bytes $at-")) throw RangeIgnored()
+            val buf = ByteArray(64 * 1024)
+            conn.inputStream.use { input ->
+                while (!run.stopping()) {
+                    val want = minOf(buf.size.toLong(), segment.end - at).toInt()
+                    if (want <= 0) break
+                    val n = input.read(buf, 0, want)
+                    if (n < 0) break
+                    val bytes = ByteBuffer.wrap(buf, 0, n)
+                    var pos = at
+                    while (bytes.hasRemaining()) pos += channel.write(bytes, pos)
+                    at += n
+                    segment.done.addAndGet(n.toLong())
+                }
+            }
+            if (run.stopping()) return
+            if (!segment.finished) throw IOException("Connection ended early")
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** Single connection, for servers that ignore Range. Resumes a contiguous `.part` when it can. */
     private fun transfer(p: Params, part: File) {
         part.parentFile?.mkdirs()
         var have = fileLength(part)
@@ -161,11 +406,8 @@ class ModelDownloadService : Service() {
             have = 0
         }
         if (have == p.sizeBytes) return
-        val conn = URL(p.url).openConnection() as HttpURLConnection
+        val conn = open(p.url)
         try {
-            conn.connectTimeout = 20_000
-            conn.readTimeout = 30_000
-            conn.instanceFollowRedirects = true
             if (have > 0) conn.setRequestProperty("Range", "bytes=$have-")
             val code = conn.responseCode
             when {
@@ -208,7 +450,7 @@ class ModelDownloadService : Service() {
     }
 
     private fun verifyAndPublish(p: Params, part: File) {
-        if (fileLength(part) != p.sizeBytes) {
+        if (fileLength(part) != p.sizeBytes || DownloadSegments.downloadedBytes(part) != p.sizeBytes) {
             fail(p, part, "The downloaded file is incomplete. Try again.", deletePart = false)
             return
         }
@@ -236,6 +478,7 @@ class ModelDownloadService : Service() {
             fail(p, part, "Could not save the model file.", deletePart = false)
             return
         }
+        DownloadSegments.delete(part)
         DownloadRegistry.update(p.fileName, DownloadSnapshot("done", p.sizeBytes, p.sizeBytes))
         endForeground(remove = true)
         notifications.notify(RESULT_ID, resultNotification(p, "${modelName(p)} ready", "Tap to open Ramble Voice."))
@@ -243,8 +486,11 @@ class ModelDownloadService : Service() {
     }
 
     private fun fail(p: Params, part: File, message: String, deletePart: Boolean) {
-        if (deletePart) part.delete()
-        DownloadRegistry.update(p.fileName, DownloadSnapshot("failed", fileLength(part), p.sizeBytes, message))
+        if (deletePart) {
+            part.delete()
+            DownloadSegments.delete(part)
+        }
+        DownloadRegistry.update(p.fileName, DownloadSnapshot("failed", DownloadSegments.downloadedBytes(part), p.sizeBytes, message))
         endForeground(remove = true)
         notifications.notify(RESULT_ID, resultNotification(p, "${modelName(p)} download failed", message))
         stopSelf()
@@ -256,7 +502,7 @@ class ModelDownloadService : Service() {
             discard(p)
             endForeground(remove = true)
         } else {
-            val bytes = fileLength(part)
+            val bytes = DownloadSegments.downloadedBytes(part)
             DownloadRegistry.update(p.fileName, DownloadSnapshot("paused", bytes, p.sizeBytes))
             endForeground(remove = false)
             notifications.notify(NOTIFICATION_ID, pausedNotification(p, bytes))
@@ -265,7 +511,9 @@ class ModelDownloadService : Service() {
     }
 
     private fun discard(p: Params) {
-        partFile(p).delete()
+        val part = partFile(p)
+        part.delete()
+        DownloadSegments.delete(part)
         DownloadRegistry.update(p.fileName, DownloadSnapshot("idle", 0, p.sizeBytes))
         notifications.cancel(NOTIFICATION_ID)
     }
@@ -274,9 +522,9 @@ class ModelDownloadService : Service() {
         stopForeground(if (remove) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
     }
 
-    private fun sleepInterruptibly(ms: Long) {
+    private fun sleepInterruptibly(ms: Long, stop: () -> Boolean = { stopRequested }) {
         var left = ms
-        while (left > 0 && !stopRequested) {
+        while (left > 0 && !stop()) {
             Thread.sleep(minOf(left, 250))
             left -= 250
         }
@@ -399,6 +647,9 @@ class ModelDownloadService : Service() {
         private const val EXTRA_TITLE = "title"
         private const val NOTIFICATION_ID = 41
         private const val RESULT_ID = 42
+
+        /** Parallel range requests per download. */
+        private const val CONNECTIONS = 4
 
         fun intentFor(
             context: Context,

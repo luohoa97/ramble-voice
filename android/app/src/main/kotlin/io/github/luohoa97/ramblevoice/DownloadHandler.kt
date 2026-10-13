@@ -106,7 +106,7 @@ class DownloadHandler(
         val part = File(dir, "$fileName.part")
         return when {
             done.exists() -> DownloadSnapshot("done", done.length(), done.length())
-            part.exists() -> DownloadSnapshot("paused", part.length())
+            part.exists() -> DownloadSnapshot("paused", DownloadSegments.downloadedBytes(part))
             else -> DownloadSnapshot("idle")
         }.toMap(fileName)
     }

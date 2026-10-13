@@ -137,6 +137,15 @@ void main() {
     expect((s as Paused).received, 20);
   });
 
+  test('a multi-connection part file reports the bytes its ranges hold, not its length', () async {
+    part().writeAsBytesSync(List.filled(100, 0));
+    File('${part().path}.segments').writeAsStringSync(
+      '{"size":100,"segments":[{"start":0,"end":50,"done":10},{"start":50,"end":100,"done":15}]}',
+    );
+    expect((await downloads.refresh(variant) as Paused).received, 25);
+    expect((await downloads.start(variant) as Downloading).received, 25);
+  });
+
   test('refresh with nothing is NotDownloaded', () async {
     expect(await downloads.refresh(variant), isA<NotDownloaded>());
   });
@@ -157,5 +166,12 @@ void main() {
     expect(named('cancel').single.arguments, {'fileName': 'tiny.litertlm'});
     expect(downloads.statusOf(variant), isA<NotDownloaded>());
     expect(part().existsSync(), isFalse);
+  });
+
+  test('cancel also deletes the range progress of a multi-connection download', () async {
+    part().writeAsBytesSync(List.filled(100, 0));
+    final segments = File('${part().path}.segments')..writeAsStringSync('{"size":100,"segments":[]}');
+    await downloads.delete(variant);
+    expect(segments.existsSync(), isFalse);
   });
 }

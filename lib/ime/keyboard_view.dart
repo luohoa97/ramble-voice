@@ -91,6 +91,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   Future<void> _onInputStarted(ImeInputInfo info) async {
     if (!mounted) return;
+    ref.read(modelPanelOpenProvider.notifier).set(false);
     _clearUndo();
     ref.read(imeEditProvider.notifier).reset();
     setState(() => _info = info);
@@ -106,6 +107,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   void _onInputFinished() {
     if (!mounted) return;
+    ref.read(modelPanelOpenProvider.notifier).set(false);
     _clearUndo();
     ref.read(imeEditProvider.notifier).reset();
     // Never throw a recording away: stop and clean it. If the field is gone
@@ -167,6 +169,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   void _toggle() {
     _resetTimer?.cancel();
+    ref.read(modelPanelOpenProvider.notifier).set(false);
     unawaited(ref.read(dictationControllerProvider).toggle());
   }
 
@@ -256,7 +259,9 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
               ),
             ),
             Expanded(
-              child: LayoutBuilder(
+              child: ref.watch(modelPanelOpenProvider)
+                  ? Padding(padding: const EdgeInsets.only(bottom: 4), child: ModelPanel(onTick: _tick))
+                  : LayoutBuilder(
                 builder: (context, box) {
                   const side = 72.0;
                   return Row(

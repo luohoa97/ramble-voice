@@ -88,7 +88,10 @@ class GemmaEngine implements CleanupEngine {
         maxTokens: 4096,
         supportAudio: true,
         preferredBackend: PreferredBackend.gpu,
-        preferredAudioBackend: PreferredBackend.gpu,
+        // Gemma 4's audio encoder only runs on the CPU ("Audio backend
+        // constraint mismatch. Model requires one of [cpu]"); asking for the
+        // GPU failed engine creation on every backend.
+        preferredAudioBackend: PreferredBackend.cpu,
       );
       _model = model;
       return model;

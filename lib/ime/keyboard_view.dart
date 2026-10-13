@@ -343,37 +343,47 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
             ),
             SizedBox(
               height: 36,
-              child: Row(
-                children: [
-                  ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
-                  Expanded(
-                    child: Center(
-                      child: _info.isEmailField &&
-                              state is DictationIdle &&
-                              _undoText == null
-                          ? _EmailChips(
-                              emails: ref.watch(settingsProvider.select((s) => s.myEmails)),
-                              labels: ref.watch(settingsProvider.select((s) => s.emailLabels)),
-                              onPick: (e) => act(() => unawaited(ref.read(platformServicesProvider).inserter.insert(e))),
-                              onAdd: () => act(() => _openApp('/settings/dictation')),
-                            )
-                          : _Status(
-                        state: state,
-                        info: _info,
-                        undoText: _undoText,
-                        onUndo: () => act(() {
-                          final id = state is DictationIdle ? state.discardedId : null;
-                          if (id != null) {
-                            unawaited(dc.undoDiscard(id));
-                          } else {
-                            _undo();
-                          }
-                        }),
-                      ),
+              child: _info.isEmailField && state is DictationIdle && _undoText == null
+                  ? Row(
+                      children: [
+                        ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
+                        Expanded(
+                          child: _EmailChips(
+                            emails: ref.watch(settingsProvider.select((s) => s.myEmails)),
+                            labels: ref.watch(settingsProvider.select((s) => s.emailLabels)),
+                            onPick: (e) => act(() => unawaited(ref.read(platformServicesProvider).inserter.insert(e))),
+                            onAdd: () => act(() => _openApp('/settings/dictation')),
+                          ),
+                        ),
+                      ],
+                    )
+                  // The status is centred under the mic, not in the space
+                  // left of the tone menu.
+                  : Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 104),
+                          child: _Status(
+                            state: state,
+                            info: _info,
+                            undoText: _undoText,
+                            onUndo: () => act(() {
+                              final id = state is DictationIdle ? state.discardedId : null;
+                              if (id != null) {
+                                unawaited(dc.undoDiscard(id));
+                              } else {
+                                _undo();
+                              }
+                            }),
+                          ),
+                        ),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -471,7 +481,8 @@ class _Status extends StatelessWidget {
             ? 'Cleaning up, part ${progress.chunk} of ${progress.chunks}'
             : 'Cleaning up',
         DictationDone() => 'Inserted',
-        DictationFailed(:final message) => message,
+        // The message itself is shown above, with what to do about it.
+        DictationFailed() => 'Not inserted',
       };
 
   @override

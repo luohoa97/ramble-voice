@@ -13,14 +13,24 @@ import '../core/settings/app_settings.dart';
 import '../ui/screens/settings/gemini_section.dart';
 import '../ui/widgets/engine_chip.dart';
 
-/// Whether the engine panel replaces the keyboard's mic area.
-class ModelPanelOpen extends Notifier<bool> {
+/// Which panel, if any, replaces the keyboard's mic area: the engine picker
+/// or the tone picker. Panels live inside the keyboard; a floating menu would
+/// cover the keyboard and the app.
+enum KeyboardPanel { none, model, tone }
+
+class KeyboardPanelNotifier extends Notifier<KeyboardPanel> {
   @override
-  bool build() => false;
-  void set(bool open) => state = open;
+  KeyboardPanel build() => KeyboardPanel.none;
+
+  void show(KeyboardPanel panel) => state = panel;
+
+  /// Opens [panel], or closes it when it is already open.
+  void toggle(KeyboardPanel panel) => state = state == panel ? KeyboardPanel.none : panel;
+
+  void close() => state = KeyboardPanel.none;
 }
 
-final modelPanelOpenProvider = NotifierProvider<ModelPanelOpen, bool>(ModelPanelOpen.new);
+final keyboardPanelProvider = NotifierProvider<KeyboardPanelNotifier, KeyboardPanel>(KeyboardPanelNotifier.new);
 
 /// The engine chip in the keyboard's top bar. Tapping it opens [ModelPanel]
 /// in place of the mic, inside the keyboard (a floating menu would cover the
@@ -35,11 +45,10 @@ class ModelMenu extends ConsumerWidget {
     // Keep the lists warm so the panel opens with content.
     ref.watch(geminiKeySourceProvider);
     ref.watch(geminiModelsProvider);
-    final open = ref.watch(modelPanelOpenProvider);
     return EngineChip(
       onTap: () {
         onTick?.call();
-        ref.read(modelPanelOpenProvider.notifier).set(!open);
+        ref.read(keyboardPanelProvider.notifier).toggle(KeyboardPanel.model);
       },
     );
   }
@@ -73,7 +82,7 @@ class _ModelPanelState extends ConsumerState<ModelPanel> {
     if (mounted) setState(() {});
   }
 
-  void _close() => ref.read(modelPanelOpenProvider.notifier).set(false);
+  void _close() => ref.read(keyboardPanelProvider.notifier).close();
 
   void _apply(String value) {
     widget.onTick?.call();
@@ -155,6 +164,35 @@ class _ModelPanelState extends ConsumerState<ModelPanel> {
       }
     }
 
+    return KeyboardPanelFrame(
+      title: 'Engine and model',
+      onClose: () {
+        widget.onTick?.call();
+        _close();
+      },
+      child: RadioGroup<String>(
+        groupValue: selected,
+        onChanged: (v) {
+          if (v != null) _apply(v);
+        },
+        child: ListView(padding: const EdgeInsets.only(bottom: 8), children: rows),
+      ),
+    );
+  }
+}
+
+/// The frame of an in-keyboard panel: a title, a close button and the body.
+class KeyboardPanelFrame extends StatelessWidget {
+  const KeyboardPanelFrame({super.key, required this.title, required this.onClose, required this.child});
+
+  final String title;
+  final VoidCallback onClose;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
     return Material(
       color: c.surfaceContainerHigh,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -166,27 +204,12 @@ class _ModelPanelState extends ConsumerState<ModelPanel> {
             child: Row(
               children: [
                 const SizedBox(width: 16),
-                Expanded(child: Semantics(header: true, child: Text('Engine and model', style: t.titleSmall))),
-                IconButton(
-                  tooltip: 'Close',
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () {
-                    widget.onTick?.call();
-                    _close();
-                  },
-                ),
+                Expanded(child: Semantics(header: true, child: Text(title, style: t.titleSmall))),
+                IconButton(tooltip: 'Close', icon: const Icon(Icons.close_rounded), onPressed: onClose),
               ],
             ),
           ),
-          Expanded(
-            child: RadioGroup<String>(
-              groupValue: selected,
-              onChanged: (v) {
-                if (v != null) _apply(v);
-              },
-              child: ListView(padding: const EdgeInsets.only(bottom: 8), children: rows),
-            ),
-          ),
+          Expanded(child: child),
         ],
       ),
     );

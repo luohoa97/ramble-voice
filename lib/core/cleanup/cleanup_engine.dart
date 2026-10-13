@@ -38,6 +38,7 @@ class CleanupRequest {
     this.repeated = Duration.zero,
     this.screenContext,
     this.fieldInfo,
+    this.loudness,
   }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
 
 
@@ -72,6 +73,10 @@ class CleanupRequest {
 
   /// One line describing the field being typed into (app, kind, hint).
   final String? fieldInfo;
+
+  /// How loudly the person spoke, measured before levelling (see
+  /// AutoGain.describeLoudness); null when ordinary.
+  final String? loudness;
 
   static const contextBeforeLimit = 500;
   static const screenContextLimit = 1500;

@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:ramble_voice/app/providers.dart';
 import 'package:ramble_voice/core/settings/app_settings.dart';
 import 'package:ramble_voice/core/style/style_profile.dart';
+import 'package:ramble_voice/ime/model_menu.dart';
 import 'package:ramble_voice/ime/tone_bar.dart';
 import 'package:ramble_voice/ui/util/app_label.dart';
 import 'package:ramble_voice/ui/widgets/style_chips.dart';
@@ -72,7 +73,12 @@ void main() {
 
     Widget menu(void Function(ProviderContainer) grab) => Consumer(builder: (context, ref, _) {
           grab(ProviderScope.containerOf(context));
-          return Row(children: [ToneMenu(onEdit: () {})]);
+          // The chip, and the panel it opens in place of the mic.
+          return Column(children: [
+            Row(children: [ToneMenu(onEdit: () {})]),
+            if (ref.watch(keyboardPanelProvider) == KeyboardPanel.tone)
+              SizedBox(height: 320, child: TonePanel(onEdit: () {})),
+          ]);
         });
 
     testWidgets('shows the built-in tone for the current app', (tester) async {
@@ -88,7 +94,7 @@ void main() {
       expect(find.text('Professional'), findsOneWidget);
       await tester.tap(find.text('Professional'));
       await pumpFor(tester);
-      expect(find.text('For Gmail'), findsOneWidget);
+      expect(find.text('Tone for Gmail'), findsOneWidget);
       await tester.tap(find.text('Notes'));
       await pumpFor(tester);
       final s = container.read(settingsProvider);
@@ -103,6 +109,7 @@ void main() {
       await tester.tap(find.text('Casual'));
       await pumpFor(tester);
       expect(find.textContaining('for all apps'), findsNothing);
+      expect(find.text('Tone'), findsOneWidget);
       await tester.tap(find.text('Professional'));
       await pumpFor(tester);
       expect(container.read(settingsProvider).style.preset, StylePreset.professional);
@@ -119,7 +126,7 @@ void main() {
         ),
       ));
       await tester.pump();
-      await tester.tap(find.text('Notes'));
+      await tester.tap(find.text('Notes').first);
       await pumpFor(tester);
       await tester.tap(find.text('Use Notes for all apps'));
       await pumpFor(tester);

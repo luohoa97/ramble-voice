@@ -8,6 +8,7 @@ import '../core/style/app_styles.dart';
 import '../core/style/style_profile.dart';
 import '../ui/screens/settings/polish_section.dart';
 import '../ui/util/app_label.dart';
+import 'model_menu.dart';
 
 /// Saves [preset] for the app the keyboard is typing into, or as the global
 /// tone when the app is unknown.
@@ -20,9 +21,8 @@ Future<void> setKeyboardTone(WidgetRef ref, StylePreset preset) {
       );
 }
 
-/// The one style chip of the keyboard: shows the tone in effect for the
-/// current app ("Casual"). Its menu lists the four tones, "Use for all apps",
-/// "Reset for this app" and a way to edit custom instructions.
+/// The keyboard's tone chip: shows the tone in effect for the current app
+/// ("Casual") and opens [TonePanel] inside the keyboard.
 class ToneMenu extends ConsumerWidget {
   const ToneMenu({super.key, required this.onEdit, this.onTick});
 
@@ -38,52 +38,31 @@ class ToneMenu extends ConsumerWidget {
     final pkg = ref.watch(currentPackageProvider);
     final effective = settings.styleForApp(pkg);
     final label = pkg == null ? null : (ref.watch(appLabelProvider(pkg)).value ?? pkg);
-    final hasOverride = pkg != null && settings.appStyles.containsKey(pkg);
-    final canGlobal = pkg != null && effective != settings.style.preset;
+    final open = ref.watch(keyboardPanelProvider) == KeyboardPanel.tone;
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
-
-    Future<void> act(String action) {
-      if (action == 'edit') {
-        onEdit();
-        return Future.value();
-      }
-      final preset = StylePreset.values.asNameMap()[action];
-      if (preset != null) return setKeyboardTone(ref, preset);
-      return ref.read(settingsProvider.notifier).update((s) {
-        final next = {...s.appStyles}..remove(pkg);
-        return action == 'all'
-            ? s.copyWith(appStyles: next, style: s.style.copyWith(preset: effective))
-            : s.copyWith(appStyles: next);
-      });
-    }
-
-    return PopupMenuButton<String>(
-      tooltip: label == null ? 'Tone' : 'Tone for $label',
-      onOpened: onTick,
-      onSelected: act,
-      itemBuilder: (_) => [
-        if (label != null)
-          PopupMenuItem<String>(enabled: false, height: 32, child: Text('For $label', style: t.labelMedium)),
-        for (final p in StylePreset.values)
-          CheckedPopupMenuItem<String>(value: p.name, checked: p == effective, height: 40, child: Text(p.label)),
-        const PopupMenuDivider(),
-        const _EmbeddedEntry(child: PolishChoice()),
-        const PopupMenuDivider(),
-        if (canGlobal) PopupMenuItem(value: 'all', height: 40, child: Text('Use ${effective.label} for all apps')),
-        if (hasOverride) const PopupMenuItem(value: 'reset', height: 40, child: Text('Reset for this app')),
-        const PopupMenuItem(value: 'edit', height: 40, child: Text('Custom instructions')),
-      ],
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(effective.label, style: t.labelLarge?.copyWith(color: c.onSurface)),
-              Icon(Icons.arrow_drop_down_rounded, size: 20, color: c.onSurface),
-            ],
+    return Semantics(
+      button: true,
+      expanded: open,
+      label: label == null ? 'Tone' : 'Tone for $label',
+      excludeSemantics: false,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          onTick?.call();
+          ref.read(keyboardPanelProvider.notifier).toggle(KeyboardPanel.tone);
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(effective.label, style: t.labelLarge?.copyWith(color: c.onSurface)),
+                Icon(open ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded, size: 20, color: c.onSurface),
+              ],
+            ),
           ),
         ),
       ),
@@ -91,24 +70,79 @@ class ToneMenu extends ConsumerWidget {
   }
 }
 
-/// A control placed inside a popup menu that does not close it.
-class _EmbeddedEntry extends PopupMenuEntry<String> {
-  const _EmbeddedEntry({required this.child});
+/// Tone, polish and per-app choices, inside the keyboard (replaces the mic
+/// area like the engine picker): selectable tone chips, Light/Full polish,
+/// and "use for all apps", "reset for this app" and custom instructions.
+class TonePanel extends ConsumerWidget {
+  const TonePanel({super.key, required this.onEdit, this.onTick});
 
-  final Widget child;
-
-  @override
-  double get height => 88;
-
-  @override
-  bool represents(String? value) => false;
+  final VoidCallback onEdit;
+  final VoidCallback? onTick;
 
   @override
-  State<_EmbeddedEntry> createState() => _EmbeddedEntryState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final pkg = ref.watch(currentPackageProvider);
+    final effective = settings.styleForApp(pkg);
+    final label = pkg == null ? null : (ref.watch(appLabelProvider(pkg)).value ?? pkg);
+    final hasOverride = pkg != null && settings.appStyles.containsKey(pkg);
+    final canGlobal = pkg != null && effective != settings.style.preset;
+    void close() => ref.read(keyboardPanelProvider.notifier).close();
 
-class _EmbeddedEntryState extends State<_EmbeddedEntry> {
-  @override
-  Widget build(BuildContext context) =>
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: widget.child);
+    Future<void> clearOverride({required bool global}) {
+      onTick?.call();
+      return ref.read(settingsProvider.notifier).update((s) {
+        final next = {...s.appStyles}..remove(pkg);
+        return global ? s.copyWith(appStyles: next, style: s.style.copyWith(preset: effective)) : s.copyWith(appStyles: next);
+      });
+    }
+
+    return KeyboardPanelFrame(
+      title: label == null ? 'Tone' : 'Tone for $label',
+      onClose: () {
+        onTick?.call();
+        close();
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final p in StylePreset.values)
+                ChoiceChip(
+                  label: Text(p.label),
+                  selected: p == effective,
+                  onSelected: (_) async {
+                    onTick?.call();
+                    await setKeyboardTone(ref, p);
+                    close();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const PolishChoice(),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            children: [
+              if (canGlobal)
+                TextButton(onPressed: () => clearOverride(global: true), child: Text('Use ${effective.label} for all apps')),
+              if (hasOverride) TextButton(onPressed: () => clearOverride(global: false), child: const Text('Reset for this app')),
+              TextButton.icon(
+                onPressed: () {
+                  close();
+                  onEdit();
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Custom instructions'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

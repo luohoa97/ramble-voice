@@ -25,6 +25,43 @@ abstract final class AutoGain {
 
   static const int _frameSamples = Pcm.sampleRate * 30 ~/ 1000;
 
+  /// Level of the loud end of the speech in dBFS (90th-percentile frame RMS),
+  /// or null for silence. Measured before [normalize] evens it out.
+  static double? speechDb(Uint8List pcm) {
+    final s = Pcm.samples(pcm);
+    final frames = s.length ~/ _frameSamples;
+    if (frames == 0) return null;
+    final rms = <double>[];
+    for (var f = 0; f < frames; f++) {
+      var sum = 0.0;
+      for (var i = f * _frameSamples, end = i + _frameSamples; i < end; i++) {
+        sum += s[i] * s[i];
+      }
+      rms.add(math.sqrt(sum / _frameSamples) / 32768.0);
+    }
+    rms.sort();
+    final loud = rms[((frames - 1) * 0.9).floor()];
+    return loud <= 0 ? null : 20 * math.log(loud) / math.ln10;
+  }
+
+  /// How loudly the person spoke, in words for the model (the audio it hears
+  /// has been levelled, so whispering and shouting sound alike in volume).
+  /// Null when the level is ordinary or unknown.
+  static String? describeLoudness(Uint8List pcm) {
+    final db = speechDb(pcm);
+    if (db == null) return null;
+    final s = Pcm.samples(pcm);
+    var clipped = 0;
+    for (final v in s) {
+      if (v.abs() >= 32000) clipped++;
+    }
+    if (clipped > s.length / 2000 || db > -10) return 'very loud: raised voice or shouting';
+    if (db > -16) return 'loud: energetic or raised voice';
+    if (db < -42) return 'very quiet: whispering or speaking softly';
+    if (db < -34) return 'quiet: soft or low voice';
+    return null;
+  }
+
   /// The gain in dB that [normalize] would apply to [pcm].
   static double gainDbFor(Uint8List pcm) {
     final s = Pcm.samples(pcm);

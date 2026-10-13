@@ -91,7 +91,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   Future<void> _onInputStarted(ImeInputInfo info) async {
     if (!mounted) return;
-    ref.read(modelPanelOpenProvider.notifier).set(false);
+    ref.read(keyboardPanelProvider.notifier).close();
     _clearUndo();
     ref.read(imeEditProvider.notifier).reset();
     setState(() => _info = info);
@@ -107,7 +107,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   void _onInputFinished() {
     if (!mounted) return;
-    ref.read(modelPanelOpenProvider.notifier).set(false);
+    ref.read(keyboardPanelProvider.notifier).close();
     _clearUndo();
     ref.read(imeEditProvider.notifier).reset();
     // Never throw a recording away: stop and clean it. If the field is gone
@@ -169,7 +169,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
 
   void _toggle() {
     _resetTimer?.cancel();
-    ref.read(modelPanelOpenProvider.notifier).set(false);
+    ref.read(keyboardPanelProvider.notifier).close();
     unawaited(ref.read(dictationControllerProvider).toggle());
   }
 
@@ -259,9 +259,13 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
               ),
             ),
             Expanded(
-              child: ref.watch(modelPanelOpenProvider)
-                  ? Padding(padding: const EdgeInsets.only(bottom: 4), child: ModelPanel(onTick: _tick))
-                  : LayoutBuilder(
+              child: switch (ref.watch(keyboardPanelProvider)) {
+                KeyboardPanel.model => Padding(padding: const EdgeInsets.only(bottom: 4), child: ModelPanel(onTick: _tick)),
+                KeyboardPanel.tone => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: TonePanel(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
+                  ),
+                KeyboardPanel.none => LayoutBuilder(
                 builder: (context, box) {
                   const side = 72.0;
                   return Row(
@@ -308,6 +312,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                   );
                 },
               ),
+              },
             ),
             SizedBox(
               height: 36,

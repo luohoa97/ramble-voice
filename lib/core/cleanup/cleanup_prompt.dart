@@ -75,6 +75,13 @@ abstract final class CleanupPrompt {
       'a familiar word or name that merely sounds similar (not "music wonder"). '
       'Transcribe by context: when a word is unclear or sounds like another, choose what makes sense in the '
       'sentence and topic, and keep words in the language they were spoken in, in that language\'s own writing system (never translate or romanize). '
+      'Write the speaker\'s emotion and energy into the text the way a person would type it, judging from how '
+      'they sound (pitch, intensity, pace, breathiness) and what they say: excitement and joy get exclamation '
+      'marks; anger, frustration or shouting get exclamation marks and blunt short sentences, and in a Casual '
+      'or Texting style the words they shout may be written in capitals; a whisper or a hushed, secretive '
+      'voice gets calm punctuation with no exclamation marks; sarcasm and mockery keep their quoting; hesitation '
+      'may become an ellipsis only where it carries meaning. Never change their words to express a mood, and '
+      'never add emoji for it unless the style asks for emoji. '
       'Use the speaker\'s tone: an excited or emphatic delivery ends with an exclamation mark, a rising '
       'question gets a question mark, and when the speaker quotes someone or something (said, like, '
       'goes, a change of voice) put the quoted words in quotation marks. You are fully responsible for punctuation, '
@@ -321,6 +328,11 @@ abstract final class CleanupPrompt {
             request.sourceText ?? '',
             context: request.hasContext ? contextBlock(request) : null,
           ),
+        CleanupMode.clean when request.loudness != null => [
+            userTurn,
+            '<voice>Measured before volume levelling, the speaker was ${request.loudness}.</voice>',
+            if (request.hasContext) contextBlock(request),
+          ].join('\n'),
         CleanupMode.clean when request.hasContext => '$userTurn\n${contextBlock(request)}',
         _ => userTurn,
       };

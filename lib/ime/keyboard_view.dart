@@ -141,8 +141,9 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
       case DictationDone(:final outcome):
         _haptic('done');
         final typed = ref.read(lastInsertProvider)?.method == InsertMethod.typed;
-        if (typed && outcome.insertText.isNotEmpty) {
-          setState(() => _undoText = outcome.insertText);
+        final landed = ref.read(lastTypedProvider) ?? outcome.insertText;
+        if (typed && landed.isNotEmpty) {
+          setState(() => _undoText = landed);
           _undoTimer?.cancel();
           _undoTimer = Timer(_undoWindow, _clearUndo);
         }
@@ -160,7 +161,8 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     final text = _undoText;
     if (text == null) return;
     _clearUndo();
-    await _bridge.deleteBackward(count: text.runes.length);
+    // Only when the field still ends with exactly that text at the cursor.
+    await _bridge.replaceBeforeCursor(text.length, '', expected: text);
   }
 
   void _toggle() {

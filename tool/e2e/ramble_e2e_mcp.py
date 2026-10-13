@@ -15,6 +15,7 @@ RAMBLE_ADB_SERIAL to pick a device when several are attached.
 """
 
 import base64
+import shlex
 import json
 import os
 import re
@@ -51,7 +52,9 @@ def keyboard(cmd, arg=None, wait=10.0):
     """Sends a command to the keyboard and returns its JSON reply."""
     adb("shell", "rm", "-f", REPLY, check=False)
     extra = ["--es", "arg", arg] if arg is not None else []
-    adb("shell", "am", "broadcast", "-a", f"{PKG}.E2E", "-n", f"{PKG}/.E2eReceiver", "--es", "cmd", cmd, *extra)
+    # adb shell runs a remote shell: quote every word (text may hold spaces, newlines).
+    words = ["am", "broadcast", "-a", f"{PKG}.E2E", "-n", f"{PKG}/.E2eReceiver", "--es", "cmd", cmd, *extra]
+    adb("shell", " ".join(shlex.quote(w) for w in words))
     until = time.time() + wait
     while time.time() < until:
         out = adb("shell", "cat", REPLY, check=False).strip()

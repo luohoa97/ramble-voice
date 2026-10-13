@@ -93,7 +93,8 @@ abstract final class CleanupPrompt {
       'The speech "yeah yeah yeah if you use one of these scam courses you\'ll get scammed so yeah have fun" becomes '
       '"“Yeah, yeah, yeah.” If you use one of these scam courses, you\'ll get scammed. Have fun." (the mocking echo is quoted) '
       'The speech "shopping list one get potatoes two asparagus three uh milk" becomes '
-      '"Shopping list:\n1. Get potatoes\n2. Asparagus\n3. Milk"';
+      'four lines: "Shopping list:", "1. Get potatoes", "2. Asparagus", "3. Milk" (each list item on its own line, '
+      'separated by real line breaks).';
 
   /// Used for "show original": a faithful transcript, same safety rule.
   static const String verbatimTemplate =

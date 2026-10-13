@@ -47,6 +47,26 @@ class LastDictationNotifier extends Notifier<LastDictation?> {
 
 final lastDictationProvider = NotifierProvider<LastDictationNotifier, LastDictation?>(LastDictationNotifier.new);
 
+/// Exactly what the last dictation put into the field, read back from it
+/// (note apps may store a typed line break differently): what Undo removes.
+class LastTypedNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? value) => state = value;
+}
+
+final lastTypedProvider = NotifierProvider<LastTypedNotifier, String?>(LastTypedNotifier.new);
+
+/// The text a dictation added, given the text before the cursor read just
+/// before ([pre]) and just after ([post]) inserting it; null when the field
+/// does not let us tell.
+String? typedBetween(String? pre, String? post) {
+  if (pre == null || post == null) return null;
+  if (pre.isEmpty) return post;
+  final i = post.lastIndexOf(pre);
+  return i < 0 ? null : post.substring(i + pre.length);
+}
+
 enum EditPhase {
   /// Nothing happening.
   idle,

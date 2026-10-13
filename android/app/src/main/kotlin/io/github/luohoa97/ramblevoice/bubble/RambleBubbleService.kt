@@ -195,7 +195,7 @@ class RambleBubbleService : AccessibilityService(), BubbleView.Listener, BubbleE
         } ?: return null
         val pkg = target.packageName?.toString() ?: return null
         return target.takeIf {
-            pkg != packageName && pkg !in prefs.blockedApps && pkg != defaultKeyboardPackage()
+            (pkg != packageName || ImeLaunch.allowInOwnApp) && pkg !in prefs.blockedApps && pkg != defaultKeyboardPackage()
         }
     }
 

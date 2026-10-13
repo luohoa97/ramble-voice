@@ -25,6 +25,12 @@ object ImeLaunch {
     /** Bubble side: called when [imeShowing] changes. */
     @Volatile var onImeShowingChanged: (() -> Unit)? = null
 
+    /**
+     * The app's "Try it" setup step: the floating mic may show in Ramble's
+     * own app (normally it never does, the app has its own mic).
+     */
+    @Volatile var allowInOwnApp = false
+
     /** Keyboard side: forwards a hold-to-talk release to Dart as `stopListening`. */
     @Volatile var stopListener: (() -> Unit)? = null
 

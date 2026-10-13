@@ -124,6 +124,9 @@ extension BubbleSystem on AndroidSystem {
   /// native side re-adds the bubble service if the system switched it off.
   Future<void> setBubbleAutoRestore(bool enabled) => _call('setBubbleAutoRestore', enabled);
 
+  /// Lets the floating mic show inside Ramble itself (the setup "Try it" box).
+  Future<void> allowBubbleInApp(bool allow) => _call('allowBubbleInApp', allow);
+
   /// `Build.VERSION.SDK_INT`, 0 when unknown.
   Future<int> sdkInt() async {
     try {

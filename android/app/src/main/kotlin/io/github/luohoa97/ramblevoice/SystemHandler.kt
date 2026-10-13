@@ -128,6 +128,11 @@ class SystemHandler(
                 }
             }
             "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+            "allowBubbleInApp" -> {
+                ImeLaunch.allowInOwnApp = call.arguments as? Boolean ?: false
+                ImeLaunch.onImeShowingChanged?.invoke()
+                result.success(null)
+            }
             "hasSecureSettingsPermission" -> result.success(BubbleKeeper.canWriteSecureSettings(context))
             "setBubbleAutoRestore" -> {
                 BubblePrefs(context).autoRestore = call.arguments as? Boolean ?: false

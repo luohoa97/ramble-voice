@@ -16,6 +16,9 @@ final androidSystemProvider = Provider<AndroidSystem>((ref) => AndroidSystem());
 /// `Build.MANUFACTURER`, lower case.
 final manufacturerProvider = FutureProvider<String>((ref) => ref.watch(androidSystemProvider).manufacturer());
 
+/// Android API level (0 when unknown).
+final androidSdkProvider = FutureProvider<int>((ref) => ref.watch(androidSystemProvider).sdkInt());
+
 /// What the device can already do, for the setup guide and its banner.
 class SetupStatus {
   const SetupStatus({

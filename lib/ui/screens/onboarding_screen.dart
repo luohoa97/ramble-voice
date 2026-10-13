@@ -143,8 +143,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with Widget
     // One primary action: the thing this step needs, then Next.
     final (String primaryLabel, VoidCallback primary) = switch (id) {
       'mic' when !done => (_micAsked ? 'Open app settings' : 'Allow microphone', _micAsked ? () => unawaited(system.openAppDetails()) : () => unawaited(_requestMic())),
-      'keyboard' when !done => ('Open keyboard settings', () => unawaited(system.openKeyboardSettings())),
-      'bubble' when !done => ('Open floating mic settings', () => unawaited(system.openBubbleSettings())),
+      'keyboard' when !done => ('Keyboard settings', () => unawaited(system.openKeyboardSettings())),
+      'bubble' when !done => ('Open settings', () => unawaited(system.openBubbleSettings())),
       'hotkey' when !done && !android => ('Bind shortcut', () => unawaited(_bindHotkey())),
       'welcome' => ('Get started', _next),
       _ when last => ('Finish', _next),
@@ -216,7 +216,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with Widget
                         if (!last && id != 'welcome' && (primaryLabel != 'Next'))
                           TextButton(onPressed: _next, child: const Text('Skip')),
                         const SizedBox(width: Space.x1),
-                        FilledButton(onPressed: primary, child: Text(primaryLabel)),
+                        // Never wider than the row: long labels shrink instead of running off screen.
+                        Flexible(
+                          child: FilledButton(
+                            onPressed: primary,
+                            child: Text(primaryLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
                       ],
                     ),
                   ),

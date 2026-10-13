@@ -262,10 +262,12 @@ class BubbleStepBody extends ConsumerWidget {
     final maker = ref.watch(manufacturerProvider).value ?? '';
     final oem = _oemNeedsLaunchManager.contains(maker);
     final system = ref.read(androidSystemProvider);
+    // "Restricted settings" exist from Android 13.
+    final restricted = (ref.watch(androidSdkProvider).value ?? 0) >= 33;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const MiniStep(n: 1, icon: Icons.settings_outlined, text: 'Accessibility settings open'),
+        const MiniStep(n: 1, icon: Icons.settings_outlined, text: 'Open Accessibility settings'),
         const MiniStep(n: 2, icon: Icons.search_rounded, text: 'Find Ramble Voice in the list'),
         const MiniStep(n: 3, icon: Icons.toggle_on_outlined, text: 'Turn it on and confirm'),
         const SizedBox(height: Space.x2),
@@ -274,21 +276,23 @@ class BubbleStepBody extends ConsumerWidget {
           doneText: 'Floating mic is on',
           waitingText: 'Waiting for the floating mic to be turned on',
         ),
-        const SizedBox(height: Space.x3),
-        Text('If it is greyed out', style: t.titleSmall),
-        const SizedBox(height: 4),
-        Text(
-          'Open the app info page, tap the three dots, then Allow restricted settings.',
-          style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-        ),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton.icon(
-            onPressed: system.openAppDetails,
-            icon: const Icon(Icons.info_outline_rounded, size: 18),
-            label: const Text('Open app info'),
+        if (restricted) ...[
+          const SizedBox(height: Space.x3),
+          Text('If it is greyed out', style: t.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Open the app info page, tap the three dots, then Allow restricted settings.',
+            style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
           ),
-        ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: system.openAppDetails,
+              icon: const Icon(Icons.info_outline_rounded, size: 18),
+              label: const Text('Open app info'),
+            ),
+          ),
+        ],
         if (oem) ...[
           const SizedBox(height: Space.x1),
           Text('On this phone', style: t.titleSmall),
@@ -335,9 +339,21 @@ class TryStepBody extends ConsumerStatefulWidget {
 class _TryStepBodyState extends ConsumerState<TryStepBody> {
   final _controller = TextEditingController();
   var _worked = false;
+  AndroidSystem? _system;
+
+  @override
+  void initState() {
+    super.initState();
+    // The floating mic normally hides inside Ramble; here it is the thing to try.
+    if (ref.read(isAndroidProvider)) {
+      _system = AndroidSystem();
+      unawaited(_system!.allowBubbleInApp(true));
+    }
+  }
 
   @override
   void dispose() {
+    unawaited(_system?.allowBubbleInApp(false));
     _controller.dispose();
     super.dispose();
   }
@@ -368,7 +384,7 @@ class _TryStepBodyState extends ConsumerState<TryStepBody> {
         const SizedBox(height: Space.x2),
         Text(
           android
-              ? 'Tap the floating mic, or switch to the Ramble keyboard, and speak. Ramble types for you and switches back.'
+              ? 'Tap the floating mic, or switch to the Ramble keyboard, and speak. Ramble types it in for you.'
               : 'Click in the box, press your shortcut and speak. Ramble types where your cursor is.',
           style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
         ),

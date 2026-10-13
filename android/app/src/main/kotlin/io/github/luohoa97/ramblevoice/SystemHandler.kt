@@ -177,7 +177,11 @@ class SystemHandler(
             "stop", "tick" -> HapticFeedbackConstants.KEYBOARD_TAP
             "done" -> HapticFeedbackConstants.CONFIRM
             "error" -> HapticFeedbackConstants.REJECT
-            "warn" -> HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE
+            "warn" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE
+            } else {
+                HapticFeedbackConstants.CONTEXT_CLICK
+            }
             "limit" -> HapticFeedbackConstants.LONG_PRESS
             else -> return
         }

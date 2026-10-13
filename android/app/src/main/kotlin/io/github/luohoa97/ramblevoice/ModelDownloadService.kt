@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.IBinder
 import java.io.File
 import java.io.IOException
@@ -314,24 +315,32 @@ class ModelDownloadService : Service() {
         text: String? = null,
     ): Notification {
         val percent = if (total > 0) (bytes * 100 / total).toInt().coerceIn(0, 100) else 0
-        val style = Notification.ProgressStyle()
-            .setProgressSegments(listOf(Notification.ProgressStyle.Segment(100)))
-            .setProgress(percent)
-            .setProgressIndeterminate(indeterminate)
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle(p.title)
             .setContentText(text ?: "${formatMb(bytes)} of ${formatMb(total)}")
-            .setStyle(style)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(openAppIntent())
-            .setRequestPromotedOngoing(true)
             .addAction(action(p, ACTION_PAUSE, "Pause", R.drawable.ic_action_pause, 1))
             .addAction(action(p, ACTION_CANCEL, "Cancel", R.drawable.ic_action_close, 2))
-        if (!indeterminate) builder.setShortCriticalText("$percent%")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            // Android 16: a Live Update with a segmented progress bar and the
+            // percentage in the status bar chip.
+            builder
+                .setStyle(
+                    Notification.ProgressStyle()
+                        .setProgressSegments(listOf(Notification.ProgressStyle.Segment(100)))
+                        .setProgress(percent)
+                        .setProgressIndeterminate(indeterminate),
+                )
+                .setRequestPromotedOngoing(true)
+            if (!indeterminate) builder.setShortCriticalText("$percent%")
+        } else {
+            builder.setProgress(100, percent, indeterminate)
+        }
         return builder.build()
     }
 

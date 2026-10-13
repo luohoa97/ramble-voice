@@ -247,7 +247,7 @@ void polishTests() {
     test('full adds the sentence before the final one', () {
       final out = CleanupPrompt.build(const StyleProfile(polish: Polish.full));
       expect(out, contains(CleanupPrompt.polishFull));
-      expect(out, contains('fix awkward phrasing and word order'));
+      expect(out, contains('awkward or clumsy phrasing'));
       expect(out, endsWith('Output only the cleaned text.'));
       expect(out.indexOf(CleanupPrompt.polishFull), lessThan(out.lastIndexOf('Output only the cleaned text.')));
     });

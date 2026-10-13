@@ -29,7 +29,7 @@ android {
     defaultConfig {
         applicationId = "io.github.luohoa97.ramblevoice"
         // Android 16+ only. LiteRT-LM needs >= 30 and arm64-v8a.
-        minSdk = 36
+        minSdk = 31
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -106,6 +106,11 @@ class ImeHandler(
                 openApp(call.arguments as? String ?: call.argument<String>("route"))
                 result.success(null)
             }
+            "showKeyboard" -> {
+                // Bring the keyboard back (rotation hid it during a dictation).
+                service.requestShowSelf(0)
+                result.success(null)
+            }
             "hideKeyboard" -> {
                 service.requestHideSelf(0)
                 result.success(null)
@@ -328,8 +333,9 @@ class ImeHandler(
         null
     }
 
-    fun notifyInputFinished() {
-        channel.invokeMethod("inputFinished", null)
+    /** [finishingInput]: the field itself went away, not just the keyboard view. */
+    fun notifyInputFinished(finishingInput: Boolean = true, rotating: Boolean = false) {
+        channel.invokeMethod("inputFinished", mapOf("finishingInput" to finishingInput, "rotating" to rotating))
     }
 
     /** Asks Dart to free the on-device model, then runs [done] (always, even on error). */

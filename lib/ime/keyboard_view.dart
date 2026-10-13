@@ -24,6 +24,10 @@ import 'tone_bar.dart';
 /// How long the "Inserted / Undo" confirmation stays.
 const _undoWindow = Duration(seconds: 5);
 
+/// How long the field may be gone during a dictation (rotation) before the
+/// recording is stopped.
+const _finishGrace = Duration(milliseconds: 1200);
+
 /// How long the done state shows before the mic returns to idle.
 const _doneHold = Duration(milliseconds: 1400);
 
@@ -76,7 +80,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     });
     _subs
       ..add(_bridge.inputStarted.listen(_onInputStarted))
-      ..add(_bridge.inputFinished.listen((_) => _onInputFinished()));
+      ..add(_bridge.inputFinished.listen(_onInputFinished));
   }
 
   @override
@@ -86,11 +90,20 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     }
     _undoTimer?.cancel();
     _resetTimer?.cancel();
+    _finishTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _onInputStarted(ImeInputInfo info) async {
     if (!mounted) return;
+    // The field came back (rotation): keep listening.
+    if (_finishTimer?.isActive ?? false) {
+      _finishTimer!.cancel();
+      _finishTimer = null;
+      setState(() => _info = info);
+      ref.read(currentPackageProvider.notifier).set(info.packageName);
+      return;
+    }
     ref.read(keyboardPanelProvider.notifier).close();
     _clearUndo();
     ref.read(imeEditProvider.notifier).reset();
@@ -105,17 +118,31 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
     ref.invalidate(activeEngineReadinessProvider);
   }
 
-  void _onInputFinished() {
+  /// Pending "the field went away" while a dictation is running. Rotating the
+  /// phone or a brief layout change ends the input and starts it again a
+  /// moment later; only a field that stays gone stops the recording.
+  Timer? _finishTimer;
+
+  void _onInputFinished(({bool finishingInput, bool rotating}) e) {
     if (!mounted) return;
     ref.read(keyboardPanelProvider.notifier).close();
     _clearUndo();
-    ref.read(imeEditProvider.notifier).reset();
-    // Never throw a recording away: stop and clean it. If the field is gone
-    // the inserter falls back to the clipboard, and it is saved in history.
     final c = ref.read(dictationControllerProvider);
-    if (c.state is DictationListening) {
-      unawaited(c.stop());
+    if (c.state is! DictationListening) {
+      ref.read(imeEditProvider.notifier).reset();
+      return;
     }
+    // Rotation hid the keyboard while the field stayed: bring it back.
+    if (!e.finishingInput && e.rotating) unawaited(_bridge.showKeyboard());
+    _finishTimer?.cancel();
+    _finishTimer = Timer(_finishGrace, () {
+      if (!mounted) return;
+      ref.read(imeEditProvider.notifier).reset();
+      // Never throw a recording away: stop and clean it. If the field is gone
+      // the inserter falls back to the clipboard, and it is saved in history.
+      final c = ref.read(dictationControllerProvider);
+      if (c.state is DictationListening) unawaited(c.stop());
+    });
   }
 
   void _clearUndo() {

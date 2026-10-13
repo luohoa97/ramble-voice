@@ -7,17 +7,19 @@ import android.view.KeyEvent
 
 /**
  * Types multi-line dictation into a multi-line field the way a person would:
- * each line break is a real Enter press, so note apps continue their own
- * bulleted, numbered and checklist formatting (rich-text lists never see a
- * plain "\n" as a new item).
+ * each line break is a real Enter press, so rich-text note apps continue their
+ * own bulleted, numbered and checklist formatting (a plain "\n" never makes a
+ * new rich list item).
  *
- * After each Enter the new line is read back:
- * - the editor added its own marker ("• ", "2. ") -> a marker the model also
- *   wrote is dropped, so it is never doubled;
- * - the editor added nothing but the previous line was a plain-text list item
- *   -> the same marker (next number) is added, so plain-text lists continue.
+ * The model's text is authoritative. After each Enter, whatever the editor
+ * typed by itself on the new line (Obsidian's or Markor's "- " / "4. "
+ * continuation, auto-indent) is deleted and the model's line is typed
+ * exactly, so Markdown output is never doubled or bent into a list. Rich
+ * editors whose bullets are formatting, not characters, add nothing visible
+ * and keep their bullet.
  *
- * Runs off the main thread: it waits briefly for each Enter to land.
+ * Runs off the main thread: it waits for each Enter to land, which web-based
+ * editors (Obsidian, browsers) do late.
  */
 class ListAwareCommit(private val service: InputMethodService) {
 
@@ -26,20 +28,16 @@ class ListAwareCommit(private val service: InputMethodService) {
         if (!commitText(lines.first())) return false
         for (line in lines.drop(1)) {
             val ic = service.currentInputConnection ?: return false
-            val prevLine = currentLine() ?: ""
-            val beforeLen = ic.getTextBeforeCursor(MAX, 0)?.length ?: 0
+            val tail = ic.getTextBeforeCursor(TAIL, 0)?.toString() ?: ""
             service.sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
-            val landed = awaitNewLine(beforeLen)
-            var next = line
-            val added = if (landed) currentLine() ?: "" else ""
-            if (added.isNotBlank()) {
-                // The editor continued the list itself.
-                if (MARKER.containsMatchIn(added)) next = MARKER.replace(next, "")
-            } else if (next.isNotBlank()) {
-                val m = MARKER.find(prevLine)
-                if (m != null && !MARKER.containsMatchIn(next)) next = nextMarker(m) + next
+            val added = awaitNewLine(tail)
+            if (added == null) {
+                CrashLog.note("ime: Enter did not land in time; typing the line anyway")
+            } else if (added.isNotEmpty()) {
+                // The editor's own continuation: replaced by the model's line.
+                service.currentInputConnection?.deleteSurroundingText(added.length, 0)
             }
-            if (next.isNotEmpty() && !commitText(next)) return false
+            if (line.isNotEmpty() && !commitText(line)) return false
         }
         return true
     }
@@ -47,37 +45,42 @@ class ListAwareCommit(private val service: InputMethodService) {
     private fun commitText(t: String): Boolean =
         t.isEmpty() || service.currentInputConnection?.commitText(t, 1) == true
 
-    /** The text from the start of the cursor's line to the cursor. */
-    private fun currentLine(): String? {
-        val before = service.currentInputConnection?.getTextBeforeCursor(MAX, 0)?.toString() ?: return null
-        return before.substring(before.lastIndexOf('\n') + 1)
-    }
-
-    /** Waits until the text before the cursor changes after an Enter. */
-    private fun awaitNewLine(beforeLen: Int): Boolean {
-        val until = SystemClock.uptimeMillis() + 400
+    /**
+     * Waits until an Enter has landed (a line break now follows [tail], the
+     * text that was before the cursor) and the editor has stopped changing
+     * the new line; returns what the editor put on it, or null if nothing
+     * landed in time.
+     */
+    private fun awaitNewLine(tail: String): String? {
+        val until = SystemClock.uptimeMillis() + 1500
+        var last: String? = null
+        var stableSince = 0L
         while (SystemClock.uptimeMillis() < until) {
-            val now = service.currentInputConnection?.getTextBeforeCursor(MAX, 0) ?: return false
-            if (now.length != beforeLen) return true
+            val now = service.currentInputConnection?.getTextBeforeCursor(TAIL * 2, 0)?.toString() ?: return null
+            val nl = now.lastIndexOf('\n')
+            val prefix = if (nl >= 0) now.substring(0, nl) else ""
+            // Exact, or with trailing spaces the editor tidied away on Enter.
+            val landed = nl >= 0 && (
+                prefix.endsWith(tail) ||
+                    (tail.isNotBlank() && tail.endsWith(' ') && prefix.endsWith(tail.trimEnd(' ')))
+                )
+            if (landed) {
+                val line = now.substring(nl + 1)
+                if (line == last) {
+                    if (SystemClock.uptimeMillis() - stableSince >= 60) return line
+                } else {
+                    last = line
+                    stableSince = SystemClock.uptimeMillis()
+                }
+            }
             Thread.sleep(15)
         }
-        return false
-    }
-
-    private fun nextMarker(m: MatchResult): String {
-        val indent = m.groupValues[1]
-        val mark = m.groupValues[2]
-        val num = Regex("""^(\d+)([.)])$""").find(mark)
-        val next = when {
-            num != null -> "${num.groupValues[1].toInt() + 1}${num.groupValues[2]}"
-            mark.contains("[") -> mark.replace(Regex("""\[[xX]\]"""), "[ ]")
-            else -> mark
-        }
-        return "$indent$next "
+        return last
     }
 
     companion object {
-        private const val MAX = 2000
+        /** How much text before the cursor is compared to see an Enter land. */
+        private const val TAIL = 200
         /** A plain-text list marker at the start of a line. */
         val MARKER = Regex("""^(\s*)([-*+•◦▪‣·]|\d+[.)]|[-*] \[[ xX]\]|\[[ xX]\])\s+""")
     }

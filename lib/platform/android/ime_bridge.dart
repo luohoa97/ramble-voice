@@ -146,7 +146,7 @@ class ImeBridge {
 
   final MethodChannel _channel;
   final _started = StreamController<ImeInputInfo>.broadcast();
-  final _finished = StreamController<void>.broadcast();
+  final _finished = StreamController<({bool finishingInput, bool rotating})>.broadcast();
   final _stop = StreamController<void>.broadcast();
 
   /// Latest field info, `const ImeInputInfo()` before the first field.
@@ -155,8 +155,9 @@ class ImeBridge {
   /// A text field took focus (or restarted).
   Stream<ImeInputInfo> get inputStarted => _started.stream;
 
-  /// The keyboard was hidden or the field lost focus.
-  Stream<void> get inputFinished => _finished.stream;
+  /// The keyboard was hidden or the field itself went away
+  /// ([finishingInput]); [rotating] when a rotation just hid it.
+  Stream<({bool finishingInput, bool rotating})> get inputFinished => _finished.stream;
 
   /// The floating mic's hold-to-talk was released: stop listening.
   Stream<void> get stopRequested => _stop.stream;
@@ -175,7 +176,11 @@ class ImeBridge {
         _started.add(current);
         return null;
       case 'inputFinished':
-        _finished.add(null);
+        final a = call.arguments;
+        _finished.add((
+          finishingInput: a is Map ? a['finishingInput'] as bool? ?? true : true,
+          rotating: a is Map && (a['rotating'] as bool? ?? false),
+        ));
         return null;
       case 'stopListening':
         _stop.add(null);
@@ -218,6 +223,17 @@ class ImeBridge {
   /// The text shown in the app being typed into (recent messages), read by
   /// the floating mic's accessibility service; null when it is off.
   Future<String?> getScreenContext(int maxChars) => _string('getScreenContext', maxChars);
+
+  /// Shows the keyboard again (it was hidden during a dictation).
+  Future<void> showKeyboard() async {
+    try {
+      await _channel.invokeMethod<void>('showKeyboard');
+    } on PlatformException {
+      // Best effort.
+    } on MissingPluginException {
+      // Not in the keyboard.
+    }
+  }
 
   /// Inserts [text] at the cursor of the focused field.
   Future<bool> commitText(String text) => _bool('commitText', text);

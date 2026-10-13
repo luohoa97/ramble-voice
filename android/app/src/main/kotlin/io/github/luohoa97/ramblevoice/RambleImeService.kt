@@ -123,7 +123,15 @@ class RambleImeService : InputMethodService() {
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         ImeLaunch.setImeShowing(false)
-        ime?.notifyInputFinished()
+        val rotating = SystemClock.uptimeMillis() - lastConfigChange < ROTATION_WINDOW_MS
+        ime?.notifyInputFinished(finishingInput, rotating)
+    }
+
+    private var lastConfigChange = 0L
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        lastConfigChange = SystemClock.uptimeMillis()
+        super.onConfigurationChanged(newConfig)
     }
 
     override fun onWindowShown() {
@@ -179,6 +187,8 @@ class RambleImeService : InputMethodService() {
     }
 
     companion object {
+        /** A keyboard hidden this soon after a configuration change was hidden by rotation. */
+        private const val ROTATION_WINDOW_MS = 1500L
         private const val KEYBOARD_HEIGHT_DP = 248
         private const val RELEASE_TIMEOUT_MS = 2000L
         private const val TOUCH_GUARD_MS = 350L

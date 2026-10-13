@@ -165,4 +165,21 @@ void main() {
       expect(r.hasContext, isTrue);
     });
   });
+
+  test('the prompt starts with the same long fixed text whatever the style, field or context (prompt cache)', () {
+    final a = CleanupPrompt.build(const StyleProfile(preset: StylePreset.texting, vocabulary: ['Ramble']));
+    final b = CleanupPrompt.build(
+      const StyleProfile(preset: StylePreset.professional),
+      withContext: true,
+      withField: true,
+      withScreen: true,
+    );
+    var shared = 0;
+    while (shared < a.length && shared < b.length && a[shared] == b[shared]) {
+      shared++;
+    }
+    expect(shared, greaterThan(CleanupPrompt.rules.length));
+    expect(a, contains('Match this style profile:'));
+    expect(a, endsWith('Output only the cleaned text.'));
+  });
 }

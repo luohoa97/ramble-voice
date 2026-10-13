@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../core/audio/injectable_audio_source.dart';
 import '../core/audio/pcm.dart';
+import '../core/cleanup/gemini/gemini_client.dart';
 import '../core/dictation/dictation_controller.dart';
 import '../platform/android/ime_bridge.dart';
 import 'edit_session.dart';
@@ -133,6 +134,10 @@ class E2eHook {
       'peakLevel': _peakLevel,
       'lastText': _lastText,
       'lastEngine': _lastEngine,
+      'lastUsage': GeminiClient.lastUsage == null
+          ? null
+          : {'prompt': GeminiClient.lastUsage!.prompt, 'cached': GeminiClient.lastUsage!.cached},
+      'fieldInfo': bridge.current.describe(),
       'edit': e.phase.name,
       if (e.message != null) 'editMessage': e.message,
       'field': {

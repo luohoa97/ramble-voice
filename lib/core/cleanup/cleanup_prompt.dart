@@ -196,25 +196,31 @@ abstract final class CleanupPrompt {
     bool withField = false,
     String? part,
   }) {
-    final extras = [
-      if (withField) fieldRule,
-      if (withScreen) screenRule,
-      ?part,
-      if (profile.polish == Polish.full) polishFull,
-      if (withContext) contextRule,
+    // Ordered for Gemini's implicit prompt cache, which reuses the longest
+    // identical start of the request: the fixed instructions and rules come
+    // first, then what changes per user, per app, and per request last.
+    final varying = [
       profile.describeLanguage(),
       profile.describeContacts(),
       profile.describeSnippets(),
-    ]
-        .where((s) => s.isNotEmpty)
-        .join(' ');
-    return template
-        .replaceAll('{style}', _inline(profile.describe()))
-        .replaceAll('{vocab}', _inline(profile.describeVocabulary()))
-        .replaceFirst(_finalSentence, '$rules $extras $_finalSentence');
+      _vocabSentence.replaceAll('{vocab}', _inline(profile.describeVocabulary())).trim(),
+      if (profile.polish == Polish.full) polishFull,
+      _styleSentence.replaceAll('{style}', _inline(profile.describe())).trim(),
+      if (withContext) contextRule,
+      if (withField) fieldRule,
+      if (withScreen) screenRule,
+      ?part,
+    ].where((s) => s.isNotEmpty).join(' ');
+    return '$_fixedClean $varying $_finalSentence';
   }
 
   static const _finalSentence = 'Output only the cleaned text.';
+  static const _styleSentence = 'Match this style profile: {style}. ';
+  static const _vocabSentence = 'Use these spellings: {vocab}. ';
+
+  /// [template] without its per-user sentences and final sentence, then
+  /// [rules]: identical in every request.
+  static final String _fixedClean = '${template.replaceFirst(_styleSentence, '').replaceFirst(_vocabSentence, '').replaceFirst(_finalSentence, '').trim()} $rules';
 
   static String buildVerbatim(StyleProfile profile) {
     final out = verbatimTemplate.replaceAll('{vocab}', _inline(profile.describeVocabulary()));

@@ -348,7 +348,15 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                   ToneMenu(onEdit: () => _openApp(ImeRoutes.style), onTick: _tick),
                   Expanded(
                     child: Center(
-                      child: _Status(
+                      child: _info.isEmailField &&
+                              state is DictationIdle &&
+                              _undoText == null &&
+                              ref.watch(settingsProvider.select((s) => s.myEmails)).isNotEmpty
+                          ? _EmailChips(
+                              emails: ref.watch(settingsProvider.select((s) => s.myEmails)),
+                              onPick: (e) => act(() => unawaited(ref.read(platformServicesProvider).inserter.insert(e))),
+                            )
+                          : _Status(
                         state: state,
                         info: _info,
                         undoText: _undoText,
@@ -660,6 +668,36 @@ class _BigRepeatKeyState extends State<_BigRepeatKey> {
             child: Icon(widget.icon, size: 24, color: c.onSecondaryContainer),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Your own email addresses as one-tap chips, in email fields (like Gboard).
+class _EmailChips extends StatelessWidget {
+  const _EmailChips({required this.emails, required this.onPick});
+
+  final List<String> emails;
+  final void Function(String email) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final e in emails)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: ActionChip(
+                avatar: const Icon(Icons.alternate_email_rounded, size: 18),
+                label: Text(e),
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Type $e',
+                onPressed: () => onPick(e),
+              ),
+            ),
+        ],
       ),
     );
   }

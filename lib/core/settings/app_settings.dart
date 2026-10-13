@@ -47,6 +47,7 @@ class AppSettings {
     this.useContactNames = false,
     this.useFieldContext = true,
     this.screenContext = false,
+    this.myEmails = const [],
     this.usageLog = true,
     this.adbDiagnostics = false,
     this.snippets = const [],
@@ -111,6 +112,9 @@ class AppSettings {
   /// replied to) with each dictation. Off unless the user turns it on.
   final bool screenContext;
 
+  /// The user's own email addresses: one-tap chips in email fields.
+  final List<String> myEmails;
+
   /// Keep the on-device usage log (engines, timings, failures; never text).
   final bool usageLog;
 
@@ -121,7 +125,13 @@ class AppSettings {
   final List<Snippet> snippets;
 
   /// [style] plus the language and snippets: what the engines get.
-  StyleProfile get effectiveStyle => style.copyWith(languages: languages, snippets: snippets);
+  StyleProfile get effectiveStyle => style.copyWith(languages: languages, snippets: [...snippets, ..._emailSnippets]);
+
+  /// Saying "my email" types your (first) address, unless you made your own
+  /// shortcut for it; "my work email" etc. are yours to add.
+  List<Snippet> get _emailSnippets => myEmails.isEmpty || snippets.any((s) => s.trigger.trim().toLowerCase() == 'my email')
+      ? const []
+      : [Snippet(trigger: 'my email', expansion: myEmails.first)];
 
   /// Android floating mic: package names of apps where the bubble never shows.
   final List<String> bubbleBlockedApps;
@@ -168,6 +178,7 @@ class AppSettings {
     bool? useContactNames,
     bool? useFieldContext,
     bool? screenContext,
+    List<String>? myEmails,
     bool? usageLog,
     bool? adbDiagnostics,
     List<Snippet>? snippets,
@@ -199,6 +210,7 @@ class AppSettings {
         useContactNames: useContactNames ?? this.useContactNames,
         useFieldContext: useFieldContext ?? this.useFieldContext,
         screenContext: screenContext ?? this.screenContext,
+        myEmails: myEmails ?? this.myEmails,
         usageLog: usageLog ?? this.usageLog,
         adbDiagnostics: adbDiagnostics ?? this.adbDiagnostics,
         snippets: snippets ?? this.snippets,
@@ -231,6 +243,7 @@ class AppSettings {
         'useContactNames': useContactNames,
         'useFieldContext': useFieldContext,
         'screenContext': screenContext,
+        'myEmails': myEmails,
         'usageLog': usageLog,
         'adbDiagnostics': adbDiagnostics,
         'snippets': [for (final s in snippets) s.toJson()],
@@ -269,6 +282,7 @@ class AppSettings {
         useContactNames: j['useContactNames'] as bool? ?? false,
         useFieldContext: j['useFieldContext'] as bool? ?? true,
         screenContext: j['screenContext'] as bool? ?? false,
+        myEmails: (j['myEmails'] as List?)?.whereType<String>().toList() ?? const [],
         usageLog: j['usageLog'] as bool? ?? true,
         adbDiagnostics: j['adbDiagnostics'] as bool? ?? false,
         snippets: [

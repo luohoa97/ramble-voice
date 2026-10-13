@@ -103,6 +103,7 @@ class SettingsScreen extends ConsumerWidget {
           if (isAndroid) const FieldContextSection(),
           const SettingsSection(title: 'Recording', children: [RecordingSection()]),
           const SettingsSection(title: 'Keyboard', children: [AndroidSection()]),
+          const SettingsSection(title: 'Your email addresses', children: [MyEmailsSection()]),
           SettingsSection(title: 'Floating mic', children: [padded(const BubbleSection())]),
         ],
       SettingsCategory.desktop => [

@@ -247,3 +247,82 @@ class AboutSection extends StatelessWidget {
     );
   }
 }
+
+/// Your own email addresses: one-tap chips in email fields, and saying
+/// "my email" types the first one.
+class MyEmailsSection extends ConsumerStatefulWidget {
+  const MyEmailsSection({super.key});
+
+  @override
+  ConsumerState<MyEmailsSection> createState() => _MyEmailsSectionState();
+}
+
+class _MyEmailsSectionState extends ConsumerState<MyEmailsSection> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    final e = _controller.text.trim();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(e)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('That does not look like an email address')));
+      return;
+    }
+    ref.read(settingsProvider.notifier).update((s) => s.myEmails.contains(e) ? s : s.copyWith(myEmails: [...s.myEmails, e]));
+    _controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final emails = ref.watch(settingsProvider.select((s) => s.myEmails));
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Shown as one-tap chips on the Ramble keyboard in email fields. Saying "my email" types the first one.',
+            style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final e in emails)
+                InputChip(
+                  label: Text(e),
+                  onDeleted: () => ref
+                      .read(settingsProvider.notifier)
+                      .update((s) => s.copyWith(myEmails: [...s.myEmails]..remove(e))),
+                  deleteButtonTooltipMessage: 'Remove $e',
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: const InputDecoration(labelText: 'Add an email address'),
+                  onSubmitted: (_) => _add(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(tooltip: 'Add', onPressed: _add, icon: const Icon(Icons.add_rounded)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

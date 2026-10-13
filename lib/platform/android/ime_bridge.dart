@@ -65,6 +65,13 @@ class ImeInputInfo {
   final String? fieldName;
   final String? appLabel;
 
+  /// An email address field.
+  bool get isEmailField {
+    if (inputType & 0xf != 1) return false;
+    final variation = inputType & 0xff0;
+    return variation == 0x20 || variation == 0xd0;
+  }
+
   /// One line describing the field for the model, e.g.
   /// `App: Settings. Field: search box, hint "Search settings". Enter key: search.`
   String describe() {

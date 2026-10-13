@@ -18,6 +18,8 @@ import 'app/providers.dart';
 import 'core/cleanup/cleanup_engine.dart';
 import 'core/dictation/dictation_controller.dart';
 import 'core/settings/app_settings.dart';
+import 'core/audio/injectable_audio_source.dart';
+import 'ime/e2e_hook.dart';
 import 'ime/edit_session.dart';
 import 'ime/ime_app.dart';
 import 'platform/android/android_model_downloads.dart';
@@ -43,7 +45,18 @@ Future<void> imeMain() async {
   installErrorLog(support);
   final paths = AppPaths(support: support);
   final settings = await SettingsStore(paths.settingsFile).load();
-  final services = await createAndroidServices(keyboard: true, bridge: bridge);
+  final base = await createAndroidServices(keyboard: true, bridge: bridge);
+  // The microphone, which an adb-driven end-to-end test may replay a WAV into.
+  final audio = InjectableAudioSource(base.audio);
+  final services = PlatformServices(
+    audio: audio,
+    secrets: base.secrets,
+    inserter: base.inserter,
+    notifier: base.notifier,
+    accentColor: base.accentColor,
+    share: base.share,
+    haptic: base.haptic,
+  );
 
   // Models are downloaded by the app into <externalFilesDir>/models; the
   // keyboard only reads them, so it needs the path but not the service.
@@ -116,6 +129,8 @@ Future<void> imeMain() async {
     },
     onStop: controller.stop,
   );
+
+  E2eHook(container: container, bridge: bridge, audio: audio).attach();
 
   runApp(
     UncontrolledProviderScope(container: container, child: const ImeApp()),

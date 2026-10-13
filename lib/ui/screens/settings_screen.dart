@@ -50,19 +50,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final wide = MediaQuery.sizeOf(context).width >= kTwoPaneWidth;
 
     final sections = <Widget>[
-      KeyedSubtree(key: _anchors['engine'], child: const SettingsSection(title: 'Engine', children: [EnginePicker(showPath: true)])),
+      KeyedSubtree(
+        key: _anchors['engine'],
+        child: const SettingsSection(
+          title: 'Engine',
+          children: [EnginePicker(showPath: true)],
+        ),
+      ),
       KeyedSubtree(
         key: _anchors['style'],
         child: const SettingsSection(
-        title: 'Style',
-        subtitle: 'The tone is applied to every dictation. Switch it any time on the record screen.',
-        children: [
-          StyleChips(centered: false),
-          SizedBox(height: Space.x3),
-          Padding(padding: EdgeInsets.symmetric(horizontal: Space.gutter), child: StyleEditor()),
-        ],
-      )),
-      if (isAndroid) const SettingsSection(title: 'Per-app styles', children: [AppStylesSection()]),
+          title: 'Style',
+          subtitle: 'The tone is applied to every dictation. Switch it any time on the record screen.',
+          children: [
+            StyleChips(centered: false),
+            SizedBox(height: Space.x3),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: Space.gutter),
+              child: StyleEditor(),
+            ),
+          ],
+        ),
+      ),
+      if (isAndroid)
+        const SettingsSection(
+          title: 'Per-app styles',
+          children: [AppStylesSection()],
+        ),
       const PolishSection(),
       const LanguageSection(),
       const ContactNamesSection(),
@@ -72,25 +86,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (isLinux)
         const SettingsSection(
           title: 'Linux',
-          children: [Padding(padding: EdgeInsets.symmetric(horizontal: Space.gutter), child: LinuxSection())],
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: Space.gutter),
+              child: LinuxSection(),
+            ),
+          ],
         ),
-      if (isAndroid) const SettingsSection(title: 'Keyboard', children: [AndroidSection()]),
-      if (isAndroid) const SettingsSection(title: 'Floating mic', children: [BubbleSection()]),
-      SettingsSection(title: 'Help', children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: Space.gutter),
-          leading: const Icon(Icons.checklist_rounded),
-          title: const Text('Setup guide'),
-          subtitle: const Text('Microphone, engine, keyboard and the floating mic'),
-          onTap: () => context.push('/setup'),
+      if (isAndroid)
+        const SettingsSection(title: 'Keyboard', children: [AndroidSection()]),
+      if (isAndroid)
+        const SettingsSection(
+          title: 'Floating mic',
+          children: [BubbleSection()],
         ),
-      ]),
+      SettingsSection(
+        title: 'Help',
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: Space.gutter,
+            ),
+            leading: const Icon(Icons.checklist_rounded),
+            title: const Text('Setup guide'),
+            subtitle: const Text(
+              'Microphone, engine, keyboard and the floating mic',
+            ),
+            onTap: () => context.push('/setup'),
+          ),
+        ],
+      ),
       const SettingsSection(title: 'Privacy', children: [PrivacySection()]),
       const SettingsSection(title: 'About', children: [AboutSection()]),
     ];
 
     return CallbackShortcuts(
-      bindings: {if (wide) const SingleActivator(LogicalKeyboardKey.escape): () => context.go('/')},
+      bindings: {
+        if (wide)
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              context.go('/'),
+      },
       child: SafeArea(
         bottom: false,
         child: Center(
@@ -98,21 +133,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             constraints: const BoxConstraints(maxWidth: kContentWidth),
             child: FocusTraversalGroup(
               policy: ReadingOrderTraversalPolicy(),
-              child: ListView(
+              // Not a lazy ListView: its sections differ in height and some
+              // grow after loading, which made a lazy list jump while
+              // scrolling (offsets of rebuilt sections were re-estimated).
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: Space.x4),
-                children: [
-                  ScreenTitle(
-                    'Settings',
-                    leading: wide
-                        ? IconButton(
-                            tooltip: 'Back to recording',
-                            icon: const Icon(Icons.arrow_back_rounded),
-                            onPressed: () => context.go('/'),
-                          )
-                        : null,
-                  ),
-                  ...sections,
-                ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ScreenTitle(
+                      'Settings',
+                      leading: wide
+                          ? IconButton(
+                              tooltip: 'Back to recording',
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              onPressed: () => context.go('/'),
+                            )
+                          : null,
+                    ),
+                    ...sections,
+                  ],
+                ),
               ),
             ),
           ),

@@ -27,7 +27,7 @@ void main() {
   });
 
   test('every preset has a label and instruction', () {
-    expect(StylePreset.values, hasLength(4));
+    expect(StylePreset.values, hasLength(5));
     for (final p in StylePreset.values) {
       expect(p.label, isNotEmpty);
       expect(p.instruction, isNotEmpty);

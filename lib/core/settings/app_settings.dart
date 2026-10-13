@@ -39,6 +39,7 @@ class AppSettings {
     this.typeIntoFocusedApp = true,
     this.modelLicenseAccepted = false,
     this.autoSwitchBack = false,
+    this.thinking = true,
     this.hotkeyTrigger = 'CTRL+ALT+space',
     this.hotkeyKey = 'capslock',
     this.languages = const [],
@@ -75,6 +76,9 @@ class AppSettings {
   /// Android keyboard: return to the previous keyboard (e.g. Gboard) after
   /// inserting dictated text.
   final bool autoSwitchBack;
+
+  /// Gemini reasons briefly about what the speaker meant before writing.
+  final bool thinking;
 
   /// Linux: preferred global shortcut (portal trigger syntax, e.g.
   /// `CTRL+ALT+space`, or `Menu` when Caps Lock is mapped to Menu).
@@ -139,6 +143,7 @@ class AppSettings {
     bool? typeIntoFocusedApp,
     bool? modelLicenseAccepted,
     bool? autoSwitchBack,
+    bool? thinking,
     String? hotkeyTrigger,
     String? hotkeyKey,
     List<String>? languages,
@@ -165,6 +170,7 @@ class AppSettings {
         typeIntoFocusedApp: typeIntoFocusedApp ?? this.typeIntoFocusedApp,
         modelLicenseAccepted: modelLicenseAccepted ?? this.modelLicenseAccepted,
         autoSwitchBack: autoSwitchBack ?? this.autoSwitchBack,
+        thinking: thinking ?? this.thinking,
         hotkeyTrigger: hotkeyTrigger ?? this.hotkeyTrigger,
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
         languages: languages ?? this.languages,
@@ -192,6 +198,7 @@ class AppSettings {
         'typeIntoFocusedApp': typeIntoFocusedApp,
         'modelLicenseAccepted': modelLicenseAccepted,
         'autoSwitchBackAfterDictation': autoSwitchBack,
+        'thinking': thinking,
         'hotkeyTrigger': hotkeyTrigger,
         'hotkeyKey': hotkeyKey,
         'languages': languages,
@@ -225,6 +232,7 @@ class AppSettings {
         // Renamed key: the old 'autoSwitchBack' defaulted to on; users now stay
         // on Ramble until they press ABC unless they opt in.
         autoSwitchBack: j['autoSwitchBackAfterDictation'] as bool? ?? false,
+        thinking: j['thinking'] as bool? ?? true,
         hotkeyTrigger: j['hotkeyTrigger'] as String? ?? 'CTRL+ALT+space',
         hotkeyKey: j['hotkeyKey'] as String? ?? 'capslock',
         languages: _languagesFromJson(j, deviceLanguages),

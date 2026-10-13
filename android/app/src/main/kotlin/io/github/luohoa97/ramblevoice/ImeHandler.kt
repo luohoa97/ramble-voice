@@ -26,10 +26,12 @@ class ImeHandler(
     init {
         channel.setMethodCallHandler(this)
         ImeLaunch.stopListener = { channel.invokeMethod("stopListening", null) }
+        E2eReceiver.forward = { cmd, arg -> main.post { channel.invokeMethod("e2e", mapOf("cmd" to cmd, "arg" to arg)) } }
     }
 
     fun dispose() {
         ImeLaunch.stopListener = null
+        E2eReceiver.forward = null
         channel.setMethodCallHandler(null)
     }
 
@@ -37,7 +39,16 @@ class ImeHandler(
         when (call.method) {
             "commitText" -> {
                 val text = call.arguments as? String ?: call.argument<String>("text") ?: ""
-                result.success(service.currentInputConnection?.commitText(text, 1) ?: false)
+                if (!text.contains('\n') || !isMultiLine()) {
+                    result.success(service.currentInputConnection?.commitText(text, 1) ?: false)
+                } else {
+                    // Line by line with real Enter presses, off the main thread
+                    // (it waits for the editor to apply each Enter).
+                    Thread {
+                        val ok = try { ListAwareCommit(service).commit(text) } catch (_: Throwable) { false }
+                        main.post { result.success(ok) }
+                    }.start()
+                }
             }
             "deleteBackward" -> {
                 val count = call.arguments as? Int ?: call.argument<Int>("count") ?: 1
@@ -78,6 +89,10 @@ class ImeHandler(
                 )
             }
             "sendEnter" -> result.success(sendEnter())
+            "e2eReply" -> {
+                E2eReceiver.reply(call.arguments as? String ?: "")
+                result.success(null)
+            }
             "switchToPreviousInputMethod" -> result.success(switchKeyboard(userInitiated = call.arguments as? Boolean ?: true))
             "shouldOfferSwitch" -> result.success(shouldOfferSwitch())
             "openApp" -> {
@@ -90,6 +105,24 @@ class ImeHandler(
             }
             else -> result.notImplemented()
         }
+    }
+
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * A multi-line field whose Enter key inserts a line break (notes, documents).
+     * Chat boxes whose Enter sends the message are excluded: a dictated line
+     * break must never send anything.
+     */
+    private fun isMultiLine(): Boolean {
+        val info = service.currentInputEditorInfo ?: return false
+        val type = info.inputType
+        if (type and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return false
+        if (type and InputType.TYPE_TEXT_FLAG_MULTI_LINE == 0) return false
+        val options = info.imeOptions
+        val action = options and EditorInfo.IME_MASK_ACTION
+        return options and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0 ||
+            action == EditorInfo.IME_ACTION_NONE || action == EditorInfo.IME_ACTION_UNSPECIFIED
     }
 
     private fun deleteBackward(count: Int): Boolean {

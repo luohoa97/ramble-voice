@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import '../audio/chunker.dart';
 import '../audio/auto_gain.dart';
 import '../audio/pcm.dart';
+import '../audio/rumble_filter.dart';
 import '../style/style_profile.dart';
 import 'cleanup_engine.dart';
 
@@ -47,9 +48,21 @@ class PipelineResult {
 /// a second engine (on-device Gemma) when the cloud engine is rate limited,
 /// offline or out of quota.
 class CleanupPipeline {
-  const CleanupPipeline({this.searchWindow = const Duration(seconds: 6)});
+  const CleanupPipeline({
+    this.searchWindow = const Duration(seconds: 6),
+    this.condition = conditionAudio,
+  });
 
   final Duration searchWindow;
+
+  /// Prepares the recording for the model; [conditionAudio] by default.
+  final Uint8List Function(Uint8List pcm) condition;
+
+  /// Cuts rumble below the voice, then raises quiet speech.
+  static Uint8List conditionAudio(Uint8List pcm) => AutoGain.normalize(RumbleFilter.apply(pcm));
+
+  /// No conditioning (tests that compare bytes).
+  static Uint8List unconditioned(Uint8List pcm) => pcm;
 
   Future<PipelineResult> run({
     required Uint8List pcm,
@@ -61,7 +74,7 @@ class CleanupPipeline {
     String? contextAfter,
     void Function(PipelineProgress)? onProgress,
   }) async {
-    pcm = AutoGain.normalize(pcm);
+    pcm = condition(pcm);
     try {
       return await _runWith(primary, pcm, style, mode, onProgress,
           fellBack: false, contextBefore: contextBefore, contextAfter: contextAfter);
@@ -94,7 +107,7 @@ class CleanupPipeline {
     String? contextBefore,
     String? contextAfter,
   }) async {
-    pcm = AutoGain.normalize(pcm);
+    pcm = condition(pcm);
     try {
       return await _editWith(primary, pcm, sourceText, style, contextBefore, contextAfter);
     } on CleanupFailure catch (failure) {

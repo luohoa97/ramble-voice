@@ -34,13 +34,16 @@ void main() {
     test('note apps are notes', () {
       for (final p in [
         'com.google.android.keep',
-        'md.obsidian',
         'com.notion.id',
         'com.evernote',
         'com.samsung.android.app.notes',
       ]) {
         expect(builtInStyleFor(p), StylePreset.notes, reason: p);
       }
+    });
+
+    test('Obsidian gets Markdown', () {
+      expect(builtInStyleFor('md.obsidian'), StylePreset.markdown);
     });
 
     test('prefixes only match on a package boundary', () {

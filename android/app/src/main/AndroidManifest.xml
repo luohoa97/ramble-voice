@@ -74,6 +74,16 @@
                 android:resource="@xml/method"/>
         </service>
 
+        <!-- End-to-end test hook (tool/e2e). Only the adb shell holds DUMP. -->
+        <receiver
+            android:name=".E2eReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="io.github.luohoa97.ramblevoice.E2E"/>
+            </intent-filter>
+        </receiver>
+
         <!-- The floating mic: shows a bubble next to focused text fields and inserts
              dictated text. Needs the user to switch it on in Accessibility settings. -->
         <service

@@ -131,6 +131,7 @@ final geminiEngineProvider = Provider<GeminiEngine>((ref) {
     client: ref.watch(geminiClientProvider),
     cache: ref.watch(geminiModelCacheProvider),
     preferredModel: ref.watch(settingsProvider.select((s) => s.geminiModel)),
+    thinkOnCleanup: ref.watch(settingsProvider.select((s) => s.thinking)),
     healthProbe: true,
   );
 });

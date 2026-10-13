@@ -23,7 +23,7 @@ const Map<String, StylePreset> kBuiltInAppStyles = {
   'com.google.android.apps.messaging': StylePreset.texting,
   'com.slack': StylePreset.texting,
   'com.google.android.keep': StylePreset.notes,
-  'md.obsidian': StylePreset.notes,
+  'md.obsidian': StylePreset.markdown,
   'com.notion.id': StylePreset.notes,
   'com.evernote': StylePreset.notes,
   'com.samsung.android.app.notes': StylePreset.notes,

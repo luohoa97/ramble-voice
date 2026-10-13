@@ -116,6 +116,9 @@ class ImeBridge {
   /// Called when the service is being destroyed; free the on-device model here.
   Future<void> Function()? onRelease;
 
+  /// End-to-end test commands (see `lib/ime/e2e_hook.dart`); returns JSON.
+  Future<String> Function(String cmd, String? arg)? onE2e;
+
   Future<Object?> _onCall(MethodCall call) async {
     switch (call.method) {
       case 'inputStarted':
@@ -131,6 +134,14 @@ class ImeBridge {
         return null;
       case 'release':
         await onRelease?.call();
+        return null;
+      case 'e2e':
+        final a = (call.arguments as Map).cast<String, Object?>();
+        final handler = onE2e;
+        final reply = handler == null
+            ? '{"ok":false,"error":"no e2e hook"}'
+            : await handler(a['cmd'] as String, a['arg'] as String?);
+        unawaited(_channel.invokeMethod<void>('e2eReply', reply).catchError((_) {}));
         return null;
     }
     throw MissingPluginException(call.method);

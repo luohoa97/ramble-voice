@@ -392,7 +392,8 @@ void main() {
       }
       await rig.pump();
       await rig.controller.stop();
-      expect(rig.primary.requests.single.pcm, concatBytes(blocks));
+      // Every block reaches the engine (after the standard conditioning).
+      expect(rig.primary.requests.single.pcm, CleanupPipeline.conditionAudio(concatBytes(blocks)));
     });
 
     test('stop when not listening does nothing', () async {

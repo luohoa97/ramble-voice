@@ -132,6 +132,7 @@ class GeminiEngine implements CleanupEngine {
     this.probeTimeout = const Duration(seconds: 15),
     this.fastLatency = const Duration(seconds: 10),
     this.pickedModelTimeout = const Duration(seconds: 20),
+    this.thinkOnCleanup = false,
   }) : cache = cache ?? GeminiModelCache();
 
   /// Returns the key, or null when none is configured.
@@ -161,6 +162,12 @@ class GeminiEngine implements CleanupEngine {
   /// Request timeout for a model the user picked when the probe found it slow
   /// or not responding, so a bad pick falls back quickly.
   final Duration pickedModelTimeout;
+
+  /// Lets the model reason briefly ("low" thinking) before writing the
+  /// cleaned text: better at intent, lists, quoting and commands, a little
+  /// slower. One request either way: the model hears the audio and reasons
+  /// about it together.
+  final bool thinkOnCleanup;
 
   @override
   EngineKind get kind => EngineKind.gemini;
@@ -309,9 +316,14 @@ class GeminiEngine implements CleanupEngine {
     required List<int> wav,
     int maxOutputTokens = 8192,
     Duration? timeout,
+    bool think = false,
   }) async {
+    var thinkRejected = false;
     while (true) {
-      final mode = cache.thinkingFor(model.id);
+      var mode = cache.thinkingFor(model.id);
+      // A little reasoning for the cleanup pass (intent, lists, quoting),
+      // unless the model refused thinking levels.
+      if (think && !thinkRejected && mode == GeminiThinking.minimal) mode = GeminiThinking.low;
       try {
         return await client.generateFromAudio(
           apiKey: key,
@@ -327,6 +339,10 @@ class GeminiEngine implements CleanupEngine {
       } on CleanupFailure catch (f) {
         final next = _nextThinking(mode, f);
         if (next == null) rethrow;
+        if (think && mode == GeminiThinking.low && !thinkRejected) {
+          thinkRejected = true;
+          continue;
+        }
         cache.rememberThinking(model.id, next);
       }
     }
@@ -362,10 +378,27 @@ class GeminiEngine implements CleanupEngine {
   @override
   Future<String> process(CleanupRequest request) async {
     final key = await _key();
-    final system = CleanupPrompt.systemFor(request);
-    final userText = CleanupPrompt.userTextFor(request);
     final wav = WavEncoder.encode(request.pcm);
+    return _runChain(
+      key,
+      wav,
+      CleanupPrompt.systemFor(request),
+      CleanupPrompt.userTextFor(request),
+      (raw) => CleanupPrompt.tidyFor(request, raw),
+      think: thinkOnCleanup && request.mode != CleanupMode.verbatim,
+    );
+  }
 
+  /// Sends one prompt down the model chain, falling through to the next
+  /// model on model-level failures.
+  Future<String> _runChain(
+    String key,
+    Uint8List wav,
+    String system,
+    String userText,
+    String Function(String raw) tidy, {
+    bool think = false,
+  }) async {
     var models = await availableModels();
     var chain = _chain(models);
     var refreshed = false;
@@ -375,15 +408,15 @@ class GeminiEngine implements CleanupEngine {
       final model = chain[i];
       final timeout = _timeoutFor(model, wav.length);
       Future<String> call() =>
-          _generate(key, model, systemInstruction: system, userText: userText, wav: wav, timeout: timeout);
+          _generate(key, model, systemInstruction: system, userText: userText, wav: wav, timeout: timeout, think: think);
       try {
         try {
-          return CleanupPrompt.tidyFor(request, await call());
+          return tidy(await call());
         } on CleanupFailure catch (f) {
           // Overloaded ("high demand"): one more try after a short pause.
           if (f.kind != CleanupFailureKind.server) rethrow;
           await Future<void>.delayed(overloadBackoff);
-          return CleanupPrompt.tidyFor(request, await call());
+          return tidy(await call());
         }
       } on CleanupFailure catch (f) {
         // Model renamed or retired since the list was cached: re-resolve once.

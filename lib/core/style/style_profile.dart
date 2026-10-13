@@ -22,6 +22,16 @@ enum StylePreset {
   notes(
     'Notes',
     'Concise notes. Use short lines or bullet points ("- ") when the speaker lists things',
+  ),
+  markdown(
+    'Markdown',
+    'Clean, well-structured Markdown for notes, documentation and AI chats. Use "# " for a title and "## " '
+    'for sections only when the dictation has several distinct parts, "- " bullets and "1. " numbered lists '
+    'for lists and steps, "- [ ] " for tasks and to-dos, **bold** only for terms the speaker stresses, single '
+    'backticks around commands, file names, code and identifiers, a fenced code block with its language for '
+    'multi-line code, "> " for quotations, and a GitHub-flavored Markdown table with a header row when the '
+    'speaker compares several items or gives rows of data. Leave a blank line between blocks. Never wrap the '
+    'whole text in a code block. Short dictation stays a plain sentence',
   );
 
   const StylePreset(this.label, this.instruction);

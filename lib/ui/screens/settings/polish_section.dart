@@ -18,7 +18,29 @@ class PolishSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SettingsSection(
       title: 'Polish',
-      children: [Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: PolishChoice())],
+      children: [
+        Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: PolishChoice()),
+        SizedBox(height: 8),
+        _Thinking(),
+      ],
+    );
+  }
+}
+
+/// Gemini thinking before it writes.
+class _Thinking extends ConsumerWidget {
+  const _Thinking();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(settingsProvider.select((s) => s.thinking));
+    return SwitchListTile(
+      value: on,
+      title: const Text('Think before writing'),
+      subtitle: const Text(
+        'Gemini works out what you meant before it writes: better with mumbles, noise, lists and commands. A little slower.',
+      ),
+      onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(thinking: v))),
     );
   }
 }

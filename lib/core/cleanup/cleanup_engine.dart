@@ -36,6 +36,7 @@ class CleanupRequest {
     this.contextAfter,
   }) : assert(mode != CleanupMode.edit || sourceText != null, 'edit mode needs sourceText');
 
+
   /// [Pcm]-format audio (16 kHz mono s16le), at most the engine's
   /// [CleanupEngine.maxAudioPerRequest] long. The engine wraps it as needed.
   final Uint8List pcm;

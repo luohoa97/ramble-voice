@@ -24,7 +24,7 @@ Uint8List _longSpeech() => concatBytes([
 CleanupFailure _fail(CleanupFailureKind k, [Duration? retry]) => CleanupFailure(k, 'fail $k', retryAfter: retry);
 
 void main() {
-  const pipeline = CleanupPipeline();
+  const pipeline = CleanupPipeline(condition: CleanupPipeline.unconditioned);
 
   group('chunking and stitching', () {
     test('short audio is one request with the exact bytes', () async {

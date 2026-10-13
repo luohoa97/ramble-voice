@@ -12,7 +12,7 @@ import '../../core/dictation/dictation_controller.dart';
 import '../theme/app_theme.dart';
 
 /// The hero control. Shape morphs between states with a spring:
-/// idle = 9-sided cookie, listening = sunny burst that follows input level,
+/// idle = 9-sided cookie, listening = sunny burst that swells with the voice,
 /// processing = circle holding the M3 Expressive loading indicator.
 class MicButton extends StatefulWidget {
   const MicButton({
@@ -161,10 +161,35 @@ class _MicButtonState extends State<MicButton> with SingleTickerProviderStateMix
     _syncTicker();
   }
 
+  /// Running background level (room, bus engine) the voice is measured against.
+  double? _floor;
+
+  /// How loud the voice is above the background, 0..1. The raw level sits
+  /// around 0.5 in any real room, so it is measured relative to a floor that
+  /// drops at once and rises slowly; speaking makes the mic swell, silence
+  /// lets it settle, whatever the background.
   double get _targetLevel {
     final s = widget.state;
-    if (s is! DictationListening) return 0;
-    return math.sqrt(s.level.clamp(0.0, 1.0)).clamp(0.0, 1.0);
+    if (s is! DictationListening || s.paused) return 0;
+    final raw = s.level.clamp(0.0, 1.0);
+    final floor = _floor ?? raw;
+    return ((raw - floor - 0.03) / 0.28).clamp(0.0, 1.0);
+  }
+
+  void _trackFloor(double dt) {
+    final s = widget.state;
+    if (s is! DictationListening) {
+      _floor = null;
+      return;
+    }
+    final raw = s.level.clamp(0.0, 1.0);
+    final f = _floor;
+    if (f == null || raw < f) {
+      _floor = raw;
+    } else {
+      // Rises about 0.02 a second: long enough that speech never becomes the floor.
+      _floor = math.min(raw, f + 0.02 * dt);
+    }
   }
 
   void _syncTicker() {
@@ -189,8 +214,9 @@ class _MicButtonState extends State<MicButton> with SingleTickerProviderStateMix
     } else {
       _spring.step(dt);
     }
+    _trackFloor(dt);
     final target = _targetLevel;
-    final tau = target > _level ? 0.04 : 0.18;
+    final tau = target > _level ? 0.05 : 0.22;
     _level += (target - _level) * (1 - math.exp(-dt / tau));
     if (_visual == _Visual.listening && !_reduceMotion) {
       _angle += dt * 0.5;
@@ -364,7 +390,7 @@ class _MicPainter extends CustomPainter {
     final base = s * 0.74;
 
     if (owner._visual == _Visual.listening || level > 0.01) {
-      final r = (base / 2) * (1.08 + 0.3 * level);
+      final r = math.min(s / 2, (base / 2) * (1.08 + 0.42 * level));
       canvas.drawCircle(c, r, Paint()..color = ring.withValues(alpha: 0.10 + 0.12 * level));
       canvas.drawCircle(
         c,
@@ -378,7 +404,7 @@ class _MicPainter extends CustomPainter {
 
     final morph = _morph(owner._from, owner._to);
     final path = morph.toPath(progress: owner._spring.x, rotationPivotX: 0.5, rotationPivotY: 0.5);
-    final scale = base * (1 + 0.1 * level);
+    final scale = base * (1 + 0.24 * level);
     canvas
       ..save()
       ..translate(c.dx, c.dy)

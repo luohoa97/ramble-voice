@@ -150,6 +150,7 @@ final gemmaEngineProvider = Provider<GemmaEngine>((ref) {
   final downloader = ref.watch(modelDownloaderProvider);
   final engine = GemmaEngine(
     variant: variant,
+    think: ref.watch(settingsProvider.select((s) => s.thinking)),
     modelPath: () async {
       final f = downloader.finalFile(variant);
       return await f.exists() && await f.length() == variant.sizeBytes ? f.path : null;

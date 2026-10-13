@@ -314,18 +314,18 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_edge_ai
-      sha256: ba568a3e18cc26b43e8bf004bc73f8dc275f31f83565a1dc57ec9c3c510ba87d
+      sha256: "09acc74cad693e7091aa2b940c91ab9c5c05b6ee0bccae8587af2349ea841c19"
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.0"
+    version: "2.3.1"
   flutter_edge_ai_litertlm:
     dependency: "direct main"
     description:
       name: flutter_edge_ai_litertlm
-      sha256: "3342142a19c1d92efcd86c331c0644ee5f7b176f8011d149294ffff243e72805"
+      sha256: "80d7a48481d50a1d3c5719e36153c6480970c5121b20c077559148ba56833bbd"
       url: "https://pub.dev"
     source: hosted
-    version: "1.12.0"
+    version: "1.13.1"
   flutter_lints:
     dependency: "direct dev"
     description:

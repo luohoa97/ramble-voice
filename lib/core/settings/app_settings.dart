@@ -315,16 +315,22 @@ class SettingsStore {
   /// The languages a fresh install starts with.
   final List<String> Function() deviceLanguages;
 
+  /// The last settings that were read back successfully.
+  File get backup => File('${file.path}.bak');
+
   Future<AppSettings> load() async {
-    try {
-      if (!await file.exists()) return AppSettings(languages: deviceLanguages());
-      return AppSettings.fromJson(
-        (jsonDecode(await file.readAsString()) as Map).cast<String, Object?>(),
-        deviceLanguages: deviceLanguages(),
-      );
-    } catch (_) {
-      return AppSettings(languages: deviceLanguages());
+    for (final f in [file, backup]) {
+      try {
+        if (!await f.exists()) continue;
+        return AppSettings.fromJson(
+          (jsonDecode(await f.readAsString()) as Map).cast<String, Object?>(),
+          deviceLanguages: deviceLanguages(),
+        );
+      } catch (_) {
+        // Unreadable: try the backup before falling back to defaults.
+      }
     }
+    return AppSettings(languages: deviceLanguages());
   }
 
   static var _seq = 0;
@@ -335,6 +341,16 @@ class SettingsStore {
     // save at the same moment, and must never write into each other's file.
     final tmp = File('${file.path}.${pid}_${DateTime.now().microsecondsSinceEpoch}_${_seq++}.tmp');
     await tmp.writeAsString(const JsonEncoder.withIndent('  ').convert(s.toJson()), flush: true);
+    // Keep the current file as the backup, but only if it is valid JSON.
+    try {
+      if (await file.exists()) {
+        final current = await file.readAsString();
+        jsonDecode(current);
+        await backup.writeAsString(current, flush: true);
+      }
+    } catch (_) {
+      // A corrupt current file is not worth keeping.
+    }
     await tmp.rename(file.path);
   }
 }

@@ -15,7 +15,11 @@ import '../cleanup_prompt.dart';
 /// One fresh session per request, so no audio or text carries over between
 /// dictations.
 class GemmaEngine implements CleanupEngine {
-  GemmaEngine({required this.variant, required this.modelPath});
+  GemmaEngine({required this.variant, required this.modelPath, this.think = false});
+
+  /// Gemma 4 reasons before answering (its thinking mode): better at intent,
+  /// lists and quoting, slower. The reasoning is stripped from the result.
+  final bool think;
 
   final GemmaVariant variant;
 
@@ -104,14 +108,21 @@ class GemmaEngine implements CleanupEngine {
         topK: 40,
         enableAudioModality: true,
         systemInstruction: system,
-        maxOutputTokens: 2048,
+        enableThinking: think,
+        maxOutputTokens: think ? 4096 : 2048,
       );
       await session.addQueryChunk(Message.withAudio(
         text: CleanupPrompt.userTextFor(request),
         audioBytes: WavEncoder.encode(request.pcm),
         isUser: true,
       ));
-      return CleanupPrompt.tidyFor(request, await session.getResponse());
+      final raw = ModelThinkingFilter.cleanResponse(
+        await session.getResponse(),
+        enableThinking: think,
+        modelType: ModelType.gemma4,
+        fileType: ModelFileType.litertlm,
+      );
+      return CleanupPrompt.tidyFor(request, raw);
     } on CleanupFailure {
       rethrow;
     } catch (e) {

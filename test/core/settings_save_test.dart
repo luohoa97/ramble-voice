@@ -27,4 +27,15 @@ void main() {
     expect(saved.completedSetup, contains('tips'));
     expect(dir.listSync().where((f) => f.path.endsWith('.tmp')), isEmpty);
   });
+
+  test('a corrupt settings file falls back to the last good copy, not defaults', () async {
+    final dir = await Directory.systemTemp.createTemp('ramble_settings');
+    addTearDown(() => dir.delete(recursive: true));
+    final store = SettingsStore(File('${dir.path}/settings.json'));
+    await store.save(const AppSettings(onboarded: true));
+    await store.save(const AppSettings(onboarded: true, usageLog: false));
+    await store.file.writeAsString('{"onboard');
+    final loaded = await store.load();
+    expect(loaded.onboarded, isTrue);
+  });
 }

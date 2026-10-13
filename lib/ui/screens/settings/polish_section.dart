@@ -38,7 +38,7 @@ class _Thinking extends ConsumerWidget {
       value: on,
       title: const Text('Think before writing'),
       subtitle: const Text(
-        'Gemini works out what you meant before it writes: better with mumbles, noise, lists and commands. A little slower.',
+        'The model works out what you meant before it writes (Gemini and on-device Gemma): better with mumbles, noise, lists and commands. Slower, especially on-device.',
       ),
       onChanged: (v) => unawaited(ref.read(settingsProvider.notifier).update((s) => s.copyWith(thinking: v))),
     );

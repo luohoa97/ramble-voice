@@ -129,6 +129,21 @@ class SystemHandler(
             }
             "sdkInt" -> result.success(Build.VERSION.SDK_INT)
             "deviceInfo" -> result.success(NpuRuntime.deviceInfo(context))
+            "chooseAccount" -> {
+                // Android's own account chooser: the user picks one account and
+                // only its name (the email address) comes back. No permission.
+                val activity = context as? android.app.Activity
+                if (activity == null) {
+                    result.success(null)
+                } else {
+                    pendingAccount?.success(null)
+                    pendingAccount = result
+                    val intent = android.accounts.AccountManager.newChooseAccountIntent(
+                        null, null, null, null, null, null, null,
+                    )
+                    activity.startActivityForResult(intent, REQUEST_ACCOUNT)
+                }
+            }
             "npuInstall" -> {
                 val main = android.os.Handler(android.os.Looper.getMainLooper())
                 Thread {
@@ -310,5 +325,23 @@ class SystemHandler(
         }
         launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
         return false
+    }
+
+    companion object {
+        const val REQUEST_ACCOUNT = 4711
+
+        /** The Dart call waiting for the account chooser (one at a time). */
+        var pendingAccount: MethodChannel.Result? = null
+
+        /** From MainActivity.onActivityResult. */
+        fun onAccountChosen(resultCode: Int, data: android.content.Intent?) {
+            val name = if (resultCode == android.app.Activity.RESULT_OK) {
+                data?.getStringExtra(android.accounts.AccountManager.KEY_ACCOUNT_NAME)
+            } else {
+                null
+            }
+            pendingAccount?.success(name)
+            pendingAccount = null
+        }
     }
 }

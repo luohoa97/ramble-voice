@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/providers.dart';
+import '../../../platform/android/android_system.dart';
 import '../../util/open_url.dart';
 import '../../util/platform_flags.dart';
 import '../../util/system_channel.dart';
@@ -321,6 +322,21 @@ class _MyEmailsSectionState extends ConsumerState<MyEmailsSection> {
               IconButton.filledTonal(tooltip: 'Add', onPressed: _add, icon: const Icon(Icons.add_rounded)),
             ],
           ),
+          if (ref.watch(isAndroidProvider))
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final email = await AndroidSystem().chooseAccountEmail();
+                  if (email == null || !email.contains('@')) return;
+                  await ref
+                      .read(settingsProvider.notifier)
+                      .update((s) => s.myEmails.contains(email) ? s : s.copyWith(myEmails: [...s.myEmails, email]));
+                },
+                icon: const Icon(Icons.account_circle_outlined, size: 18),
+                label: const Text('Add from your accounts'),
+              ),
+            ),
         ],
       ),
     );

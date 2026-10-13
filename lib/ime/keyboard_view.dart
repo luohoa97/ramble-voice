@@ -350,11 +350,11 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                     child: Center(
                       child: _info.isEmailField &&
                               state is DictationIdle &&
-                              _undoText == null &&
-                              ref.watch(settingsProvider.select((s) => s.myEmails)).isNotEmpty
+                              _undoText == null
                           ? _EmailChips(
                               emails: ref.watch(settingsProvider.select((s) => s.myEmails)),
                               onPick: (e) => act(() => unawaited(ref.read(platformServicesProvider).inserter.insert(e))),
+                              onAdd: () => act(() => _openApp('/settings/dictation')),
                             )
                           : _Status(
                         state: state,
@@ -675,10 +675,13 @@ class _BigRepeatKeyState extends State<_BigRepeatKey> {
 
 /// Your own email addresses as one-tap chips, in email fields (like Gboard).
 class _EmailChips extends StatelessWidget {
-  const _EmailChips({required this.emails, required this.onPick});
+  const _EmailChips({required this.emails, required this.onPick, required this.onAdd});
 
   final List<String> emails;
   final void Function(String email) onPick;
+
+  /// Opens the app to add addresses (shown while there are none).
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -686,6 +689,13 @@ class _EmailChips extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
+          if (emails.isEmpty)
+            ActionChip(
+              avatar: const Icon(Icons.alternate_email_rounded, size: 18),
+              label: const Text('Add your email'),
+              visualDensity: VisualDensity.compact,
+              onPressed: onAdd,
+            ),
           for (final e in emails)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),

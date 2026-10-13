@@ -159,6 +159,18 @@ extension BubbleSystem on AndroidSystem {
 
   Future<void> removeNpuRuntime() => _call('npuRemove');
 
+  /// Opens Android's account chooser; returns the picked account's address,
+  /// or null when cancelled.
+  Future<String?> chooseAccountEmail() async {
+    try {
+      return await _channel.invokeMethod<String>('chooseAccount');
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   /// `Build.VERSION.SDK_INT`, 0 when unknown.
   Future<int> sdkInt() async {
     try {

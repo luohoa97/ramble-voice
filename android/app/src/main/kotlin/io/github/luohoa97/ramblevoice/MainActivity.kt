@@ -52,6 +52,13 @@ class MainActivity : FlutterActivity() {
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == SystemHandler.REQUEST_ACCOUNT) SystemHandler.onAccountChosen(resultCode, data)
+    }
+
     /** The keyboard's "open app" shortcut while the app is already running. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

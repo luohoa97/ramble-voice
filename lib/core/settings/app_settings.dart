@@ -48,6 +48,7 @@ class AppSettings {
     this.useFieldContext = true,
     this.screenContext = false,
     this.myEmails = const [],
+    this.emailLabels = const {},
     this.usageLog = true,
     this.adbDiagnostics = false,
     this.snippets = const [],
@@ -112,8 +113,18 @@ class AppSettings {
   /// replied to) with each dictation. Off unless the user turns it on.
   final bool screenContext;
 
+  /// `address (label)` for the prompt; the label is user text, so it is kept
+  /// short and stripped of anything that could fake prompt structure.
+  static String _labelled(String email, String? label) {
+    final l = (label ?? '').replaceAll(RegExp(r'[^\p{L}\p{N} .\-]', unicode: true), '').trim();
+    return l.isEmpty ? email : '$email (${l.length > 30 ? l.substring(0, 30) : l})';
+  }
+
   /// The user's own email addresses: one-tap chips in email fields.
   final List<String> myEmails;
+
+  /// A label per address ("Personal", "Work"), by address.
+  final Map<String, String> emailLabels;
 
   /// Keep the on-device usage log (engines, timings, failures; never text).
   final bool usageLog;
@@ -125,13 +136,9 @@ class AppSettings {
   final List<Snippet> snippets;
 
   /// [style] plus the language and snippets: what the engines get.
-  StyleProfile get effectiveStyle => style.copyWith(languages: languages, snippets: [...snippets, ..._emailSnippets]);
-
-  /// Saying "my email" types your (first) address, unless you made your own
-  /// shortcut for it; "my work email" etc. are yours to add.
-  List<Snippet> get _emailSnippets => myEmails.isEmpty || snippets.any((s) => s.trigger.trim().toLowerCase() == 'my email')
-      ? const []
-      : [Snippet(trigger: 'my email', expansion: myEmails.first)];
+  StyleProfile get effectiveStyle => style.copyWith(languages: languages, snippets: snippets, myEmails: [
+        for (final e in myEmails) _labelled(e, emailLabels[e]),
+      ]);
 
   /// Android floating mic: package names of apps where the bubble never shows.
   final List<String> bubbleBlockedApps;
@@ -179,6 +186,7 @@ class AppSettings {
     bool? useFieldContext,
     bool? screenContext,
     List<String>? myEmails,
+    Map<String, String>? emailLabels,
     bool? usageLog,
     bool? adbDiagnostics,
     List<Snippet>? snippets,
@@ -211,6 +219,7 @@ class AppSettings {
         useFieldContext: useFieldContext ?? this.useFieldContext,
         screenContext: screenContext ?? this.screenContext,
         myEmails: myEmails ?? this.myEmails,
+        emailLabels: emailLabels ?? this.emailLabels,
         usageLog: usageLog ?? this.usageLog,
         adbDiagnostics: adbDiagnostics ?? this.adbDiagnostics,
         snippets: snippets ?? this.snippets,
@@ -244,6 +253,7 @@ class AppSettings {
         'useFieldContext': useFieldContext,
         'screenContext': screenContext,
         'myEmails': myEmails,
+        'emailLabels': emailLabels,
         'usageLog': usageLog,
         'adbDiagnostics': adbDiagnostics,
         'snippets': [for (final s in snippets) s.toJson()],
@@ -283,6 +293,10 @@ class AppSettings {
         useFieldContext: j['useFieldContext'] as bool? ?? true,
         screenContext: j['screenContext'] as bool? ?? false,
         myEmails: (j['myEmails'] as List?)?.whereType<String>().toList() ?? const [],
+        emailLabels: {
+          for (final e in ((j['emailLabels'] as Map?) ?? const {}).entries)
+            if (e.key is String && e.value is String) e.key as String: e.value as String,
+        },
         usageLog: j['usageLog'] as bool? ?? true,
         adbDiagnostics: j['adbDiagnostics'] as bool? ?? false,
         snippets: [

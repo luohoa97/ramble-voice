@@ -66,7 +66,26 @@ class StyleProfile {
     this.snippets = const [],
     this.contactNames = const [],
     this.textSpeak = false,
+    this.myEmails = const [],
   });
+
+  /// The speaker's own email addresses, the first the default. Composed from
+  /// `AppSettings.myEmails` per request; not part of [toJson].
+  final List<String> myEmails;
+
+  /// The prompt sentence about the speaker's addresses, or '' when none.
+  String describeEmails() {
+    final list = [for (final e in myEmails) if (e.trim().isNotEmpty) e.trim()];
+    if (list.isEmpty) return '';
+    final others = list.skip(1).toList();
+    return "The speaker's own email address is ${list.first}"
+        '${others.isEmpty ? '' : ' (their default); their other addresses are ${others.join(', ')}'}. '
+        '${list.any((e) => e.contains(' (')) ? 'A word in parentheses is that address\'s label, never part of it. ' : ''}'
+        'When they refer to their own email ("my email", "here is my email", "email me at"), write the address '
+        '${others.isEmpty ? 'itself' : 'itself: the default unless they hint at another one ("the andysfruit one", '
+            '"my work email", "the Gmail one"), then the one whose address or label matches the hint'}. Never write their address when '
+        'they do not refer to it.';
+  }
 
   final StylePreset preset;
 
@@ -139,6 +158,7 @@ class StyleProfile {
     List<Snippet>? snippets,
     List<String>? contactNames,
     bool? textSpeak,
+    List<String>? myEmails,
   }) =>
       StyleProfile(
         preset: preset ?? this.preset,
@@ -149,6 +169,7 @@ class StyleProfile {
         snippets: snippets ?? this.snippets,
         contactNames: contactNames ?? this.contactNames,
         textSpeak: textSpeak ?? this.textSpeak,
+        myEmails: myEmails ?? this.myEmails,
       );
 
   Map<String, Object?> toJson() => {

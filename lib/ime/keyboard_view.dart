@@ -353,6 +353,7 @@ class _KeyboardViewState extends ConsumerState<KeyboardView> {
                               _undoText == null
                           ? _EmailChips(
                               emails: ref.watch(settingsProvider.select((s) => s.myEmails)),
+                              labels: ref.watch(settingsProvider.select((s) => s.emailLabels)),
                               onPick: (e) => act(() => unawaited(ref.read(platformServicesProvider).inserter.insert(e))),
                               onAdd: () => act(() => _openApp('/settings/dictation')),
                             )
@@ -675,9 +676,10 @@ class _BigRepeatKeyState extends State<_BigRepeatKey> {
 
 /// Your own email addresses as one-tap chips, in email fields (like Gboard).
 class _EmailChips extends StatelessWidget {
-  const _EmailChips({required this.emails, required this.onPick, required this.onAdd});
+  const _EmailChips({required this.emails, required this.labels, required this.onPick, required this.onAdd});
 
   final List<String> emails;
+  final Map<String, String> labels;
   final void Function(String email) onPick;
 
   /// Opens the app to add addresses (shown while there are none).
@@ -701,7 +703,7 @@ class _EmailChips extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: ActionChip(
                 avatar: const Icon(Icons.alternate_email_rounded, size: 18),
-                label: Text(e),
+                label: Text(labels[e]?.trim().isNotEmpty == true ? '${labels[e]!.trim()} · $e' : e),
                 visualDensity: VisualDensity.compact,
                 tooltip: 'Type $e',
                 onPressed: () => onPick(e),

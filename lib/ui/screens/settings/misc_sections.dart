@@ -267,6 +267,35 @@ class _MyEmailsSectionState extends ConsumerState<MyEmailsSection> {
     super.dispose();
   }
 
+  Future<void> _editLabel(String email, bool isDefault) async {
+    final controller = TextEditingController(text: ref.read(settingsProvider).emailLabels[email] ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(email),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 30,
+          decoration: const InputDecoration(labelText: 'Label', hintText: 'Personal, Work, School'),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          if (!isDefault) TextButton(onPressed: () => Navigator.pop(context, '\u0000default'), child: const Text('Make default')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Save')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null) return;
+    await ref.read(settingsProvider.notifier).update((s) {
+      if (result == '\u0000default') return s.copyWith(myEmails: [email, ...s.myEmails.where((x) => x != email)]);
+      final label = result.trim();
+      return s.copyWith(emailLabels: {...s.emailLabels}..[email] = label);
+    });
+  }
+
   void _add() {
     final e = _controller.text.trim();
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(e)) {
@@ -280,6 +309,7 @@ class _MyEmailsSectionState extends ConsumerState<MyEmailsSection> {
   @override
   Widget build(BuildContext context) {
     final emails = ref.watch(settingsProvider.select((s) => s.myEmails));
+    final labels = ref.watch(settingsProvider.select((s) => s.emailLabels));
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
     return Padding(
@@ -288,7 +318,8 @@ class _MyEmailsSectionState extends ConsumerState<MyEmailsSection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Shown as one-tap chips on the Ramble keyboard in email fields. Saying "my email" types the first one.',
+            'One-tap chips on the Ramble keyboard in email fields. Saying "my email" writes the default (starred); '
+            'say "my work email" or "the Gmail one" for another. Tap an address to label it.',
             style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
@@ -296,12 +327,15 @@ class _MyEmailsSectionState extends ConsumerState<MyEmailsSection> {
             spacing: 8,
             runSpacing: 4,
             children: [
-              for (final e in emails)
+              for (final (i, e) in emails.indexed)
                 InputChip(
-                  label: Text(e),
-                  onDeleted: () => ref
-                      .read(settingsProvider.notifier)
-                      .update((s) => s.copyWith(myEmails: [...s.myEmails]..remove(e))),
+                  avatar: i == 0 ? const Icon(Icons.star_rounded, size: 18) : null,
+                  label: Text(labels[e]?.trim().isNotEmpty == true ? '${labels[e]!.trim()} · $e' : e),
+                  tooltip: 'Label, or make it the default',
+                  onPressed: () => _editLabel(e, i == 0),
+                  onDeleted: () => ref.read(settingsProvider.notifier).update(
+                        (s) => s.copyWith(myEmails: [...s.myEmails]..remove(e), emailLabels: {...s.emailLabels}..remove(e)),
+                      ),
                   deleteButtonTooltipMessage: 'Remove $e',
                 ),
             ],

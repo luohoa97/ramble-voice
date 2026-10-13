@@ -83,8 +83,10 @@ class StyleProfile {
         '${list.any((e) => e.contains(' (')) ? 'A word in parentheses is that address\'s label, never part of it. ' : ''}'
         'When they refer to their own email ("my email", "here is my email", "email me at"), write the address '
         '${others.isEmpty ? 'itself' : 'itself: the default unless they hint at another one ("the andysfruit one", '
-            '"my work email", "the Gmail one"), then the one whose address or label matches the hint'}. Never write their address when '
-        'they do not refer to it.';
+            '"my work email", "the Gmail one"), then the one whose address or label matches the hint'}. Always write the '
+        'address itself where they refer to it, even as an aside at the end: the speech "here\'s my email btw" becomes '
+        '"Here\'s my email btw: ${list.first.split(' (').first}", and "you can email me" becomes "You can email me at '
+        '${list.first.split(' (').first}." Never write their address when they do not refer to it.';
   }
 
   final StylePreset preset;

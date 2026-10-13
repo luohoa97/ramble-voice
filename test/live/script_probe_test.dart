@@ -34,7 +34,10 @@ void main() {
         pcm: env['RAMBLE_GAIN'] == '0'
             ? WavEncoder.decode(File(wavPath!).readAsBytesSync())
             : AutoGain.normalize(WavEncoder.decode(File(wavPath!).readAsBytesSync())),
-        style: const StyleProfile(languages: ['en', 'zh', 'ja']),
+        style: StyleProfile(
+          languages: const ['en', 'zh', 'ja'],
+          myEmails: (env['RAMBLE_EMAILS'] ?? '').split(',').where((e) => e.isNotEmpty).toList(),
+        ),
         mode: env['RAMBLE_EDIT'] == null ? CleanupMode.clean : CleanupMode.edit,
         sourceText: env['RAMBLE_EDIT'],
         contextBefore: env['RAMBLE_BEFORE'],

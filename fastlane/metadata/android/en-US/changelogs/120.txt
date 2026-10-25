@@ -1,0 +1,4 @@
+Ramble Voice 1.2.0
+- Faster cloud results: short phrases think less, audio uploads as lossless FLAC (about half the size), and the connection opens while you speak.
+- Long recordings split in the middle of a pause, repeating a second of audio so no words are lost.
+- Brand and package names from context: "send through Resend", drizzle-kit, @tanstack/react-query. Lowercase when unsure.

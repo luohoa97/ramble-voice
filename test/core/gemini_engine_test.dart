@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:ramble_voice/core/audio/flac_encoder.dart';
 import 'package:ramble_voice/core/audio/pcm.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_engine.dart';
 import 'package:ramble_voice/core/cleanup/cleanup_prompt.dart';
@@ -212,7 +213,7 @@ void main() {
   });
 
   group('process', () {
-    test('clean mode sends the cleanup prompt, neutral user turn and a WAV', () async {
+    test('clean mode sends the cleanup prompt, neutral user turn and lossless FLAC', () async {
       final server = FakeGeminiServer(onGenerate: (r, b) => textResponse('Hello.'));
       const style = StyleProfile(preset: StylePreset.professional, vocabulary: ['Ramble']);
       final req = _request(style: style);
@@ -224,8 +225,11 @@ void main() {
       expect(system, CleanupPrompt.build(style));
       final parts = ((body['contents'] as List).single as Map)['parts'] as List;
       expect((parts[0] as Map)['text'], CleanupPrompt.userTurn);
-      final wav = base64Decode((((parts[1] as Map)['inlineData']) as Map)['data'] as String);
-      expect(WavEncoder.decode(Uint8List.fromList(wav)), req.pcm);
+      final inline = (parts[1] as Map)['inlineData'] as Map;
+      expect(inline['mimeType'], 'audio/flac');
+      final audio = base64Decode(inline['data'] as String);
+      expect(audio, FlacEncoder.encode(req.pcm));
+      expect(String.fromCharCodes(audio.take(4)), 'fLaC');
     });
 
     test('verbatim mode uses the verbatim prompt', () async {
@@ -238,12 +242,18 @@ void main() {
       expect(system, isNot(CleanupPrompt.build(style)));
     });
 
-    test('thinking: cleanup asks for high thinking in the same single request', () async {
-      final server = FakeGeminiServer(onGenerate: (r, b) => textResponse('Hello.'));
-      final e = GeminiEngine(apiKey: () async => 'KEY', client: GeminiClient(httpClient: server.client), thinkOnCleanup: true);
-      expect(await e.process(_request()), 'Hello.');
-      final body = FakeGeminiServer.bodyOf(server.generateCalls.single);
-      expect(jsonEncode(body['generationConfig']).toLowerCase(), contains('high'));
+    test('thinking: one request, more reasoning the longer the dictation', () async {
+      Future<String> levelFor(Duration audio) async {
+        final server = FakeGeminiServer(onGenerate: (r, b) => textResponse('Hello.'));
+        final e = GeminiEngine(apiKey: () async => 'KEY', client: GeminiClient(httpClient: server.client), thinkOnCleanup: true);
+        expect(await e.process(CleanupRequest(pcm: silencePcm(audio), style: const StyleProfile())), 'Hello.');
+        final config = FakeGeminiServer.bodyOf(server.generateCalls.single)['generationConfig'] as Map;
+        return (config['thinkingConfig'] as Map)['thinkingLevel'] as String;
+      }
+
+      expect(await levelFor(const Duration(seconds: 3)), 'low');
+      expect(await levelFor(const Duration(seconds: 20)), 'medium');
+      expect(await levelFor(const Duration(seconds: 40)), 'high');
     });
 
     test('output is tidied', () async {

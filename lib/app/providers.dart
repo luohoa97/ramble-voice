@@ -190,7 +190,8 @@ final engineSetProvider = Provider<Future<EngineSet> Function()>((ref) {
 final activeEngineReadinessProvider = FutureProvider<EngineReadiness>((ref) async {
   final kind = ref.watch(settingsProvider.select((s) => s.engine));
   ref.watch(settingsProvider.select((s) => s.gemmaVariantId));
-  final engine = kind == EngineKind.onDevice ? ref.watch(gemmaEngineProvider) : ref.watch(geminiEngineProvider);
+  final CleanupEngine engine =
+      kind == EngineKind.onDevice ? ref.watch(gemmaEngineProvider) : ref.watch(geminiEngineProvider);
   return engine.readiness();
 });
 

@@ -14,7 +14,7 @@ import '../cleanup_prompt.dart';
 /// On-device cleanup with Gemma 4 through flutter_edge_ai (LiteRT-LM).
 /// One fresh session per request, so no audio or text carries over between
 /// dictations.
-class GemmaEngine implements CleanupEngine {
+class GemmaEngine implements CleanupEngine, WarmableEngine {
   GemmaEngine({required this.variant, required this.modelPath, this.think = false, this.npuReady});
 
   /// Whether Qualcomm's NPU runtime is downloaded (NPU variants need it).
@@ -65,6 +65,16 @@ class GemmaEngine implements CleanupEngine {
       );
     }
     return EngineReady(detail: activeBackend == null ? variant.label : '${variant.label} · $activeBackend');
+  }
+
+  /// Loads the model while the person speaks, so processing starts at once.
+  @override
+  Future<void> warmUp() async {
+    try {
+      await _ensureModel();
+    } catch (_) {
+      // The real request reports the failure.
+    }
   }
 
   Future<InferenceModel> _ensureModel() async {

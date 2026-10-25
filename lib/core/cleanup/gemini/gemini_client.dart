@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 import '../cleanup_engine.dart';
 
@@ -12,7 +13,7 @@ import '../cleanup_engine.dart';
 /// official Dart SDK, and the API needs only two calls.
 class GeminiClient {
   GeminiClient({http.Client? httpClient, this.timeout = const Duration(seconds: 90)})
-      : _http = httpClient ?? http.Client();
+      : _http = httpClient ?? IOClient(HttpClient()..idleTimeout = const Duration(minutes: 2));
 
   static final Uri base = Uri.parse('https://generativelanguage.googleapis.com/v1beta/');
 
@@ -40,6 +41,17 @@ class GeminiClient {
     return models;
   }
 
+  /// Opens (or keeps alive) the connection to the API with a tiny `GET`, so
+  /// the next request skips the TLS handshake. Never throws.
+  Future<void> warmUp(String apiKey) async {
+    try {
+      final uri = base.resolve('models').replace(queryParameters: {'pageSize': '1'});
+      await _http.get(uri, headers: _headers(apiKey)).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Best effort.
+    }
+  }
+
   /// `POST models/{model}:generateContent` with a system instruction, a user
   /// text part and inline WAV audio. Returns the response text.
   Future<String> generateFromAudio({
@@ -48,6 +60,7 @@ class GeminiClient {
     required String systemInstruction,
     required String userText,
     required List<int> wav,
+    String mimeType = 'audio/wav',
     bool minimalThinking = true,
     String thinkingLevel = 'minimal',
     double temperature = 0.2,
@@ -66,7 +79,7 @@ class GeminiClient {
           'parts': [
             {'text': userText},
             {
-              'inlineData': {'mimeType': 'audio/wav', 'data': base64Encode(wav)},
+              'inlineData': {'mimeType': mimeType, 'data': base64Encode(wav)},
             },
           ],
         },

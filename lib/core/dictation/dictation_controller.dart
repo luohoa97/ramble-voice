@@ -249,6 +249,7 @@ class DictationController {
       _startedAt = _clock();
       _captureDone = Completer<void>();
       _capture = await audio.start();
+      unawaited(_warmUp());
     } on AudioSourceException catch (e) {
       await _discardSink();
       _emit(DictationFailed(message: _audioMessage(e.error), audioError: e.error));
@@ -406,6 +407,15 @@ class DictationController {
   /// Returns to idle after a result or error has been shown.
   void reset() {
     if (!isBusy) _emit(const DictationIdle());
+  }
+
+  /// Lets the engine get ready while the person speaks (see [WarmableEngine]).
+  Future<void> _warmUp() async {
+    try {
+      if ((await engines()).primary case final WarmableEngine engine) await engine.warmUp();
+    } catch (_) {
+      // Best effort.
+    }
   }
 
   Future<void> _process(String id) async {

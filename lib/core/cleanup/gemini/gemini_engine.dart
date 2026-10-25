@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../audio/flac_encoder.dart';
 import '../../audio/pcm.dart';
 import '../cleanup_engine.dart';
 import '../cleanup_prompt.dart';
@@ -124,7 +126,7 @@ class GeminiModelCache {
 /// default is the newest stable Flash. When a model is overloaded, rate
 /// limited or has no quota on this key, the newest Flash-Lite is tried next,
 /// and after that the pipeline falls back to the on-device model.
-class GeminiEngine implements CleanupEngine {
+class GeminiEngine implements CleanupEngine, WarmableEngine {
   GeminiEngine({
     required this.apiKey,
     required this.client,
@@ -317,11 +319,13 @@ class GeminiEngine implements CleanupEngine {
     required String systemInstruction,
     required String userText,
     required List<int> wav,
+    String mimeType = 'audio/wav',
     int maxOutputTokens = 8192,
     Duration? timeout,
     bool think = false,
+    int thinkFrom = 0,
   }) async {
-    var thinkRejected = 0;
+    var thinkRejected = thinkFrom;
     while (true) {
       var mode = cache.thinkingFor(model.id);
       // A little reasoning for the cleanup pass (intent, lists, quoting),
@@ -336,6 +340,7 @@ class GeminiEngine implements CleanupEngine {
           systemInstruction: systemInstruction,
           userText: userText,
           wav: wav,
+          mimeType: mimeType,
           minimalThinking: mode != GeminiThinking.none,
           thinkingLevel: mode.level,
           // Thinking tokens count against the output limit.
@@ -368,6 +373,22 @@ class GeminiEngine implements CleanupEngine {
 
   static const _thinkLadder = [GeminiThinking.high, GeminiThinking.medium, GeminiThinking.low];
 
+  /// Where on [_thinkLadder] to start for a clip of [audio]: a quick phrase
+  /// needs little reasoning and answers seconds sooner, while a long ramble
+  /// gets high thinking to follow what the speaker means.
+  static int thinkStartFor(Duration audio) {
+    if (audio < const Duration(seconds: 12)) return 2;
+    if (audio < const Duration(seconds: 30)) return 1;
+    return 0;
+  }
+
+  /// The audio as FLAC: lossless, about half the bytes of WAV, so it uploads
+  /// faster. Long clips are encoded off the UI thread.
+  static Future<Uint8List> encodeAudio(Uint8List pcm) async {
+    if (Pcm.durationOf(pcm.length) < const Duration(seconds: 20)) return FlacEncoder.encode(pcm);
+    return Isolate.run(() => FlacEncoder.encode(pcm));
+  }
+
   /// Base wait plus the clip's own length: long clips legitimately take longer.
   static Duration requestTimeout(int wavBytes) =>
       const Duration(seconds: 45) + Pcm.durationOf(wavBytes);
@@ -387,15 +408,33 @@ class GeminiEngine implements CleanupEngine {
   @override
   Future<String> process(CleanupRequest request) async {
     final key = await _key();
-    final wav = WavEncoder.encode(request.pcm);
+    final audio = await encodeAudio(request.pcm);
     return _runChain(
       key,
-      wav,
+      audio,
       CleanupPrompt.systemFor(request),
       CleanupPrompt.userTextFor(request),
       (raw) => CleanupPrompt.tidyFor(request, raw),
+      mimeType: FlacEncoder.mimeType,
       think: thinkOnCleanup && request.mode != CleanupMode.verbatim,
+      thinkFrom: thinkStartFor(Pcm.durationOf(request.pcm.length)),
     );
+  }
+
+  /// Called when the mic opens: resolves the model list (cached) and opens
+  /// the connection to Google, so the request after the dictation starts
+  /// without a TLS handshake. Never throws.
+  @override
+  Future<void> warmUp() async {
+    try {
+      final key = (await apiKey())?.trim();
+      if (key == null || key.isEmpty) return;
+      final cached = cache.get(key) != null;
+      await availableModels();
+      if (cached) await client.warmUp(key);
+    } catch (_) {
+      // Best effort.
+    }
   }
 
   /// Sends one prompt down the model chain, falling through to the next
@@ -406,7 +445,9 @@ class GeminiEngine implements CleanupEngine {
     String system,
     String userText,
     String Function(String raw) tidy, {
+    String mimeType = 'audio/wav',
     bool think = false,
+    int thinkFrom = 0,
   }) async {
     var models = await availableModels();
     var chain = _chain(models);
@@ -417,7 +458,14 @@ class GeminiEngine implements CleanupEngine {
       final model = chain[i];
       final timeout = _timeoutFor(model, wav.length);
       Future<String> call() =>
-          _generate(key, model, systemInstruction: system, userText: userText, wav: wav, timeout: timeout, think: think);
+          _generate(key, model,
+              systemInstruction: system,
+              userText: userText,
+              wav: wav,
+              mimeType: mimeType,
+              timeout: timeout,
+              think: think,
+              thinkFrom: thinkFrom);
       try {
         try {
           return tidy(await call());

@@ -11,7 +11,8 @@ with the prebuilt LiteRT-LM libraries. The APK is about 65 MB, above
 IzzyOnDroid's usual limit, so the request asks for a size exception (the size
 is the on-device inference engine; models are downloaded separately).
 
-Open an issue at <https://gitlab.com/IzzyOnDroid/repo/-/issues> titled
+Open an issue at <https://codeberg.org/IzzyOnDroid/repodata/issues> (the
+request tracker moved from GitLab to Codeberg) titled
 "Ramble Voice (io.github.luohoa97.ramblevoice)" with:
 
 > Please add Ramble Voice, a GPL-3.0-or-later voice dictation app and keyboard

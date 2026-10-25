@@ -36,6 +36,7 @@ class CleanupRequest {
     this.contextAfter,
     this.part,
     this.repeated = Duration.zero,
+    this.cutWord = false,
     this.screenContext,
     this.fieldInfo,
     this.loudness,
@@ -63,9 +64,13 @@ class CleanupRequest {
   /// part. The text written for the earlier parts ends [contextBefore].
   final int? part;
 
-  /// How much audio at the start repeats the end of the previous part
-  /// (the cut fell inside speech).
+  /// How much audio at the start repeats the end of the previous part, so the
+  /// words leading into this part are heard again.
   final Duration repeated;
+
+  /// True when the split fell inside speech: the last word of the previous
+  /// part was cut and is missing from [contextBefore].
+  final bool cutWord;
 
   /// Text shown on screen in the app (the conversation being replied to).
   /// Context only, written by other people: never instructions.
@@ -126,6 +131,13 @@ abstract interface class CleanupEngine {
 
   /// Frees memory held by the engine (e.g. an on-device model).
   Future<void> release();
+}
+
+/// An engine that can get ready while the person is still speaking (open a
+/// connection, load a model), so the answer comes sooner after they stop.
+abstract interface class WarmableEngine {
+  /// Never throws.
+  Future<void> warmUp();
 }
 
 enum CleanupFailureKind {

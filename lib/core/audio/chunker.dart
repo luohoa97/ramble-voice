@@ -7,43 +7,58 @@ import 'pcm.dart';
 
 /// A slice of a recording, in bytes of [Pcm] audio.
 class AudioSpan {
-  const AudioSpan(this.start, this.end, {this.overlap = 0});
+  const AudioSpan(this.start, this.end, {this.overlap = 0, this.cutWord = false});
   final int start;
   final int end;
 
-  /// Bytes at the start of this span that repeat the end of the previous one.
-  /// Set when the previous cut fell inside speech (no pause was found), so a
-  /// word split by the cut is heard whole again.
+  /// Bytes at the start of this span that repeat the end of the previous one,
+  /// so the model hears the words leading into it again.
   final int overlap;
+
+  /// True when the previous cut fell inside speech (no pause was found): the
+  /// last word written for the previous span may be a fragment.
+  final bool cutWord;
 
   int get length => end - start;
   Duration get duration => Pcm.durationOf(length);
 
   @override
   bool operator ==(Object other) =>
-      other is AudioSpan && other.start == start && other.end == end && other.overlap == overlap;
+      other is AudioSpan &&
+      other.start == start &&
+      other.end == end &&
+      other.overlap == overlap &&
+      other.cutWord == cutWord;
 
   @override
-  int get hashCode => Object.hash(start, end, overlap);
+  int get hashCode => Object.hash(start, end, overlap, cutWord);
 
   @override
-  String toString() => 'AudioSpan($start, $end${overlap == 0 ? '' : ', overlap: $overlap'})';
+  String toString() =>
+      'AudioSpan($start, $end${overlap == 0 ? '' : ', overlap: $overlap'}${cutWord ? ', cutWord' : ''})';
 }
 
 /// Splits long recordings into pieces no longer than an engine's per-request
-/// audio limit, cutting at the quietest point near the end of each piece so
-/// words are not split. When no pause is found the cut falls inside speech:
-/// the next chunk then starts [overlapOnHardCut] earlier, so the split word is
-/// heard whole again (the pipeline removes the repeated words).
+/// audio limit. Each cut falls in the middle of the longest pause near the end
+/// of a piece, so it lands between words. Every later piece starts a little
+/// earlier ([overlap]) so the model hears the words leading into it again;
+/// when no pause is found the cut falls inside speech and the piece starts
+/// [overlapOnHardCut] earlier, so the split word is heard whole (the pipeline
+/// removes the repeated words).
 class SilenceChunker {
   const SilenceChunker({
     required this.maxChunk,
-    this.searchWindow = const Duration(seconds: 6),
+    this.searchWindow = const Duration(seconds: 10),
     this.frame = const Duration(milliseconds: 30),
     this.smoothingFrames = 5,
+    this.overlap = const Duration(seconds: 1),
     this.overlapOnHardCut = const Duration(seconds: 2),
   }) : assert(searchWindow < maxChunk);
 
+  /// Audio repeated at the start of a piece cut at a pause.
+  final Duration overlap;
+
+  /// Audio repeated at the start of a piece cut inside speech.
   final Duration overlapOnHardCut;
 
   final Duration maxChunk;
@@ -68,30 +83,64 @@ class SilenceChunker {
     // which only costs a few repeated seconds.)
     final sorted = [...energy]..sort();
     final quiet = sorted.isEmpty ? 0.0 : sorted[sorted.length ~/ 2] * 0.25 + 1;
-    final overlapBytes = math.min(Pcm.bytesFor(overlapOnHardCut), maxBytes ~/ 4) ~/ frameBytes * frameBytes;
+    int aligned(Duration d) => math.min(Pcm.bytesFor(d), maxBytes ~/ 4) ~/ frameBytes * frameBytes;
+    final softOverlap = aligned(overlap);
+    final hardOverlap = aligned(overlapOnHardCut);
     var start = 0;
-    var overlap = 0;
+    var repeat = 0;
+    var cutWord = false;
     while (total - start > maxBytes) {
       final limitFrame = (start + maxBytes) ~/ frameBytes;
-      final firstFrame = math.max(start ~/ frameBytes + 1, limitFrame - windowFrames);
-      var best = limitFrame;
-      var bestScore = double.infinity;
-      for (var f = firstFrame; f <= limitFrame; f++) {
-        final score = _smoothed(energy, f);
-        // Prefer later cuts on ties so chunks stay close to the limit.
-        if (score <= bestScore) {
-          bestScore = score;
-          best = f;
+      // Never cut inside the repeated audio, so every piece moves forward.
+      final firstFrame = math.max((start + repeat) ~/ frameBytes + 1, limitFrame - windowFrames);
+      final pause = _longestPause(energy, firstFrame, limitFrame, quiet);
+      final int cutFrame;
+      if (pause != null) {
+        cutFrame = pause;
+      } else {
+        // No pause: the quietest point (later on ties, so pieces stay long).
+        var best = limitFrame;
+        var bestScore = double.infinity;
+        for (var f = firstFrame; f <= limitFrame; f++) {
+          final score = _smoothed(energy, f);
+          if (score <= bestScore) {
+            bestScore = score;
+            best = f;
+          }
         }
+        cutFrame = best;
       }
-      final cut = math.min(best * frameBytes, start + maxBytes);
-      spans.add(AudioSpan(start, cut, overlap: overlap));
-      final hard = bestScore > quiet;
-      overlap = hard ? math.min(overlapBytes, cut - start) : 0;
-      start = cut - overlap;
+      final cut = math.min(cutFrame * frameBytes, start + maxBytes);
+      spans.add(AudioSpan(start, cut, overlap: repeat, cutWord: cutWord));
+      cutWord = pause == null;
+      repeat = math.min(cutWord ? hardOverlap : softOverlap, cut - start);
+      start = cut - repeat;
     }
-    spans.add(AudioSpan(start, total, overlap: overlap));
+    spans.add(AudioSpan(start, total, overlap: repeat, cutWord: cutWord));
     return spans;
+  }
+
+  /// The middle frame of the longest run of quiet frames in [from]..[to]
+  /// (the later one on ties), or null when no frame there is quiet. The middle
+  /// of a pause is the safest place to cut between words.
+  int? _longestPause(List<double> energy, int from, int to, double quiet) {
+    int? best;
+    var bestLength = 0;
+    var runStart = -1;
+    for (var f = from; f <= to + 1; f++) {
+      final isQuiet = f <= to && _smoothed(energy, f) <= quiet;
+      if (isQuiet) {
+        if (runStart < 0) runStart = f;
+      } else if (runStart >= 0) {
+        final length = f - runStart;
+        if (length >= bestLength) {
+          bestLength = length;
+          best = runStart + length ~/ 2;
+        }
+        runStart = -1;
+      }
+    }
+    return best;
   }
 
   List<double> _frameEnergy(Uint8List pcm, int total, int frameBytes) {

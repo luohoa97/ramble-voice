@@ -182,4 +182,26 @@ void main() {
     expect(a, contains('Match this style profile:'));
     expect(a, endsWith('Output only the cleaned text.'));
   });
+
+  test('names made of ordinary words, package names and context are spelled from context', () {
+    final p = CleanupPrompt.build(const StyleProfile());
+    expect(p, contains('"We send our emails through Resend."'));
+    expect(p, contains('("can you resend the invite")'));
+    expect(p, contains('When you cannot tell, keep the ordinary word in lowercase.'));
+    expect(p, contains('"drizzle kit" is drizzle-kit'));
+    expect(p, contains('follow how that ecosystem actually names the thing'));
+    expect(p, contains('Context is your strongest tool'));
+  });
+
+  test('a later part says whether its repeated start was cut mid-word', () {
+    final soft = CleanupPrompt.partRule(CleanupRequest(
+        pcm: Uint8List(0), style: const StyleProfile(), part: 2, repeated: const Duration(seconds: 1)));
+    expect(soft, contains('which <before> already ends with'));
+    expect(soft, isNot(contains('cut through a word')));
+    final hard = CleanupPrompt.partRule(CleanupRequest(
+        pcm: Uint8List(0), style: const StyleProfile(), part: 2, repeated: const Duration(seconds: 2), cutWord: true));
+    expect(hard, contains('cut through a word'));
+    final none = CleanupPrompt.partRule(CleanupRequest(pcm: Uint8List(0), style: const StyleProfile(), part: 2));
+    expect(none, isNot(contains('seconds of this audio')));
+  });
 }

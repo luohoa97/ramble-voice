@@ -52,7 +52,9 @@ void main() {
         );
         final r = await pipeline.run(pcm: pcm, style: _style, primary: engine);
         expect(engine.requests.length, greaterThanOrEqualTo(3));
-        expect(engine.pcmLengths.reduce((a, b) => a + b), pcm.length);
+        // Each later piece repeats about a second of the one before.
+        final repeated = engine.requests.fold<int>(0, (a, r) => a + Pcm.bytesFor(r.repeated));
+        expect(engine.pcmLengths.reduce((a, b) => a + b) - repeated, pcm.length);
         for (final len in engine.pcmLengths) {
           expect(
             Pcm.durationOf(len),

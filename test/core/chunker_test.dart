@@ -52,7 +52,7 @@ void main() {
       expect(chunker.plan(pcm), [AudioSpan(0, Pcm.bytesFor(_s))]);
     });
 
-    test('long audio: contiguous, covering, never above maxChunk', () {
+    test('long audio: covering, never above maxChunk, each piece repeats a little of the last', () {
       final pcm = _speech(seconds: 150);
       final spans = chunker.plan(pcm);
       expect(spans.length, greaterThan(4));
@@ -61,8 +61,28 @@ void main() {
       for (var i = 0; i < spans.length; i++) {
         expect(spans[i].duration, lessThanOrEqualTo(chunker.maxChunk), reason: 'span $i');
         expect(spans[i].length, greaterThan(0));
-        if (i > 0) expect(spans[i].start, spans[i - 1].end, reason: 'no gap or overlap at $i');
+        if (i > 0) {
+          expect(spans[i].start, spans[i - 1].end - spans[i].overlap, reason: 'no gap at $i');
+          // Cut at a pause: about a second repeated, no word was split.
+          expect(Pcm.durationOf(spans[i].overlap).inMilliseconds, closeTo(1000, 30), reason: 'overlap at $i');
+          expect(spans[i].cutWord, isFalse, reason: 'cut word at $i');
+        }
       }
+      expect(spans.fold<int>(0, (a, s) => a + s.length - s.overlap), pcm.length - pcm.length % 2);
+    });
+
+    test('cuts in the middle of the longest pause', () {
+      // A short pause late in the window and a long one earlier: the long one wins.
+      final pcm = concatBytes([
+        tonePcm(const Duration(seconds: 20)),
+        silencePcm(const Duration(milliseconds: 1200)),
+        tonePcm(const Duration(seconds: 5)),
+        silencePcm(const Duration(milliseconds: 200)),
+        tonePcm(const Duration(seconds: 10)),
+      ]);
+      final spans = chunker.plan(pcm);
+      final cut = Pcm.durationOf(spans.first.end).inMilliseconds;
+      expect(cut, closeTo(20600, 150));
     });
 
     test('cuts land inside silence gaps', () {
@@ -93,19 +113,21 @@ void main() {
       }
     });
 
-    test('a cut inside speech makes the next chunk repeat its end; a pause does not', () {
+    test('a cut inside speech repeats more and marks the cut word; a pause repeats a little', () {
       final chunker = SilenceChunker(maxChunk: Duration(seconds: 10), searchWindow: Duration(seconds: 3));
       // Continuous speech: no pause to cut at.
       final talk = tonePcm(const Duration(seconds: 25));
       final hard = chunker.plan(talk);
       expect(hard.first.overlap, 0);
+      expect(hard[1].cutWord, isTrue);
       // About two seconds, whole 30 ms frames.
       expect(Pcm.durationOf(hard[1].overlap).inMilliseconds, closeTo(2000, 30));
       expect(hard[1].start, hard[0].end - hard[1].overlap);
       expect(hard.fold<int>(0, (a, s) => a + s.length - s.overlap), talk.length);
-      // Speech with pauses: clean cuts, no overlap.
+      // Speech with pauses: clean cuts, about a second repeated.
       final paused = chunker.plan(_speech(seconds: 25, talk: 2, gapSeconds: 0.5));
-      expect(paused.every((s) => s.overlap == 0), isTrue);
+      expect(paused.every((s) => !s.cutWord), isTrue);
+      expect(paused.skip(1).every((s) => (Pcm.durationOf(s.overlap).inMilliseconds - 1000).abs() <= 30), isTrue);
     });
 
     test('TextStitcher.dropRepeatedHead removes words heard twice', () {
